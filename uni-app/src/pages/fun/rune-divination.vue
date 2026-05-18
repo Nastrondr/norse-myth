@@ -14,9 +14,42 @@
     <view v-if="divinationStarted && currentDrawStep < 3" class="draw-section">
       <text class="draw-prompt">请抽取：{{ drawPositions[currentDrawStep] }}之符</text>
 
-      <view class="rune-pool">
-        <view class="rune-pool-symbol" v-for="(rune, index) in displayRunes" :key="rune.id" :style="{ animationDelay: (index * 0.15) + 's' }">
-          <text>{{ rune.symbol }}</text>
+      <view class="vegvisir-disc" :class="{ active: isDrawing }">
+        <view class="rune-orbit outer-orbit">
+          <text
+            v-for="(mark, index) in outerRuneMarks"
+            :key="'outer-' + index"
+            class="orbit-rune"
+            :style="getOrbitRuneStyle(index, outerRuneMarks.length, 'outer')"
+          >
+            {{ mark }}
+          </text>
+        </view>
+
+        <view class="rune-orbit inner-orbit">
+          <text
+            v-for="(mark, index) in innerRuneMarks"
+            :key="'inner-' + index"
+            class="orbit-rune inner"
+            :style="getOrbitRuneStyle(index, innerRuneMarks.length, 'inner')"
+          >
+            {{ mark }}
+          </text>
+        </view>
+
+        <view class="inner-compass">
+          <view class="compass-line line-vertical"></view>
+          <view class="compass-line line-horizontal"></view>
+          <view class="compass-line line-diagonal-a"></view>
+          <view class="compass-line line-diagonal-b"></view>
+          <view class="stave stave-north"></view>
+          <view class="stave stave-east"></view>
+          <view class="stave stave-south"></view>
+          <view class="stave stave-west"></view>
+        </view>
+
+        <view class="center-sigil">
+          <text class="center-sigil-text">ᛉ</text>
         </view>
       </view>
 
@@ -85,7 +118,9 @@ export default {
       drawPositions: ['过去', '现在', '未来'],
       drawnRunes: [],
       isDrawing: false,
-      showInterpretation: false
+      showInterpretation: false,
+      outerRuneMarks: ['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ','ᚷ','ᚹ','ᚺ','ᚾ','ᛁ','ᛃ'],
+      innerRuneMarks: ['ᛇ','ᛈ','ᛉ','ᛊ','ᛏ','ᛒ','ᛖ','ᛗ','ᛚ','ᛜ','ᛞ','ᛟ']
     }
   },
   methods: {
@@ -177,6 +212,19 @@ export default {
     getTodayKey() {
       const now = new Date()
       return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`
+    },
+
+    getOrbitRuneStyle(index, total, ring) {
+      const angle = (360 / total) * index - 90
+      const radius = ring === 'outer' ? 43 : 31
+      const x = 50 + radius * Math.cos(angle * Math.PI / 180)
+      const y = 50 + radius * Math.sin(angle * Math.PI / 180)
+
+      return {
+        left: x + '%',
+        top: y + '%',
+        transform: `translate(-50%, -50%) rotate(${angle + 90}deg)`
+      }
     }
   }
 }
@@ -231,37 +279,215 @@ export default {
   letter-spacing: 4rpx;
 }
 
-.rune-pool {
-  margin: 32rpx auto;
-  padding: 36rpx;
-  border-radius: 999rpx;
-  border: 1rpx solid rgba(198, 161, 91, 0.32);
-  background: radial-gradient(circle, rgba(198, 161, 91, 0.10), rgba(23, 34, 48, 0.92));
+.vegvisir-disc {
+  position: relative;
+  width: 520rpx;
+  height: 520rpx;
+  margin: 44rpx auto 40rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, rgba(216,194,122,0.08) 0%, rgba(23,34,48,0.92) 44%, rgba(11,17,24,0.98) 100%);
+  border: 1px solid rgba(198,161,91,0.34);
+  box-shadow: inset 0 0 48rpx rgba(198,161,91,0.08), 0 0 36rpx rgba(0,0,0,0.28);
+  overflow: hidden;
+}
+
+.vegvisir-disc::before {
+  content: '';
+  position: absolute;
+  inset: 34rpx;
+  border-radius: 50%;
+  border: 1px solid rgba(198,161,91,0.28);
+}
+
+.vegvisir-disc::after {
+  content: '';
+  position: absolute;
+  inset: 104rpx;
+  border-radius: 50%;
+  border: 1px solid rgba(198,161,91,0.18);
+}
+
+.rune-orbit {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  transform-origin: center center;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.outer-orbit {
+  animation: runeRotateClockwise 42s linear infinite;
+}
+
+.inner-orbit {
+  animation: runeRotateCounter 34s linear infinite;
+}
+
+.orbit-rune {
+  position: absolute;
+  color: rgba(216,194,122,0.72);
+  font-size: 24rpx;
+  line-height: 1;
+  font-family: serif;
+  text-align: center;
+  text-shadow: 0 0 10rpx rgba(216,194,122,0.10);
+}
+
+.orbit-rune.inner {
+  color: rgba(242,244,246,0.52);
+  font-size: 20rpx;
+}
+
+@keyframes runeRotateClockwise {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes runeRotateCounter {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+.inner-compass {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 260rpx;
+  height: 260rpx;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  opacity: 0.56;
+}
+
+.compass-line {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: rgba(198,161,91,0.28);
+  transform-origin: center;
+}
+
+.line-vertical {
+  width: 2rpx;
+  height: 220rpx;
+  transform: translate(-50%, -50%);
+}
+
+.line-horizontal {
+  width: 220rpx;
+  height: 2rpx;
+  transform: translate(-50%, -50%);
+}
+
+.line-diagonal-a {
+  width: 204rpx;
+  height: 2rpx;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.line-diagonal-b {
+  width: 204rpx;
+  height: 2rpx;
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.stave {
+  position: absolute;
+  width: 46rpx;
+  height: 46rpx;
+  border-left: 2rpx solid rgba(216,194,122,0.54);
+}
+
+.stave::before,
+.stave::after {
+  content: '';
+  position: absolute;
+  width: 22rpx;
+  height: 2rpx;
+  top: 8rpx;
+  background: rgba(216,194,122,0.54);
+}
+
+.stave::before {
+  left: 12rpx;
+  transform: rotate(35deg);
+}
+
+.stave::after {
+  right: 12rpx;
+  transform: rotate(-35deg);
+}
+
+.stave-north {
+  left: 50%;
+  top: 14rpx;
+  transform: translateX(-50%);
+}
+
+.stave-east {
+  right: 14rpx;
+  top: 50%;
+  transform: translateY(-50%) rotate(90deg);
+}
+
+.stave-south {
+  left: 50%;
+  bottom: 14rpx;
+  transform: translateX(-50%) rotate(180deg);
+}
+
+.stave-west {
+  left: 14rpx;
+  top: 50%;
+  transform: translateY(-50%) rotate(-90deg);
+}
+
+.center-sigil {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 82rpx;
+  height: 82rpx;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  border-radius: 50%;
+  border: 1px solid rgba(198,161,91,0.20);
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: 22rpx;
-  width: 560rpx;
-  height: 560rpx;
-  box-sizing: border-box;
+  background: rgba(11,17,24,0.48);
 }
 
-.rune-pool-symbol {
-  color: #D8C27A;
-  font-size: 42rpx;
-  animation: runeFloat 2.4s ease-in-out infinite;
+.center-sigil-text {
+  color: rgba(216,194,122,0.86);
+  font-size: 38rpx;
+  font-family: serif;
+  line-height: 1;
+  animation: sigilPulse 3s ease-in-out infinite;
 }
 
-@keyframes runeFloat {
-  0%, 100% {
-    transform: translateY(0);
-    opacity: 0.72;
-  }
-  50% {
-    transform: translateY(-8rpx);
-    opacity: 1;
-  }
+@keyframes sigilPulse {
+  0%, 100% { opacity: 0.58; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+.vegvisir-disc.active {
+  border-color: rgba(216,194,122,0.72);
+  box-shadow: inset 0 0 58rpx rgba(198,161,91,0.16), 0 0 46rpx rgba(198,161,91,0.16);
+}
+
+.vegvisir-disc.active .outer-orbit {
+  animation-duration: 12s;
+}
+
+.vegvisir-disc.active .inner-orbit {
+  animation-duration: 9s;
+}
+
+.vegvisir-disc.active .orbit-rune {
+  color: rgba(216,194,122,0.95);
+  text-shadow: 0 0 18rpx rgba(216,194,122,0.28);
 }
 
 .draw-slots {

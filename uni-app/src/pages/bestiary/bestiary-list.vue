@@ -53,14 +53,40 @@
 				:class="{ active: currentType === '鸟类' }"
 				@click="currentType = '鸟类'"
 			>鸟类</text>
+			<text
+				class="tab"
+				:class="{ active: currentType === 'artifact' }"
+				@click="switchToArtifacts"
+			>法器</text>
 		</view>
 
-		<view class="creature-grid">
+		<view v-if="currentType === 'artifact'" class="creature-grid">
+			<view
+				class="creature-card"
+				v-for="artifact in artifacts"
+				:key="artifact.id"
+				@click="goToArtifactDetail(artifact.id)"
+			>
+				<view class="card-inner">
+					<view class="top-row">
+						<view class="rarity-dot" :class="artifact.rarity"></view>
+						<view class="collect-status collected">A</view>
+					</view>
+					<view class="avatar" :class="artifact.rarity">
+						<text>{{ getArtifactIcon(artifact.type) }}</text>
+					</view>
+					<text class="creature-name">{{ artifact.name }}</text>
+					<text class="creature-type">{{ artifact.type }}</text>
+				</view>
+			</view>
+		</view>
+
+		<view v-else class="creature-grid">
 			<view
 				class="creature-card"
 				v-for="creature in filteredCreatures"
 				:key="creature.id"
-				:class="{ locked: !isCreatureCollected(creature.id) }"
+				:class="{ locked: !isCreatureRevealed(creature.id) }"
 				@click="goToDetail(creature.id)"
 			>
 				<view class="card-inner">
@@ -69,22 +95,26 @@
 							!
 						</view>
 						<view v-else class="danger-tag placeholder"></view>
-						<view class="collect-status" :class="{ collected: isCreatureCollected(creature.id) }">
-							{{ isCreatureCollected(creature.id) ? '★' : '☆' }}
+						<view class="collect-status" :class="{ collected: isCreatureRevealed(creature.id) }">
+							{{ isCreatureRevealed(creature.id) ? '★' : (creature.id === 'raven' && getRavensClueCount() > 0 ? getRavensClueCount() : '☆') }}
 						</view>
 					</view>
 
 					<view class="avatar" :class="getDangerClass(creature.dangerLevel)">
-						<text v-if="isCreatureCollected(creature.id)">{{ creature.name[0] }}</text>
+						<text v-if="isCreatureRevealed(creature.id)">{{ creature.name[0] }}</text>
 						<text v-else>?</text>
 					</view>
 
-					<text class="creature-name" :class="{ locked: !isCreatureCollected(creature.id) }">
-						{{ isCreatureCollected(creature.id) ? creature.name : '???' }}
+					<text class="creature-name" :class="{ locked: !isCreatureRevealed(creature.id) }">
+						{{ isCreatureRevealed(creature.id) ? creature.name : (creature.id === 'raven' ? getRavensDisplayName(creature) : '???') }}
 					</text>
 
 					<text class="creature-type">
-						{{ isCreatureCollected(creature.id) ? creature.type : '未知' }}
+						{{ isCreatureRevealed(creature.id) ? creature.type : (creature.id === 'raven' ? getRavensDisplayType(creature) : '未知') }}
+					</text>
+
+					<text v-if="creature.id === 'raven' && !isCreatureRevealed('raven')" class="clue-count">
+						{{ getRavensClueCount() }} / 3 条线索
 					</text>
 				</view>
 			</view>
@@ -109,7 +139,7 @@
 			</view>
 			<view class="tab-item" @click="goToTab('fun')">
 				<view class="tab-icon-box"><view class="css-icon icon-fun"></view></view>
-				<text class="tab-label">趣味</text>
+				<text class="tab-label">档案</text>
 			</view>
 		</view>
 	</view>
@@ -117,6 +147,8 @@
 
 <script>
 import { creatures } from '@/data/norse.js'
+import { norseArtifacts, getRarityLabel } from '@/data/norseArtifacts.js'
+import { isRavensRevealed as checkRavensRevealed, getRavensClueCount as getClueCount } from '@/utils/clueProgress.js'
 
 export default {
 	data() {
@@ -131,10 +163,19 @@ export default {
 			return this.creatures.filter(c => c.type === this.currentType)
 		},
 		collectedCount() {
+			if (this.currentType === 'artifact') {
+				return this.artifacts.length
+			}
 			return this.creatures.filter(c => c.collected).length
 		},
 		totalCount() {
+			if (this.currentType === 'artifact') {
+				return this.artifacts.length
+			}
 			return this.creatures.length
+		},
+		artifacts() {
+			return norseArtifacts
 		}
 	},
 	onShow() {
@@ -146,15 +187,41 @@ export default {
 			this.collectedIds = collected
 		},
 		isCreatureCollected(creatureId) {
+			if (creatureId === 'raven') {
+				return checkRavensRevealed()
+			}
 			const collected = uni.getStorageSync('collectedCreatures') || []
 			if (collected.includes(creatureId)) return true
 			const creature = this.creatures.find(c => c.id === creatureId)
 			return creature?.collected === true
 		},
+		getRavensClueCount() {
+			return getClueCount()
+		},
+		isCreatureRevealed(creatureId) {
+			if (creatureId === 'raven') {
+				return checkRavensRevealed()
+			}
+			return this.isCreatureCollected(creatureId)
+		},
 		goToDetail(id) {
 			uni.navigateTo({
 				url: `/pages/bestiary/creature-detail?id=${id}`
 			})
+		},
+		getRavensDisplayName(creature) {
+			const count = this.getRavensClueCount()
+			if (count === 0) return '???'
+			if (count === 1) return '天空的影子'
+			if (count === 2) return '天空的影子'
+			return creature.name
+		},
+		getRavensDisplayType(creature) {
+			const count = this.getRavensClueCount()
+			if (count === 0) return '未发现'
+			if (count === 1) return '身份仍未确认'
+			if (count === 2) return '飞行生物'
+			return creature.type
 		},
 		getDangerClass(level) {
 			const classes = {
@@ -173,11 +240,33 @@ export default {
 				home: '/pages/index/index',
 				gods: '/pages/gods/god-list',
 				stories: '/pages/stories/story-list',
-				fun: '/pages/fun/fun-index'
+				fun: '/pages/profile/profile'
 			}
 			if (routes[tab]) {
 				uni.switchTab({ url: routes[tab] })
 			}
+		},
+		switchToArtifacts() {
+			this.currentType = 'artifact'
+		},
+		goToArtifactDetail(id) {
+			uni.navigateTo({
+				url: `/pages/bestiary/artifact-detail?id=${id}`
+			})
+		},
+		getArtifactIcon(type) {
+			const icons = {
+				'神锤': 'H',
+				'神枪': 'S',
+				'神戒': 'R',
+				'神船': 'B',
+				'项链': 'N',
+				'束缚之链': 'C'
+			}
+			return icons[type] || 'A'
+		},
+		getRarityLabel(rarity) {
+			return getRarityLabel(rarity)
 		}
 	}
 }
@@ -419,6 +508,14 @@ export default {
 	white-space: nowrap;
 }
 
+.clue-count {
+	display: block;
+	color: #C6A15B;
+	font-size: 18rpx;
+	text-align: center;
+	margin-top: 4rpx;
+}
+
 .bottom-tab {
 	position: fixed;
 	left: 0;
@@ -597,5 +694,59 @@ export default {
 	height: 4rpx;
 	border-radius: 50%;
 	background: currentColor;
+}
+
+.rarity-dot {
+	width: 10rpx;
+	height: 10rpx;
+	border-radius: 50%;
+}
+
+.rarity-dot.legendary {
+	background: #D8C27A;
+}
+
+.rarity-dot.epic {
+	background: #8FB6D9;
+}
+
+.rarity-dot.rare {
+	background: #7C8C74;
+}
+
+.creature-icon.legendary {
+	background: rgba(216, 194, 122, 0.15);
+	border: 1rpx solid rgba(216, 194, 122, 0.35);
+	color: #D8C27A;
+}
+
+.creature-icon.epic {
+	background: rgba(143, 182, 217, 0.15);
+	border: 1rpx solid rgba(143, 182, 217, 0.35);
+	color: #8FB6D9;
+}
+
+.creature-icon.rare {
+	background: rgba(124, 140, 116, 0.15);
+	border: 1rpx solid rgba(124, 140, 116, 0.35);
+	color: #7C8C74;
+}
+
+.avatar.legendary {
+	background: rgba(216, 194, 122, 0.15);
+	border: 1rpx solid rgba(216, 194, 122, 0.35);
+	color: #D8C27A;
+}
+
+.avatar.epic {
+	background: rgba(143, 182, 217, 0.15);
+	border: 1rpx solid rgba(143, 182, 217, 0.35);
+	color: #8FB6D9;
+}
+
+.avatar.rare {
+	background: rgba(124, 140, 116, 0.15);
+	border: 1rpx solid rgba(124, 140, 116, 0.35);
+	color: #7C8C74;
 }
 </style>

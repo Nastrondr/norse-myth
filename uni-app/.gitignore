@@ -6,6 +6,8 @@ out/
 .cache/
 .vite/
 node_modules/.vite/
+unpackage/
+.hbuilderx/
 coverage/
 *.log
 npm-debug.log*
@@ -26,3 +28,4 @@ Thumbs.db
 *.7z
 *.tar
 *.gz
+project.private.config.json

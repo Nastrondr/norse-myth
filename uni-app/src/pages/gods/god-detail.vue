@@ -129,6 +129,7 @@
 <script>
 import { gods } from '@/data/norse.js'
 import { stories } from '@/data/norse.js'
+import { unlockRavensClue, getRavensClueCount } from '@/utils/clueProgress.js'
 
 export default {
 	data() {
@@ -195,6 +196,11 @@ export default {
 	onLoad(options) {
 		const godId = options.id || 'odin'
 		this.god = gods.find(g => g.id === godId) || gods[0]
+		if (this.god.id === 'odin') {
+			if (getRavensClueCount() < 3) {
+				unlockRavensClue('relation')
+			}
+		}
 	},
 	methods: {
 		getFactionClass(faction) {

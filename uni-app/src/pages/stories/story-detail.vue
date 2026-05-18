@@ -23,21 +23,6 @@
 					<text class="section-text">{{ storySummary }}</text>
 				</view>
 
-				<view class="section-card" v-if="storyCharacters.length">
-					<text class="section-title">关键角色</text>
-					<scroll-view scroll-x class="character-scroll">
-						<view class="character-tags">
-							<text
-								v-for="name in storyCharacters"
-								:key="name"
-								class="character-tag"
-							>
-								{{ name }}
-							</text>
-						</view>
-					</scroll-view>
-				</view>
-
 				<view class="section-card">
 					<text class="section-title">故事正文</text>
 					<view class="timeline-section">
@@ -117,6 +102,7 @@
 
 <script>
 import { stories } from '@/data/norse.js'
+import { unlockRavensClue, getRavensClueCount } from '@/utils/clueProgress.js'
 
 export default {
 	data() {
@@ -194,10 +180,23 @@ export default {
 		this.story = stories.find(s => s.id === storyId) || stories[0]
 		this.initCharacters()
 		this.initPhases()
+		if (this.isOdinRelatedStory(this.story)) {
+			if (getRavensClueCount() < 3) {
+				unlockRavensClue('ability')
+			}
+		}
 	},
 	methods: {
 		goBack() {
 			uni.navigateBack()
+		},
+		isOdinRelatedStory(story) {
+			if (!story) return false
+			if (story.characters && story.characters.includes('odin')) return true
+			if (story.relatedGods && story.relatedGods.includes('odin')) return true
+			if (story.id && story.id.toLowerCase().includes('odin')) return true
+			if (story.title && story.title.includes('奥丁')) return true
+			return false
 		},
 		formatIndex(num) {
 			return String(num).padStart(2, '0')

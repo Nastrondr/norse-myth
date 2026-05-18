@@ -463,11 +463,40 @@ export const creatures = [
     type: '巨蛇',
     realm: 'midgard',
     dangerLevel: '极危',
-    interactionType: 'danger',
+    interactionType: 'abyss',
     description: '洛基与安格波达的儿子，也是托尔的宿敌。它环绕着整个中庭海域。诸神黄昏时它会浮出水面，与索尔同归于尽。',
     power: '毒液环绕世界',
     relatedStories: ['ragnarok'],
-    collected: true
+    collected: false,
+    status: 'undiscovered',
+    abyssAwareness: 0,
+    abyssMax: 100,
+    riskLevel: 0,
+    riskMax: 100,
+    abyssFrozen: false,
+    missing: false,
+    lastSignal: '无',
+    interactionCount: 0,
+    highRiskCount: 0,
+    abyssStage: '海雾之下',
+    mood: '不可测',
+    likes: ['深海', '边界', '潮汐'],
+    dislikes: ['雷霆', '挑衅', '靠近'],
+    interactionStats: {
+      distantView: 0,
+      tideListen: 0,
+      worship: 0,
+      record: 0,
+      retreat: 0,
+      touch: 0
+    },
+    badges: [
+      { id: 'abyss-witness', name: '海渊见证者', type: 'complete', unlocked: false, desc: '你见证了盘绕米德加德的世界之蛇，却没有试图占有它。' },
+      { id: 'tide-recorder', name: '潮汐记录者', type: 'cautious', unlocked: false, desc: '你以克制的方式记录世界之蛇，没有惊动深海。' },
+      { id: 'boundary-toucher', name: '边界触碰者', type: 'risk', unlocked: false, desc: '你越过了安全距离，也因此理解了灾厄为何不可被靠近。' },
+      { id: 'abyss-reverent', name: '深海敬畏者', type: 'reverent', unlocked: false, desc: '你明白有些存在不能靠近，只能以敬畏与退让维持边界。' },
+      { id: 'empty-sea-trace', name: '空海遗痕', type: 'missing', unlocked: false, desc: '世界之蛇沉入外海。你留下的，只是一段无法继续的记录。' }
+    ]
   },
   {
     id: 'hel',
@@ -506,7 +535,29 @@ export const creatures = [
     description: '精灵分为光明精灵和黑暗精灵。光明精灵住在阿尔夫海姆，美丽而善良。',
     power: '魔法',
     relatedStories: [],
-    collected: true
+    collected: true,
+    bondLevel: 0,
+    bondExp: 0,
+    bondMax: 100,
+    mood: '疏离',
+    bondStage: '未发现踪迹',
+    likes: ['安静', '洁净的赠礼', '阳光'],
+    dislikes: ['喧哗', '铁器噪声'],
+    interactionStats: {
+      listen: 0,
+      gift: 0,
+      wait: 0,
+      resonate: 0,
+      guard: 0
+    },
+    badges: [
+      { id: 'elf-listener', name: '林间倾听者', type: 'listen', unlocked: false, desc: '你学会了不急于靠近，而是先听见光与风的语言。' },
+      { id: 'elf-giver', name: '微光赠予者', type: 'gift', unlocked: false, desc: '你的赠礼没有索取回报，因此被精灵接受。' },
+      { id: 'elf-watcher', name: '静默守候者', type: 'wait', unlocked: false, desc: '你用等待证明了尊重，光明精灵因此允许你停留。' },
+      { id: 'elf-resonance', name: '光之共鸣者', type: 'resonate', unlocked: false, desc: '你短暂理解了亚尔夫海姆的节奏。' },
+      { id: 'elf-warden', name: '亚尔夫守林人', type: 'guard', unlocked: false, desc: '你守护了林地，也获得了精灵的认可。' },
+      { id: 'elf-friend', name: '亚尔夫之友', type: 'balanced', unlocked: false, desc: '你与光明精灵建立了平衡、克制而长久的联系。' }
+    ]
   },
   {
     id: 'jotun',
@@ -532,7 +583,36 @@ export const creatures = [
     description: '奥丁的使者，代表思想与记忆。每天早晨飞向世界，夜晚回到奥丁肩头汇报。',
     power: '全知',
     relatedStories: ['odin-wisdom'],
-    collected: false
+    collected: false,
+    unlocked: false,
+    clueProfile: {
+      clueName: '天空的影子',
+      clueType: '飞行生物',
+      clueStatus: '身份未明',
+      clueDesc: '你只在高处见过它们的影子。它们似乎总是在清晨离开，又在夜色降临前归来。',
+      clues: [
+        {
+          id: 'trace',
+          title: '出没迹象',
+          text: '它们常在高处、殿堂边缘与王座附近出现，像是在等待某种命令。'
+        },
+        {
+          id: 'ability',
+          title: '能力传闻',
+          text: '它们似乎与记忆、消息和远方视野有关，总能带回不应被轻易知晓的见闻。'
+        },
+        {
+          id: 'relation',
+          title: '关系暗示',
+          text: '有人说，它们替一位独眼神明观看世界，也替他带回思想与记忆。'
+        }
+      ],
+      unlockHints: [
+        '前往阿斯加德相关页面',
+        '阅读与奥丁相关的故事',
+        '完成一次"观察天空"'
+      ]
+    }
   },
   {
     id: 'wolf',

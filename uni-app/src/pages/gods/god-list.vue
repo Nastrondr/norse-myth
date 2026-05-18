@@ -84,7 +84,7 @@
 			</view>
 			<view class="tab-item" @click="goToTab('fun')">
 				<view class="tab-icon-box"><view class="css-icon icon-fun"></view></view>
-				<text class="tab-label">趣味</text>
+				<text class="tab-label">档案</text>
 			</view>
 		</view>
 	</view>
@@ -136,7 +136,7 @@ export default {
 				home: '/pages/index/index',
 				stories: '/pages/stories/story-list',
 				bestiary: '/pages/bestiary/bestiary-list',
-				fun: '/pages/fun/fun-index'
+				fun: '/pages/profile/profile'
 			}
 			if (routes[tab]) {
 				uni.switchTab({ url: routes[tab] })

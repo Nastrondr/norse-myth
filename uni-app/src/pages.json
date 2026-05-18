@@ -8,6 +8,13 @@
 			}
 		},
 		{
+			"path": "pages/profile/profile",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "探索者档案"
+			}
+		},
+		{
 			"path": "pages/splash/splash",
 			"style": {
 				"navigationStyle": "custom",
@@ -78,6 +85,13 @@
 						"navigationStyle": "custom",
 						"navigationBarTitleText": "生物详情"
 					}
+				},
+				{
+					"path": "artifact-detail",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "法器详情"
+					}
 				}
 			]
 		},
@@ -92,10 +106,24 @@
 					}
 				},
 				{
+					"path": "quiz",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "谣言之书"
+					}
+				},
+				{
 					"path": "rune-divination",
 					"style": {
 						"navigationStyle": "custom",
 						"navigationBarTitleText": "卢恩占卜"
+					}
+				},
+				{
+					"path": "god-match",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "神祇匹配"
 					}
 				}
 			]
@@ -142,8 +170,8 @@
 				"text": "图鉴"
 			},
 			{
-				"pagePath": "pages/fun/fun-index",
-				"text": "趣味"
+				"pagePath": "pages/profile/profile",
+				"text": "档案"
 			}
 		]
 	},

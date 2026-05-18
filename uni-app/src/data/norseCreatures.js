@@ -53,7 +53,45 @@ export const norseCreatures = [
     tags: ['洛基之子', '世界之蛇', '深海', '索尔宿敌', '诸神黄昏'],
     color: '#6F8FA6',
     icon: 'serpent',
-    collected: true,
+    interactionType: 'abyss',
+    collected: false,
+    status: 'undiscovered',
+    abyssAwareness: 0,
+    abyssMax: 100,
+    riskLevel: 0,
+    riskMax: 100,
+    abyssFrozen: false,
+    missing: false,
+    lastSignal: '无',
+    interactionCount: 0,
+    highRiskCount: 0,
+    abyssStage: '海雾之下',
+    mood: '不可测',
+    likes: ['深海', '边界', '潮汐'],
+    dislikes: ['雷霆', '挑衅', '靠近'],
+    interactionStats: {
+      distantView: 0,
+      tideListen: 0,
+      worship: 0,
+      record: 0,
+      retreat: 0,
+      touch: 0
+    },
+    badges: [
+      { id: 'abyss-witness', name: '海渊见证者', type: 'complete', unlocked: false, desc: '你见证了盘绕米德加德的世界之蛇，却没有试图占有它。' },
+      { id: 'tide-recorder', name: '潮汐记录者', type: 'cautious', unlocked: false, desc: '你以克制的方式记录世界之蛇，没有惊动深海。' },
+      { id: 'boundary-toucher', name: '边界触碰者', type: 'risk', unlocked: false, desc: '你越过了安全距离，也因此理解了灾厄为何不可被靠近。' },
+      { id: 'abyss-reverent', name: '深海敬畏者', type: 'reverent', unlocked: false, desc: '你明白有些存在不能靠近，只能以敬畏与退让维持边界。' },
+      { id: 'empty-sea-trace', name: '空海遗痕', type: 'missing', unlocked: false, desc: '世界之蛇沉入外海。你留下的，只是一段无法继续的记录。' }
+    ],
+    clueProfile: {
+      clueName: '海中的轮廓',
+      clueType: '巨大的海中存在',
+      clueRealm: '据说盘绕在人类世界之外',
+      clueAbility: '与潮汐、边界和终末预兆有关',
+      clueDesc: '远海偶尔出现不合常理的弧线，像岛，又像某种正在移动的身体。',
+      unlockHints: ['前往米德加德', '阅读《索尔钓起世界之蛇》', '完成一次“远观海面”']
+    },
     unlockCondition: '阅读故事《索尔钓起世界之蛇》后解锁'
   },
   {
@@ -82,6 +120,8 @@ export const norseCreatures = [
     color: '#66727F',
     icon: 'skull',
     collected: true,
+    likes: ['黑暗'],
+    dislikes: ['光明'],
     unlockCondition: '进入赫尔海姆后解锁'
   },
   {
@@ -110,6 +150,14 @@ export const norseCreatures = [
     color: '#8FB6D9',
     icon: 'horse',
     collected: false,
+    clueProfile: {
+      clueName: '八腿的影子',
+      clueType: '神界坐骑',
+      clueRealm: '据说跟随在众神之父身边',
+      clueAbility: '与跨越边界、快速移动和冥界通道有关',
+      clueDesc: '一道影子掠过天际，速度快得不像任何已知生物。它的蹄声在空气中留下八道回响，转瞬即逝。',
+      unlockHints: ['前往阿斯加德', '阅读《赫尔莫德前往冥界》', '寻找众神之父的足迹']
+    },
     unlockCondition: '阅读故事《赫尔莫德前往冥界》后解锁'
   },
   {
@@ -138,6 +186,14 @@ export const norseCreatures = [
     color: '#7C8C74',
     icon: 'dragon',
     collected: false,
+    clueProfile: {
+      clueName: '根下的啃噬声',
+      clueType: '深渊之龙',
+      clueRealm: '据说在世界之树的根部盘旋',
+      clueAbility: '与腐朽、毒液和世界崩塌有关',
+      clueDesc: '在极深的地下，有东西在啃噬世界之树的根须。它在缓慢地瓦解众神赖以生存的根基。',
+      unlockHints: ['解锁尼福尔海姆', '探索世界之树的深处', '寻找根部异常的迹象']
+    },
     unlockCondition: '解锁尼福尔海姆后出现'
   },
   {
@@ -166,6 +222,14 @@ export const norseCreatures = [
     color: '#A5533D',
     icon: 'flame',
     collected: false,
+    clueProfile: {
+      clueName: '南方来的灼热',
+      clueType: '火焰巨人',
+      clueRealm: '据说来自世界尽头的火焰之地',
+      clueAbility: '与焚烧、终末和毁灭之火有关',
+      clueDesc: '你感受到一阵灼热从南方涌来。空气扭曲，像有什么巨大的东西即将降临，用火焰吞噬一切。',
+      unlockHints: ['解锁诸神黄昏故事线', '前往南方边界', '感受世界末日的预兆']
+    },
     unlockCondition: '解锁诸神黄昏故事线后出现'
   },
   {
@@ -284,8 +348,8 @@ export const norseCreatures = [
     bondMax: 100,
     mood: '疏离',
     bondStage: '未发现踪迹',
-    likes: ['安静', '洁净的赠礼', '林间微光', '不被打扰'],
-    dislikes: ['喧哗', '粗暴靠近', '铁器噪声', '强行占有'],
+    likes: ['安静', '洁净的赠礼', '阳光'],
+    dislikes: ['喧哗', '铁器噪声'],
     interactionStats: {
       listen: 0,
       gift: 0,
@@ -301,6 +365,14 @@ export const norseCreatures = [
       { id: 'elf-warden', name: '亚尔夫守林人', type: 'guard', unlocked: false, desc: '你守护了林地，也获得了精灵的认可。' },
       { id: 'elf-friend', name: '亚尔夫之友', type: 'balanced', unlocked: false, desc: '你与光明精灵建立了平衡、克制而长久的联系。' }
     ],
+    clueProfile: {
+      clueName: '林间微光',
+      clueType: '灵性种族',
+      clueRealm: '常与光、森林和静默有关',
+      clueAbility: '似乎能回应安静、赠礼与等待',
+      clueDesc: '你看见树影间有短暂的冷光闪过。它没有靠近，也没有离开。',
+      unlockHints: ['前往亚尔夫海姆', '阅读与弗雷相关的故事', '完成一次“静候”']
+    },
     unlockCondition: '解锁亚尔夫海姆后出现'
   },
   {
@@ -331,7 +403,7 @@ export const norseCreatures = [
     collected: true,
     unlockCondition: '阅读故事《世界的生成》后解锁'
   }
-}
+]
 
 export const creatureFilters = [
   { id: '', label: '全部' },

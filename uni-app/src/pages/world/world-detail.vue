@@ -133,6 +133,7 @@
 					<view v-if="relatedStories.length === 0" class="empty-state">
 						<text class="empty-text">暂无传说记录</text>
 					</view>
+				</view>
 			</view>
 
 			<view class="bottom-space"></view>
@@ -143,6 +144,7 @@
 import { norseWorlds } from '@/data/norseWorlds.js'
 import { gods } from '@/data/norse.js'
 import { stories } from '@/data/norse.js'
+import { unlockRavensClue, getRavensClueCount } from '@/utils/clueProgress.js'
 
 export default {
 	data() {
@@ -175,6 +177,11 @@ export default {
 		this.world = norseWorlds.find(w => w.id === worldId) || norseWorlds[0]
 		this.initMapLocations()
 		this.checkPinStatus()
+		if (this.world.id === 'asgard') {
+			if (getRavensClueCount() < 3) {
+				unlockRavensClue('trace')
+			}
+		}
 	},
 	methods: {
 		goBack() {

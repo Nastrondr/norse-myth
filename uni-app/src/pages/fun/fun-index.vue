@@ -28,20 +28,27 @@
         <text class="arrow">›</text>
       </view>
 
-      <view class="fun-card" @click="goToGodSelector">
+      <view class="fun-card" @click="goToGodMatch">
         <view class="fun-icon">G</view>
         <view class="fun-info">
           <text class="fun-title">神祇匹配</text>
-          <text class="fun-desc">找到与你最契合的北欧神祇</text>
+          <text class="fun-desc">通过九界情境选择，找到与你气质最接近的北欧神祇</text>
         </view>
         <text class="arrow">›</text>
+      </view>
+
+      <view v-if="savedGodMatch && savedGodMatch.primary" class="saved-match-card">
+        <text class="saved-kicker">最近神格</text>
+        <text class="saved-name">{{ savedGodMatch.primary.name }}</text>
+        <text class="saved-title">{{ savedGodMatch.primary.title }}</text>
+        <text class="saved-percent">{{ savedGodMatch.primary.matchPercent }}%</text>
       </view>
 
       <view class="fun-card" @click="goToQuiz">
         <view class="fun-icon">Q</view>
         <view class="fun-info">
-          <text class="fun-title">神话知识问答</text>
-          <text class="fun-desc">测试你对北欧神话的了解</text>
+          <text class="fun-title">谣言之书</text>
+          <text class="fun-desc">翻开九界流传的旧闻，辨认哪些是真相，哪些只是后世误读。</text>
         </view>
         <text class="arrow">›</text>
       </view>
@@ -87,11 +94,15 @@ export default {
       runes: runeData,
       dailyRuneData: null,
       todayKey: '',
-      dailyMessage: ''
+      dailyMessage: '',
+      savedGodMatch: null
     }
   },
   onLoad() {
     this.initDailyRune()
+  },
+  onShow() {
+    this.loadSavedGodMatch()
   },
   methods: {
     initDailyRune() {
@@ -158,10 +169,14 @@ export default {
         url: '/pages/fun/rune-divination'
       })
     },
-    goToGodSelector() {
+    goToGodMatch() {
       uni.navigateTo({
-        url: '/pages/fun/god-selector'
+        url: '/pages/fun/god-match'
       })
+    },
+    loadSavedGodMatch() {
+      const saved = uni.getStorageSync('norse_god_match_result')
+      this.savedGodMatch = saved && saved.primary ? saved : null
     },
     goToQuiz() {
       uni.navigateTo({
@@ -517,5 +532,42 @@ export default {
   height: 4rpx;
   border-radius: 50%;
   background: currentColor;
+}
+
+.saved-match-card {
+  margin: 20rpx 32rpx;
+  padding: 22rpx;
+  background: #172230;
+  border: 1px solid #27384A;
+  border-radius: 18rpx;
+}
+
+.saved-kicker {
+  display: block;
+  color: #66727F;
+  font-size: 20rpx;
+}
+
+.saved-name {
+  display: block;
+  margin-top: 8rpx;
+  color: #F2F4F6;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.saved-title {
+  display: block;
+  margin-top: 6rpx;
+  color: #A8B3BD;
+  font-size: 22rpx;
+}
+
+.saved-percent {
+  display: block;
+  margin-top: 6rpx;
+  color: #C6A15B;
+  font-size: 22rpx;
+  font-weight: 700;
 }
 </style>

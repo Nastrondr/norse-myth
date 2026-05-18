@@ -1,0 +1,144 @@
+export const norseArtifacts = [
+  {
+    id: 'mjolnir',
+    name: '妙尔尼尔',
+    originalName: 'Mjolnir',
+    type: '神锤',
+    category: 'artifact',
+    owner: '索尔',
+    realm: '阿斯加德',
+    rarity: 'legendary',
+    status: '已发现',
+    dangerLevel: '高',
+    shortDesc: '雷神索尔的神锤，象征雷霆、守护与神圣打击。',
+    desc: '妙尔尼尔是索尔最著名的武器。它既是毁灭巨人的雷霆之锤，也是守护神界与人类世界的重要象征。这把神锤能够召唤雷霆，击败任何威胁，并且会自动飞回持有者手中。',
+    abilities: ['召唤雷霆', '回归持有者之手', '神圣打击', '守护与祝圣'],
+    relatedGods: [
+      { type: 'god', id: 'thor', name: '索尔', desc: '持有者' },
+      { type: 'god', id: 'loki', name: '洛基', desc: '与法器诞生故事相关' }
+    ],
+    relatedStories: [
+      { type: 'story', id: 'theft-of-mjolnir', name: '雷神之锤失窃', desc: '索尔夺回神锤的故事' }
+    ]
+  },
+  {
+    id: 'gungnir',
+    name: '冈格尼尔',
+    originalName: 'Gungnir',
+    type: '神枪',
+    category: 'artifact',
+    owner: '奥丁',
+    realm: '阿斯加德',
+    rarity: 'legendary',
+    status: '已发现',
+    dangerLevel: '高',
+    shortDesc: '奥丁的永恒之枪，象征誓约、战争与不可违逆的命中。',
+    desc: '冈格尼尔是奥丁的神枪，常被视为王权、战争、誓言与命运指向的象征。这把神枪的枪身刻满了如尼文字，象征着智慧与权威。其投掷必定命中目标。',
+    abilities: ['必中', '誓约象征', '战争宣告', '神王权威'],
+    relatedGods: [
+      { type: 'god', id: 'odin', name: '奥丁', desc: '持有者' }
+    ],
+    relatedStories: [
+      { type: 'story', id: 'ragnarok', name: '诸神黄昏', desc: '终末战争相关' }
+    ]
+  },
+  {
+    id: 'draupnir',
+    name: '德罗普尼尔',
+    originalName: 'Draupnir',
+    type: '神戒',
+    category: 'artifact',
+    owner: '奥丁',
+    realm: '阿斯加德',
+    rarity: 'epic',
+    status: '已发现',
+    dangerLevel: '中',
+    shortDesc: '奥丁的金戒，象征财富增殖、循环与神圣馈赠。',
+    desc: '德罗普尼尔是奥丁的金戒，每隔一段时间会滴落出新的金戒，是财富、循环与神圣馈赠的象征。这枚戒指在巴德尔的葬礼上被作为陪葬品。',
+    abilities: ['财富增殖', '循环象征', '神圣馈赠'],
+    relatedGods: [
+      { type: 'god', id: 'odin', name: '奥丁', desc: '持有者' },
+      { type: 'god', id: 'baldr', name: '巴德尔', desc: '葬礼故事相关' }
+    ],
+    relatedStories: [
+      { type: 'story', id: 'baldr-death', name: '巴德尔之死', desc: '与葬礼和归还相关' }
+    ]
+  },
+  {
+    id: 'skidbladnir',
+    name: '斯基德普拉特尼',
+    originalName: 'Skidbladnir',
+    type: '神船',
+    category: 'artifact',
+    owner: '弗雷',
+    realm: '华纳海姆',
+    rarity: 'epic',
+    status: '已发现',
+    dangerLevel: '中',
+    shortDesc: '弗雷的神船，可折叠收纳，也能承载众神航行。',
+    desc: '斯基德普拉特尼是一艘神奇之船，既能展开航行，也能折叠收纳，象征丰饶、远行与神工技艺。这艘船由侏儒工匠打造，是弗雷的重要宝物。',
+    abilities: ['自由航行', '折叠收纳', '承载众神', '顺风而行'],
+    relatedGods: [
+      { type: 'god', id: 'freyr', name: '弗雷', desc: '持有者' }
+    ],
+    relatedStories: []
+  },
+  {
+    id: 'brisingamen',
+    name: '布里希嘉曼',
+    originalName: 'Brisingamen',
+    type: '项链',
+    category: 'artifact',
+    owner: '芙蕾雅',
+    realm: '华纳海姆',
+    rarity: 'epic',
+    status: '已发现',
+    dangerLevel: '中',
+    shortDesc: '芙蕾雅的华美项链，象征魅力、欲望、价值与交换。',
+    desc: '布里希嘉曼是芙蕾雅的重要饰物，常与美、欲望、价值、交换和女性神力联系在一起。传说中芙蕾雅为了得到这条项链，与四位侏儒进行了交易。',
+    abilities: ['魅力象征', '价值交换', '魔法亲和'],
+    relatedGods: [
+      { type: 'god', id: 'freyja', name: '芙蕾雅', desc: '持有者' },
+      { type: 'god', id: 'loki', name: '洛基', desc: '相关传说人物' }
+    ],
+    relatedStories: []
+  },
+  {
+    id: 'gleipnir',
+    name: '格莱普尼尔',
+    originalName: 'Gleipnir',
+    type: '束缚之链',
+    category: 'artifact',
+    owner: '诸神',
+    realm: '阿斯加德',
+    rarity: 'legendary',
+    status: '已发现',
+    dangerLevel: '极高',
+    shortDesc: '束缚芬里尔的神秘锁链，看似柔软，却无法挣脱。',
+    desc: '格莱普尼尔是诸神用来束缚芬里尔的锁链。它由六种神奇的材料制成：猫的脚步声、女人的胡须、山的根、熊的腱、鱼的语言和鸟的唾液。它象征秩序对灾厄的暂时压制，也暗示代价与背叛。',
+    abilities: ['束缚灾厄', '不可挣脱', '秩序封印'],
+    relatedGods: [
+      { type: 'god', id: 'tyr', name: '提尔', desc: '牺牲者' },
+      { type: 'god', id: 'loki', name: '洛基', desc: '血缘关联' }
+    ],
+    relatedCreatures: [
+      { type: 'creature', id: 'fenrir', name: '芬里尔', desc: '被束缚者' }
+    ],
+    relatedStories: [
+      { type: 'story', id: 'binding-of-fenrir', name: '芬里尔的束缚', desc: '誓言、牺牲与灾厄封印' }
+    ]
+  }
+]
+
+export const getRarityLabel = (rarity) => {
+  const map = {
+    legendary: '传说',
+    epic: '史诗',
+    rare: '稀有'
+  }
+  return map[rarity] || rarity
+}
+
+export const getArtifactById = (id) => {
+  return norseArtifacts.find(a => a.id === id) || null
+}
