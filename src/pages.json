@@ -1,0 +1,189 @@
+{
+	"pages": [
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "北欧神话"
+			}
+		},
+		{
+			"path": "pages/profile/profile",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "探索者档案"
+			}
+		},
+		{
+			"path": "pages/splash/splash",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"app-plus": {
+					"splashscreen": {
+						"alwaysShowBeforeRender": true,
+						"waiting": false,
+						"autoclose": true,
+						"delay": 0
+					}
+				}
+			}
+		}
+	],
+	"subPackages": [
+		{
+			"root": "pages/gods",
+			"pages": [
+				{
+					"path": "god-list",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "神祇百科"
+					}
+				},
+				{
+					"path": "god-detail",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "神祇详情"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/stories",
+			"pages": [
+				{
+					"path": "story-list",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "神话故事"
+					}
+				},
+				{
+					"path": "story-detail",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "故事详情"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/bestiary",
+			"pages": [
+				{
+					"path": "bestiary-list",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "神话生物"
+					}
+				},
+				{
+					"path": "creature-detail",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "生物详情"
+					}
+				},
+				{
+					"path": "artifact-detail",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "法器详情"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/fun",
+			"pages": [
+				{
+					"path": "fun-index",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "趣味互动"
+					}
+				},
+				{
+					"path": "quiz",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "谣言之书"
+					}
+				},
+				{
+					"path": "rune-divination",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "卢恩占卜"
+					}
+				},
+				{
+					"path": "god-match",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "神祇匹配"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/world",
+			"pages": [
+				{
+					"path": "world-detail",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "九界详情"
+					}
+				}
+			]
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "white",
+		"navigationBarTitleText": "北欧神话",
+		"navigationBarBackgroundColor": "#1a1a2e",
+		"backgroundColor": "#0B1118"
+	},
+	"tabBar": {
+		"color": "#66727F",
+		"selectedColor": "#C6A15B",
+		"backgroundColor": "#111A24",
+		"borderStyle": "black",
+		"list": [
+			{
+				"pagePath": "pages/index/index",
+				"text": "首页"
+			},
+			{
+				"pagePath": "pages/gods/god-list",
+				"text": "神祇"
+			},
+			{
+				"pagePath": "pages/stories/story-list",
+				"text": "故事"
+			},
+			{
+				"pagePath": "pages/bestiary/bestiary-list",
+				"text": "图鉴"
+			},
+			{
+				"pagePath": "pages/profile/profile",
+				"text": "档案"
+			}
+		]
+	},
+	"easycom": {
+		"autoscan": true,
+		"custom": {}
+	},
+	"uniStatistics": {
+		"version": "2"
+	},
+	"condition": {
+		"current": 0,
+		"list": []
+	}
+}
