@@ -141,12 +141,60 @@
       </text>
     </view>
   </view>
+  <view class="bgm-control">
+    <view 
+      class="bgm-toggle" 
+      :class="{ active: bgmEnabled }" 
+      @click="handleToggleBgm"
+    >
+      <view class="toggle-dot"></view>
+    </view>
+
+    <view class="volume-entry" @click="openVolumePanel">
+      <text>{{ getVolumePercent() }}%</text>
+    </view>
+  </view>
+
+  <view 
+    v-if="volumePanelVisible" 
+    class="volume-mask" 
+    @click="closeVolumePanel"
+  >
+    <view class="volume-panel" @click.stop>
+      <text class="volume-title">音量</text>
+
+      <view 
+        class="volume-track" 
+        @pointerdown.stop="handleVolumePointer" 
+        @pointermove.stop="handleVolumePointer"
+        @mousedown.stop="handleVolumeMouseDown" 
+        @click.stop="handleVolumePointer"
+      >
+        <view 
+          class="volume-fill" 
+          :style="{ height: getSafeVolumePercent() + '%' }"
+        ></view>
+        <view 
+          class="volume-thumb" 
+          :style="{ bottom: getSafeVolumePercent() + '%' }"
+        ></view>
+      </view>
+
+      <text class="volume-percent">{{ getSafeVolumePercent() }}%</text>
+    </view>
+  </view>
 </template>
 
 <script>
+import { initAudio, getBgmEnabled, toggleBgm, getBgmVolume, setBgmVolume } from '../../utils/audioManager.js'
+
 export default {
   data() {
     return {
+      bgmEnabled: false,
+      volumePanelVisible: false,
+      bgmVolume: 0.45,
+      isDraggingVolume: false,
       worlds: [
         { id: 'asgard', name: '阿斯加德', nameEn: 'Asgard', type: '神域', desc: '奥丁与阿萨神族的居所', progress: 85 },
         { id: 'midgard', name: '米德加德', nameEn: 'Midgard', type: '人域', desc: '人类与生物的中庭世界', progress: 92 },
@@ -220,6 +268,11 @@ export default {
     }
   },
   mounted() {
+    this.bgmEnabled = getBgmEnabled()
+    const safeVolume = getBgmVolume()
+    setBgmVolume(safeVolume)
+    this.bgmVolume = safeVolume
+    initAudio()
     this.loadHomeProgress()
   },
   beforeUnmount() {
@@ -228,6 +281,81 @@ export default {
     }
   },
   methods: {
+    handleToggleBgm() {
+      this.bgmEnabled = toggleBgm()
+      uni.showToast({
+        title: this.bgmEnabled ? '乐声已开启' : '乐声已关闭',
+        icon: 'none'
+      })
+    },
+    openVolumePanel() {
+      this.volumePanelVisible = true
+    },
+    closeVolumePanel() {
+      this.volumePanelVisible = false
+    },
+    getSafeVolume() {
+      const n = Number(this.bgmVolume)
+      if (!Number.isFinite(n)) return 0.45
+      return Math.max(0, Math.min(1, n))
+    },
+    getSafeVolumePercent() {
+      return Math.round(this.getSafeVolume() * 100)
+    },
+    updateVolumeByClientY(clientY) {
+      if (!Number.isFinite(Number(clientY))) return
+
+      const query = uni.createSelectorQuery().in(this)
+      query.select('.volume-track').boundingClientRect(rect => {
+        if (!rect || !Number.isFinite(Number(rect.height)) || rect.height <= 0) return
+        if (!Number.isFinite(Number(rect.top)) || !Number.isFinite(Number(rect.bottom))) return
+
+        const offset = rect.bottom - clientY
+        let ratio = offset / rect.height
+
+        if (!Number.isFinite(Number(ratio))) return
+
+        ratio = Math.max(0, Math.min(1, ratio))
+
+        this.bgmVolume = setBgmVolume(ratio)
+      }).exec()
+    },
+    handleVolumePointer(e) {
+      const event = e && e.detail && e.detail.clientY !== undefined ? e.detail : e
+
+      const clientY =
+        event && Number.isFinite(Number(event.clientY))
+          ? Number(event.clientY)
+          : event && event.touches && event.touches[0]
+            ? Number(event.touches[0].clientY)
+            : event && event.changedTouches && event.changedTouches[0]
+              ? Number(event.changedTouches[0].clientY)
+              : NaN
+
+      if (!Number.isFinite(clientY)) return
+
+      this.updateVolumeByClientY(clientY)
+    },
+    handleVolumeMouseDown(e) {
+      this.isDraggingVolume = true
+      this.handleVolumePointer(e)
+
+      if (typeof window === 'undefined') return
+
+      const moveHandler = event => {
+        if (!this.isDraggingVolume) return
+        this.updateVolumeByClientY(Number(event.clientY))
+      }
+
+      const upHandler = () => {
+        this.isDraggingVolume = false
+        window.removeEventListener('mousemove', moveHandler)
+        window.removeEventListener('mouseup', upHandler)
+      }
+
+      window.addEventListener('mousemove', moveHandler)
+      window.addEventListener('mouseup', upHandler)
+    },
     goToWorldDetail(world) {
       if (!world || !world.id) return
       uni.navigateTo({
@@ -1482,5 +1610,134 @@ export default {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.bgm-control {
+  position: fixed;
+  right: 24rpx;
+  bottom: 150rpx;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.bgm-toggle {
+  width: 88rpx;
+  height: 50rpx;
+  border-radius: 999rpx;
+  background: rgba(11,17,24,0.82);
+  border: 2rpx solid rgba(102,114,127,0.48);
+  backdrop-filter: blur(8rpx);
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.bgm-toggle.active {
+  border-color: rgba(198,161,91,0.68);
+  background: rgba(198,161,91,0.15);
+}
+
+.toggle-dot {
+  position: absolute;
+  left: 4rpx;
+  top: 50%;
+  width: 42rpx;
+  height: 42rpx;
+  border-radius: 50%;
+  background: #66727F;
+  transform: translateY(-50%);
+  transition: all 0.3s ease;
+}
+
+.bgm-toggle.active .toggle-dot {
+  left: calc(100% - 46rpx);
+  background: #C6A15B;
+  box-shadow: 0 0 16rpx rgba(198,161,91,0.5);
+}
+
+.volume-entry {
+  height: 60rpx;
+  min-width: 70rpx;
+  padding: 0 14rpx;
+  border-radius: 999rpx;
+  background: rgba(11,17,24,0.82);
+  border: 1px solid rgba(198,161,91,0.38);
+  color: #C6A15B;
+  font-size: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.volume-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: rgba(0,0,0,0.20);
+}
+
+.volume-panel {
+  position: fixed;
+  right: 28rpx;
+  bottom: 230rpx;
+  z-index: 9999;
+  width: 132rpx;
+  height: 360rpx;
+  padding: 22rpx 0;
+  border-radius: 28rpx;
+  background: rgba(14,23,33,0.96);
+  border: 1px solid rgba(198,161,91,0.36);
+  box-shadow: 0 20rpx 60rpx rgba(0,0,0,0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.volume-title {
+  color: #A8B3BD;
+  font-size: 22rpx;
+}
+
+.volume-track {
+  position: relative;
+  width: 14rpx;
+  height: 210rpx;
+  margin-top: 22rpx;
+  border-radius: 999rpx;
+  background: #0B1118;
+  overflow: visible;
+  touch-action: none;
+  cursor: pointer;
+}
+
+.volume-fill {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  border-radius: 999rpx;
+  background: linear-gradient(180deg, #D8C27A, #C6A15B);
+  pointer-events: none;
+}
+
+.volume-thumb {
+  position: absolute;
+  left: 50%;
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  background: #F2F4F6;
+  border: 3rpx solid #C6A15B;
+  transform: translate(-50%, 50%);
+  box-shadow: 0 0 18rpx rgba(198,161,91,0.35);
+  pointer-events: none;
+}
+
+.volume-percent {
+  margin-top: 20rpx;
+  color: #C6A15B;
+  font-size: 22rpx;
+  font-weight: 700;
 }
 </style>
