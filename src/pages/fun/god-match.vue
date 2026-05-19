@@ -220,12 +220,12 @@ const questions = [
   },
   {
     id: 'q22',
-    title: '如果有人请求你穿越危险地带送达一条消息，你会？',
+    title: '若有人托你穿越险地，送出一则关乎生死的消息，你会？',
     options: [
-      { id: 'a', text: '立刻出发，因为延误本身就是风险。', scores: { action: 2, empathy: 1, risk: 1 }, tendency: ['hermod', 'thor'] },
-      { id: 'b', text: '先确认路线和代价，再决定如何完成。', scores: { insight: 1, order: 2 }, tendency: ['ullr', 'tyr'] },
-      { id: 'c', text: '寻找更安全的交换方式，不让更多人被卷入。', scores: { empathy: 1, order: 1, risk: -1 }, tendency: ['njord', 'frigg'] },
-      { id: 'd', text: '如果规则阻挡了消息，我会寻找绕开的方法。', scores: { insight: 1, risk: 2, order: -1 }, tendency: ['loki', 'hermod'] }
+      { id: 'a', text: '立刻启程，消息若延误，代价只会更大。', scores: { action: 2, empathy: 1, risk: 1 }, tendency: ['hermod', 'thor'] },
+      { id: 'b', text: '先确认路线、风险与代价，再决定如何送达。', scores: { insight: 1, order: 2 }, tendency: ['ullr', 'tyr'] },
+      { id: 'c', text: '寻找更稳妥的传递方式，避免牵连更多人。', scores: { empathy: 1, order: 1, risk: -1 }, tendency: ['njord', 'frigg'] },
+      { id: 'd', text: '若规则挡住去路，我会寻找另一条路径。', scores: { insight: 1, risk: 2, order: -1 }, tendency: ['loki', 'hermod'] }
     ]
   },
   {
@@ -320,12 +320,12 @@ const questions = [
   },
   {
     id: 'q14',
-    title: '当重要的人陷入无法回避的危险时，你会？',
+    title: '当重要的人被卷入一场几乎无法脱身的危险时，你会？',
     options: [
-      { id: 'a', text: '亲自前往，即使机会很小。', scores: { action: 2, empathy: 2, risk: 1 }, tendency: ['hermod', 'thor'] },
+      { id: 'a', text: '亲自前往，哪怕希望渺茫。', scores: { action: 2, empathy: 2, risk: 1 }, tendency: ['hermod', 'thor'] },
       { id: 'b', text: '寻找规则中的漏洞，争取一次例外。', scores: { insight: 2, empathy: 1, order: -1 }, tendency: ['loki', 'frigg'] },
-      { id: 'c', text: '保持冷静，判断哪些代价已经无法避免。', scores: { order: 1, insight: 1, risk: -1 }, tendency: ['hel', 'tyr'] },
-      { id: 'd', text: '先确认这件事是否值得改变命运。', scores: { insight: 2, ambition: 1 }, tendency: ['hel'] }
+      { id: 'c', text: '保持冷静，判断哪些代价已无法避免。', scores: { order: 1, insight: 1, risk: -1 }, tendency: ['hel', 'tyr'] },
+      { id: 'd', text: '先确认这场危机是否仍有被扭转的可能。', scores: { insight: 2, ambition: 1 }, tendency: ['hel'] }
     ]
   },
   {
@@ -564,7 +564,7 @@ const deityProfiles = [
     title: '狩猎、技艺与寒境中的独行者',
     scores: { action: 68, insight: 64, order: 66, empathy: 42, risk: 36, ambition: 58 },
     genderGroup: 'masculine',
-    summary: '你擅长依靠技巧、判断和距离感解决问题。你不一定依赖群体，却能在复杂环境中保持精准。',
+    summary: '你善于在复杂局势中保持距离，用冷静的判断和熟练的技艺寻找突破口。你未必依赖群体的庇护，却能在陌生、艰难的环境里稳定行动。',
     strength: ['技艺精确', '独立判断', '适应艰难环境'],
     shadow: ['可能显得疏离', '不容易向他人求助']
   }

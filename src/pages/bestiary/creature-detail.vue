@@ -178,16 +178,19 @@
 		</view>
 
 		<view class="section abyss-section" v-if="isCollected && creature.interactionType === 'abyss'">
-			<text class="section-title">状态</text>
-			<view class="abyss-card" :class="{ frozen: creature.missing || creature.abyssFrozen }">
-				<view class="abyss-mist" v-if="!creature.missing && !creature.abyssFrozen"></view>
+			<text class="section-title">{{ creature.id === 'jormungandr' ? '档案' : '状态' }}</text>
+			<view class="abyss-card" :class="{ frozen: (creature.missing || creature.abyssFrozen) || (creature.id === 'jormungandr' && jormungandrState.frozen) }">
+				<view class="abyss-mist" v-if="!((creature.missing || creature.abyssFrozen) || (creature.id === 'jormungandr' && jormungandrState.frozen))"></view>
 				<view class="abyss-header">
-					<text class="abyss-stage">{{ creature.missing ? '沉入外海' : creature.abyssStage }}</text>
-					<text v-if="creature.missing" class="abyss-status" :class="{ missing: creature.missing }">
+					<text class="abyss-stage">{{ creature.id === 'jormungandr' ? (jormungandrState.frozen ? '失踪' : jormungandrState.contactStatus) : (creature.missing ? '沉入外海' : creature.abyssStage) }}</text>
+					<text v-if="creature.id === 'jormungandr'" class="abyss-status" :class="{ missing: jormungandrState.frozen }">
+						{{ sanityLoadText }}
+					</text>
+					<text v-else-if="creature.missing" class="abyss-status" :class="{ missing: creature.missing }">
 						{{ creature.mood }}
 					</text>
 				</view>
-				<view class="abyss-progress-group">
+				<view class="abyss-progress-group" v-if="creature.id !== 'jormungandr'">
 					<view class="abyss-progress-item">
 						<text class="abyss-progress-label">观测进度</text>
 						<view class="abyss-track">
@@ -207,41 +210,73 @@
 						</text>
 					</view>
 				</view>
-				<text class="abyss-desc">{{ getAbyssDescription() }}</text>
+				<view class="abyss-progress-group" v-else>
+					<view class="abyss-progress-item">
+						<text class="abyss-progress-label">观测深度</text>
+						<view class="abyss-track">
+							<view class="abyss-fill awareness" :style="{ width: observationPercent + '%' }" :class="{ frozen: jormungandrState.frozen }"></view>
+						</view>
+						<text class="abyss-progress-value" :class="{ frozen: jormungandrState.frozen }">
+							{{ jormungandrState.frozen ? '冻结' : Math.round(observationPercent) + '%' }}
+						</text>
+					</view>
+					<view class="abyss-progress-item">
+						<text class="abyss-progress-label">心智负荷</text>
+						<view class="abyss-track">
+							<view class="abyss-fill risk" :style="{ width: Math.min(100, jormungandrState.sanityLoad * 10) + '%' }" :class="{ frozen: jormungandrState.frozen }"></view>
+						</view>
+						<text class="abyss-progress-value" :class="{ frozen: jormungandrState.frozen }">
+							{{ jormungandrState.frozen ? '冻结' : jormungandrState.sanityLoad + ' (' + sanityLoadText + ')' }}
+						</text>
+					</view>
+				</view>
+				<text class="abyss-desc">{{ creature.id === 'jormungandr' ? getJormungandrDescription() : getAbyssDescription() }}</text>
 			</view>
 		</view>
 
-		<view class="section" v-if="isCollected && creature.interactionType === 'abyss' && !creature.missing && !creature.abyssFrozen">
+		<view class="section" v-if="isCollected && creature.interactionType === 'abyss' && !((creature.missing || creature.abyssFrozen) || (creature.id === 'jormungandr' && jormungandrState.frozen))">
 			<text class="section-title">互动</text>
 			<view class="interaction-actions abyss">
 				<view
-					v-for="action in getAbyssActions()"
+					v-for="action in (creature.id === 'jormungandr' ? jormungandrActions : getAbyssActions())"
 					:key="action.key"
 					class="interaction-button abyss"
 					:class="{
-						worship: action.key === 'worship',
+						worship: action.key === 'worship' || action.key === 'worship',
 						retreat: action.key === 'retreat',
 						touch: action.key === 'touch',
-						danger: action.highRisk && creature.riskLevel >= 70
+						danger: (action.highRisk && creature.riskLevel >= 70) || action.risk === 'extreme'
 					}"
-					@click="handleAbyssInteraction(action)"
+					@click="creature.id === 'jormungandr' ? handleJormungandrAction(action) : handleAbyssInteraction(action)"
 				>
 					<view class="light-particle" v-if="playAbyssAnimation"></view>
 					<text class="interaction-label">{{ action.label }}</text>
-					<text class="risk-hint" v-if="action.highRisk && creature.riskLevel >= 70">继续靠近可能导致它沉入外海</text>
+					<text class="risk-hint" v-if="creature.id !== 'jormungandr' && action.highRisk && creature.riskLevel >= 70">继续靠近可能导致它沉入更深处</text>
 				</view>
 			</view>
 			<text v-if="interactionMessage" class="interaction-message">{{ interactionMessage }}</text>
+			<view class="message-list" v-if="creature.id === 'jormungandr' && jormungandrMessages.length > 0">
+				<view
+					v-for="msg in jormungandrMessages"
+					:key="msg.id"
+					class="message-item"
+					:class="{ danger: msg.danger }"
+				>
+					<text class="message-time">{{ msg.time }}</text>
+					<text class="message-text">{{ msg.text }}</text>
+				</view>
+			</view>
 		</view>
 
-		<view class="section" v-if="isCollected && creature.interactionType === 'abyss' && (creature.missing || creature.abyssFrozen)">
-			<text class="section-title">深海冻结</text>
+		<view class="section" v-if="isCollected && creature.interactionType === 'abyss' && ((creature.missing || creature.abyssFrozen) || (creature.id === 'jormungandr' && jormungandrState.frozen))">
+			<text class="section-title">{{ creature.id === 'jormungandr' ? '档案冻结' : '深海冻结' }}</text>
 			<view class="frozen-card">
 				<view class="frozen-message">
-					<text class="frozen-text">{{ creature.missing ? '世界之蛇已沉入外海。海面再无回应。' : '观测记录已冻结。' }}</text>
+					<text class="frozen-text">{{ creature.id === 'jormungandr' ? '该档案已进入失踪状态。后续互动已冻结。' : (creature.missing ? '世界之蛇已沉入外海。海面再无回应。' : '观测记录已冻结。') }}</text>
 				</view>
-				<text class="frozen-hint" v-if="creature.missing">{{ interactionMessage || '你的记录停留在它消失的那一刻。' }}</text>
-				<view class="frozen-actions">
+				<text class="frozen-hint" v-if="creature.id === 'jormungandr' && jormungandrMessages.length > 0">{{ jormungandrMessages[jormungandrMessages.length - 1]?.text || '你的记录停留在它消失的那一刻。' }}</text>
+				<text class="frozen-hint" v-else-if="creature.missing">{{ interactionMessage || '你的记录停留在它消失的那一刻。' }}</text>
+				<view class="frozen-actions" v-if="creature.id !== 'jormungandr'">
 					<view class="frozen-btn" @click="viewAbyssRecord">
 						<text class="frozen-btn-text">查看记录</text>
 					</view>
@@ -250,9 +285,19 @@
 					</view>
 				</view>
 			</view>
+			<view class="event-list" v-if="creature.id === 'jormungandr' && jormungandrState.unlockedEvents.length > 0">
+				<view
+					v-for="eventId in jormungandrState.unlockedEvents"
+					:key="eventId"
+					class="event-card"
+				>
+					<text class="event-name">{{ getJormungandrEventInfo(eventId)?.name }}</text>
+					<text class="event-desc">{{ getJormungandrEventInfo(eventId)?.description }}</text>
+				</view>
+			</view>
 		</view>
 
-		<view class="section" v-if="isCollected && creature.interactionType !== 'abyss'">
+		<view class="section" v-if="isCollected && creature.interactionType !== 'abyss' && creature.id !== 'jormungandr'">
 			<text class="section-title">互动</text>
 			<view class="interaction-actions">
 				<view
@@ -352,24 +397,34 @@ import { getRavensClueProgress, saveRavensClueProgress, isRavensRevealed as chec
 
 export default {
 	data() {
-		return {
-			creature: {},
-			isCollected: false,
-			interactionMessage: '',
-			playUnlockAnimation: false,
-			playInteractionAnimation: false,
-			playAbyssAnimation: false,
-			playMissingAnimation: false,
-			playBadgeAnimation: false,
-			unlockedBadge: null,
-			defaultBadges: [
-				{ id: 'observer', name: '观察者', unlocked: false },
-				{ id: 'companion', name: '同伴', unlocked: false },
-				{ id: 'warden', name: '见证者', unlocked: false }
-			],
-			showRevealAnimation: false
-		}
-	},
+			return {
+				creature: {},
+				isCollected: false,
+				interactionMessage: '',
+				playUnlockAnimation: false,
+				playInteractionAnimation: false,
+				playAbyssAnimation: false,
+				playMissingAnimation: false,
+				playBadgeAnimation: false,
+				unlockedBadge: null,
+				defaultBadges: [
+					{ id: 'observer', name: '观察者', unlocked: false },
+					{ id: 'companion', name: '同伴', unlocked: false },
+					{ id: 'warden', name: '见证者', unlocked: false }
+				],
+				showRevealAnimation: false,
+				jormungandrState: {
+					observation: 0,
+					sanityLoad: 0,
+					hostility: 0,
+					contactStatus: '高危观测中',
+					recentActions: [],
+					frozen: false,
+					unlockedEvents: []
+				},
+				jormungandrMessages: []
+			}
+		},
 	computed: {
 		bondProgress() {
 			const exp = Number(this.creature.bondExp || 0)
@@ -388,6 +443,46 @@ export default {
 			const value = Number(this.creature.riskLevel || 0)
 			const max = Number(this.creature.riskMax || 100)
 			return (value / max) * 100
+		},
+		sanityLoadText() {
+			const load = this.jormungandrState.sanityLoad
+			if (load <= 3) return '清醒'
+			if (load <= 6) return '不安'
+			if (load <= 9) return '执迷'
+			return '精神濒临崩溃'
+		},
+		hostilityText() {
+			const hostility = this.jormungandrState.hostility
+			if (hostility <= 2) return '无人注意'
+			if (hostility <= 5) return '有人议论'
+			if (hostility <= 8) return '居民敌视'
+			return '被驱逐边缘'
+		},
+		observationPercent() {
+			return Math.min(100, this.jormungandrState.observation * 5)
+		},
+		isJormungandr() {
+			return this.creature.id === 'jormungandr'
+		},
+		jormungandrActions() {
+			const obs = Number(this.jormungandrState.observation || 0)
+			const actions = [
+				{ key: 'distantView', label: '远观', risk: 'low' },
+				{ key: 'tideListen', label: '听潮', risk: 'medium' }
+			]
+			if (obs >= 5) {
+				actions.push({ key: 'observe', label: '观察', risk: 'high' })
+			}
+			if (obs >= 5) {
+				actions.push({ key: 'retreat', label: '退后', risk: 'safe' })
+			}
+			if (obs >= 10) {
+				actions.push({ key: 'worship', label: '祭拜', risk: 'high' })
+			}
+			if (obs >= 20) {
+				actions.push({ key: 'touch', label: '触碰', risk: 'extreme' })
+			}
+			return actions
 		}
 	},
 	onLoad(options) {
@@ -417,6 +512,9 @@ export default {
 		this.checkCollected()
 		if (this.creature.id === 'raven') {
 			this.loadRavensClues()
+		}
+		if (this.creature.id === 'jormungandr') {
+			this.loadJormungandrState()
 		}
 	},
 	methods: {
@@ -614,7 +712,23 @@ export default {
 			collected = collected.filter(id => id !== this.creature.id)
 			uni.setStorageSync('collectedCreatures', collected)
 			this.isCollected = false
+			if (this.creature.id === 'jormungandr') {
+				this.resetJormungandrState()
+			}
 			uni.showToast({ title: '已移除记录', icon: 'none' })
+		},
+		resetJormungandrState() {
+			this.jormungandrState = {
+				observation: 0,
+				sanityLoad: 0,
+				hostility: 0,
+				contactStatus: '高危观测中',
+				recentActions: [],
+				frozen: false,
+				unlockedEvents: []
+			}
+			this.jormungandrMessages = []
+			uni.removeStorageSync('jormungandr_high_risk_state')
 		},
 		getSpiritActions() {
 			const exp = Number(this.creature.bondExp || 0)
@@ -902,6 +1016,28 @@ export default {
 			}
 			return '你看见远海上有一道不合常理的弧线。它不像浪，也不像岛。它在缓慢移动。'
 		},
+		getJormungandrDescription() {
+			if (!this.creature || !this.creature.collected) {
+				return '你尚未真正见过世界之蛇。只有在海潮异常回落、远方海面形成闭合的环时，才可能发现它的踪迹。'
+			}
+			if (this.jormungandrState.frozen) {
+				return '你的记录越来越密。潮汐、梦魇、鱼群的死亡、夜里传来的低鸣……每一项都被你写进档案。某天清晨，你没有再回到家人与同伴身边。人们只在海岸边找到被盐水浸透的笔记。'
+			}
+			const obs = Number(this.jormungandrState.observation || 0)
+			if (obs >= 40) {
+				return '你没有获得耶梦加得的信任，也不可能获得。你只是短暂见证了盘绕米德加德边界的灾厄。'
+			}
+			if (obs >= 30) {
+				return '你几乎看见了它的全貌。但世界之蛇不该被完整看见。继续靠近，可能让你迷失。'
+			}
+			if (obs >= 20) {
+				return '它的存在正在逼近你的心智边界。你得到的不是亲近，而是越来越清晰的危险。'
+			}
+			if (obs >= 10) {
+				return '你开始意识到，自己并不是唯一的观察者。海面无风，却有一圈涟漪向你靠近。'
+			}
+			return '你看见远海上有一道不合常理的弧线。它不像浪，也不像岛。它在缓慢移动。'
+		},
 		getAbyssActions() {
 			const awareness = Number(this.creature.abyssAwareness || 0)
 			const risk = Number(this.creature.riskLevel || 0)
@@ -1038,6 +1174,156 @@ export default {
 			} else {
 				uni.navigateBack()
 			}
+		},
+		loadJormungandrState() {
+			const saved = uni.getStorageSync('jormungandr_high_risk_state')
+			if (saved) {
+				this.jormungandrState = {
+					observation: 0,
+					sanityLoad: 0,
+					hostility: 0,
+					contactStatus: '高危观测中',
+					recentActions: [],
+					frozen: false,
+					unlockedEvents: [],
+					...saved
+				}
+			}
+		},
+		saveJormungandrState() {
+			uni.setStorageSync('jormungandr_high_risk_state', this.jormungandrState)
+		},
+		handleJormungandrAction(action) {
+			if (this.jormungandrState.frozen) {
+				this.addJormungandrMessage('该档案已进入失踪状态。后续互动已冻结。')
+				return
+			}
+
+			if (action.key === 'touch') {
+				uni.showModal({
+					title: '确认',
+					content: '你确定要靠近海面吗？有些边界一旦越过，就不再由你决定返回。',
+					confirmText: '靠近',
+					cancelText: '后退',
+					success: (res) => {
+						if (res.confirm) {
+							this.executeJormungandrAction('touch')
+						} else {
+							this.addJormungandrMessage('你选择了后退。')
+						}
+					}
+				})
+				return
+			}
+
+			this.executeJormungandrAction(action.key)
+		},
+		executeJormungandrAction(actionKey) {
+			const state = this.jormungandrState
+
+			state.recentActions.push(actionKey)
+			if (state.recentActions.length > 6) {
+				state.recentActions.shift()
+			}
+
+			switch (actionKey) {
+				case 'distantView':
+					state.observation += 1
+					this.addJormungandrMessage('你站在安全距离外观察。')
+					break
+				case 'tideListen':
+					state.observation += 1
+					state.sanityLoad += 1
+					this.addJormungandrMessage('潮声中似乎夹杂着某种节律。')
+					break
+				case 'observe':
+					state.observation += 2
+					state.sanityLoad += 2
+					this.addJormungandrMessage('你的笔记越来越密。')
+					break
+				case 'worship':
+					state.observation += 1
+					state.sanityLoad += 2
+					state.hostility += 3
+					this.addJormungandrMessage('远处，有人在看你。')
+					break
+				case 'retreat':
+					state.sanityLoad = Math.max(0, state.sanityLoad - 2)
+					state.hostility = Math.max(0, state.hostility - 1)
+					this.addJormungandrMessage('你选择后退，危险有所降低。')
+					break
+				case 'touch':
+					state.observation += 3
+					state.sanityLoad += 4
+					state.hostility += 2
+					this.addJormungandrMessage('你越过了安全距离。海面忽然安静得可怕。')
+					break
+			}
+
+			this.playAbyssAnimation = true
+			setTimeout(() => {
+				this.playAbyssAnimation = false
+			}, 500)
+
+			this.checkJormungandrEvents()
+			this.saveJormungandrState()
+		},
+		checkJormungandrEvents() {
+			const state = this.jormungandrState
+			if (state.frozen) return
+
+			const recent5Actions = state.recentActions.slice(-5)
+			const recent6Actions = state.recentActions.slice(-6)
+			const worshipCount = recent5Actions.filter(a => a === 'worship').length
+			const observeCount = recent6Actions.filter(a => a === 'observe').length
+
+			if (!state.unlockedEvents.includes('tide-record') && observeCount >= 4 && state.sanityLoad >= 9) {
+				state.unlockedEvents.push('tide-record')
+				state.contactStatus = '失踪'
+				state.frozen = true
+				this.addJormungandrMessage('你的记录越来越密。潮汐、梦境、鱼群死亡的方向、夜里传来的低鸣……每一项都被你写进档案。起初，你还能分辨哪些是观察，哪些是幻觉。后来，纸上的线条开始像鳞片，海图上的弧线开始像一段身体。某天清晨，你没有再回到家人与同伴身边。人们只在海岸边找到被盐水浸透的笔记。')
+				return
+			}
+
+			if (!state.unlockedEvents.includes('whisperer') && (worshipCount >= 3 || state.hostility >= 8)) {
+				state.unlockedEvents.push('whisperer')
+				state.hostility += 2
+				state.contactStatus = '被居民敌视'
+				this.addJormungandrMessage('你开始频繁地向海献上牲畜、盐与黑色绳结。起初只是几只羊，后来连村里的人也注意到了异常。他们看见你在潮水边跪下，口中喃喃念着听不懂的词。有人说你在祈求保护，也有人说你在喂养某个不该被喂养的东西。从那天起，居民不再愿意靠近你。')
+			}
+
+			if (state.sanityLoad >= 7 && state.sanityLoad < 10 && !state.unlockedEvents.includes('warning')) {
+				state.unlockedEvents.push('warning')
+				this.addJormungandrMessage('你应该离开。')
+			}
+		},
+		addJormungandrMessage(message) {
+			this.jormungandrMessages.push({
+				id: Date.now(),
+				text: message,
+				time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+				danger: message === '你应该离开。'
+			})
+			if (this.jormungandrMessages.length > 3) {
+				this.jormungandrMessages.shift()
+			}
+		},
+		getJormungandrEventInfo(eventId) {
+			const events = {
+				'whisperer': {
+					name: '海边的低语者',
+					description: '你开始频繁地向海献上牲畜、盐与黑色绳结。起初只是几只羊，后来连村里的人也注意到了异常。他们看见你在潮水边跪下，口中喃喃念着听不懂的词。有人说你在祈求保护，也有人说你在喂养某个不该被喂养的东西。从那天起，居民不再愿意靠近你。'
+				},
+				'tide-record': {
+					name: '最后一页潮汐记录',
+					description: '你的记录越来越密。潮汐、梦境、鱼群死亡的方向、夜里传来的低鸣……每一项都被你写进档案。起初，你还能分辨哪些是观察，哪些是幻觉。后来，纸上的线条开始像鳞片，海图上的弧线开始像一段身体。某天清晨，你没有再回到家人与同伴身边。人们只在海岸边找到被盐水浸透的笔记。'
+				},
+				'warning': {
+					name: '危险警告',
+					description: '你的心智负荷已达到危险水平。你应该离开。'
+				}
+			}
+			return events[eventId] || null
 		}
 	}
 }
@@ -2159,5 +2445,72 @@ export default {
 
 .bottom-space {
 	height: 180rpx;
+}
+
+.event-list {
+	display: flex;
+	flex-direction: column;
+	gap: 16rpx;
+}
+
+.event-card {
+	background: #172230;
+	border: 1rpx solid rgba(185, 74, 72, 0.3);
+	border-radius: 14rpx;
+	padding: 20rpx;
+}
+
+.event-name {
+	display: block;
+	color: #C6A15B;
+	font-size: 28rpx;
+	font-weight: 700;
+	margin-bottom: 8rpx;
+}
+
+.event-desc {
+	display: block;
+	color: #A8B3BD;
+	font-size: 24rpx;
+	line-height: 1.6;
+}
+
+.message-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12rpx;
+}
+
+.message-item {
+	display: flex;
+	flex-direction: column;
+	gap: 4rpx;
+	padding: 12rpx 16rpx;
+	background: rgba(39, 56, 74, 0.3);
+	border-radius: 8rpx;
+}
+
+.message-item.danger {
+	background: rgba(185, 74, 72, 0.15);
+	border: 1rpx solid rgba(185, 74, 72, 0.3);
+}
+
+.message-time {
+	color: #66727F;
+	font-size: 20rpx;
+}
+
+.message-item.danger .message-time {
+	color: #B94A48;
+}
+
+.message-text {
+	color: #A8B3BD;
+	font-size: 24rpx;
+	line-height: 1.5;
+}
+
+.message-item.danger .message-text {
+	color: #D47573;
 }
 </style>
