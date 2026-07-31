@@ -106,6 +106,16 @@
 				</view>
 			</view>
 			
+			<view class="relation-group" v-if="god.relationships.rivals && god.relationships.rivals.length">
+				<text class="relation-type">竞争关系</text>
+				<view class="relation-cards">
+					<view class="relation-card rival" v-for="rival in god.relationships.rivals" :key="rival" @click="goToRelated(rival)">
+						<text class="relation-name">{{ rival }}</text>
+						<text class="relation-label">竞争者</text>
+					</view>
+				</view>
+			</view>
+			
 			<view class="relation-group" v-if="god.relationships.enemies && god.relationships.enemies.length">
 				<text class="relation-type">冲突关系</text>
 				<view class="relation-cards">
@@ -189,7 +199,7 @@ export default {
 		},
 		hasRelationships() {
 			const r = this.god.relationships
-			return r && (r.parents?.length || r.children?.length || r.spouse?.length || r.allies?.length || r.enemies?.length)
+			return r && (r.parents?.length || r.children?.length || r.spouse?.length || r.allies?.length || r.rivals?.length || r.enemies?.length)
 		},
 		relatedStories() {
 			if (!this.god.stories) return []
@@ -502,6 +512,10 @@ export default {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+}
+
+.relation-card.rival {
+	border-color: rgba(198, 161, 91, 0.3);
 }
 
 .relation-card.enemy {

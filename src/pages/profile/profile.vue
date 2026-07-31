@@ -118,33 +118,14 @@
       </view>
     </view>
 
-    <view class="bottom-tab">
-      <view class="tab-item" @click="goToTab('home')">
-        <view class="tab-icon-box"><view class="css-icon icon-home"></view></view>
-        <text class="tab-label">首页</text>
-      </view>
-      <view class="tab-item" @click="goToTab('gods')">
-        <view class="tab-icon-box"><view class="css-icon icon-gods"></view></view>
-        <text class="tab-label">神祇</text>
-      </view>
-      <view class="tab-item" @click="goToTab('stories')">
-        <view class="tab-icon-box"><view class="css-icon icon-stories"></view></view>
-        <text class="tab-label">故事</text>
-      </view>
-      <view class="tab-item" @click="goToTab('bestiary')">
-        <view class="tab-icon-box"><view class="css-icon icon-bestiary"></view></view>
-        <text class="tab-label">图鉴</text>
-      </view>
-      <view class="tab-item active">
-        <view class="tab-icon-box"><view class="css-icon icon-fun"></view></view>
-        <text class="tab-label">档案</text>
-      </view>
-    </view>
-  </scroll-view>
+    <TabBar current="profile" />
+	</view>
 </template>
 
 <script>
+import TabBar from '@/components/TabBar.vue'
 export default {
+  components: { TabBar },
   data() {
     return {
       profileStats: {
@@ -265,17 +246,6 @@ export default {
     },
     goRuneDivination() {
       uni.navigateTo({ url: '/pages/fun/rune-divination' })
-    },
-    goToTab(tab) {
-      const routes = {
-        home: '/pages/index/index',
-        gods: '/pages/gods/god-list',
-        stories: '/pages/stories/story-list',
-        bestiary: '/pages/bestiary/bestiary-list'
-      }
-      if (routes[tab]) {
-        uni.switchTab({ url: routes[tab] })
-      }
     }
   }
 }
@@ -456,111 +426,22 @@ export default {
   justify-content: center;
 }
 
-.bottom-tab {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 108rpx;
-  background: #172230;
-  border-top: 1rpx solid #27384A;
-  display: flex;
-  align-items: center;
-  padding-bottom: env(safe-area-inset-bottom);
-  z-index: 100;
-}
 
-.tab-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 10rpx 0;
-}
 
-.tab-item.active .tab-label {
-  color: #C6A15B;
-}
 
-.tab-item.active .css-icon {
-  color: #C6A15B;
-}
 
-.tab-icon-box {
-  width: 48rpx;
-  height: 48rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 4rpx;
-}
 
-.tab-label {
-  color: #66727F;
-  font-size: 20rpx;
-}
 
-.css-icon {
-  width: 40rpx;
-  height: 40rpx;
-  color: #66727F;
-  position: relative;
-}
 
-.icon-home::after {
-  content: '';
-  position: absolute;
-  left: 8rpx;
-  top: 10rpx;
-  width: 12rpx;
-  height: 12rpx;
-  border-left: 3rpx solid currentColor;
-  border-bottom: 3rpx solid currentColor;
-  transform: rotate(-135deg);
-}
 
-.icon-gods::after {
-  content: '';
-  position: absolute;
-  left: 6rpx;
-  top: 8rpx;
-  width: 14rpx;
-  height: 14rpx;
-  border: 3rpx solid currentColor;
-  border-radius: 50%;
-}
 
-.icon-stories::after {
-  content: '';
-  position: absolute;
-  left: 8rpx;
-  top: 8rpx;
-  width: 12rpx;
-  height: 16rpx;
-  border: 3rpx solid currentColor;
-  border-radius: 2rpx;
-}
 
-.icon-bestiary::after {
-  content: '';
-  position: absolute;
-  left: 8rpx;
-  top: 8rpx;
-  width: 12rpx;
-  height: 12rpx;
-  border: 3rpx solid currentColor;
-  transform: rotate(45deg);
-}
 
-.icon-fun::after {
-  content: '';
-  position: absolute;
-  left: 14rpx;
-  top: 14rpx;
-  width: 4rpx;
-  height: 4rpx;
-  border-radius: 50%;
-  background: currentColor;
-}
+
+
+
+
+
+
+
 </style>

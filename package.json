@@ -6,12 +6,15 @@
     "serve": "npm run dev:h5",
     "build": "npm run build:h5",
     "dev:h5": "uni -p h5",
-    "build:h5": "uni build -p h5"
+    "build:h5": "uni build -p h5",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-alpha-5000820260420001",
     "@dcloudio/uni-components": "3.0.0-alpha-5000820260420001",
     "@dcloudio/uni-h5": "3.0.0-alpha-5000820260420001",
+    "lucide-vue-next": "^0.577.0",
     "vue": "^3.4.21",
     "vue-i18n": "^9.1.9"
   },
@@ -20,6 +23,7 @@
     "@dcloudio/uni-automator": "3.0.0-alpha-5000820260420001",
     "@dcloudio/uni-cli-shared": "3.0.0-alpha-5000820260420001",
     "@dcloudio/vite-plugin-uni": "3.0.0-alpha-5000820260420001",
-    "vite": "^5.2.8"
+    "vite": "^5.2.8",
+    "vitest": "^2.1.9"
   }
 }

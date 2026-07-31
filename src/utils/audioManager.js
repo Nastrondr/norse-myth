@@ -12,18 +12,39 @@ function clearFadeTimer() {
   }
 }
 
+export function getBgmVolume() {
+  const saved = uni.getStorageSync(VOLUME_KEY)
+  const n = Number(saved)
+  if (!Number.isFinite(n)) return 0.45
+  return Math.max(0, Math.min(1, n))
+}
+
+export function setBgmVolume(value) {
+  let volume = Number(value)
+  if (!Number.isFinite(volume)) {
+    volume = getBgmVolume()
+  }
+  if (!Number.isFinite(volume)) {
+    volume = 0.45
+  }
+  volume = Math.max(0, Math.min(1, volume))
+  uni.setStorageSync(VOLUME_KEY, volume)
+  const instance = initAudio()
+  if (instance && Number.isFinite(volume)) {
+    instance.volume = volume
+  }
+  return volume
+}
+
 export function initAudio() {
   if (audio) return audio
-
   audio = uni.createInnerAudioContext()
   audio.src = '/static/audio/bgm-main.mp3'
   audio.loop = true
-  audio.volume = getVolume()
-
+  audio.volume = getBgmVolume()
   audio.onError((err) => {
     console.warn('BGM error:', err)
   })
-
   return audio
 }
 
@@ -35,91 +56,49 @@ export function setBgmEnabled(value) {
   uni.setStorageSync(STORAGE_KEY, !!value)
 }
 
-export function getVolume() {
-  const saved = uni.getStorageSync(VOLUME_KEY)
-  return saved !== '' && saved !== null ? parseFloat(saved) : 0.45
-}
-
-export function setVolume(value) {
-  const volume = Math.max(0, Math.min(1, value))
-  uni.setStorageSync(VOLUME_KEY, volume)
-  if (audio) {
-    audio.volume = volume
-  }
-  return volume
-}
-
-export function getBgmVolume() {
-  const saved = uni.getStorageSync(VOLUME_KEY)
-  const n = Number(saved)
-
-  if (!Number.isFinite(n)) return 0.45
-
-  return Math.max(0, Math.min(1, n))
-}
-
-export function setBgmVolume(value) {
-  let volume = Number(value)
-
-  if (!Number.isFinite(volume)) {
-    volume = getBgmVolume()
-  }
-
-  if (!Number.isFinite(volume)) {
-    volume = 0.45
-  }
-
-  volume = Math.max(0, Math.min(1, volume))
-
-  uni.setStorageSync(VOLUME_KEY, volume)
-
-  const instance = initAudio()
-
-  if (instance && Number.isFinite(volume)) {
-    instance.volume = volume
-  }
-
-  return volume
-}
-
 function fadeTo(targetVolume, callback) {
   clearFadeTimer()
   const instance = initAudio()
-  const currentVolume = instance.volume
-  const delta = (targetVolume - currentVolume) * (FADE_INTERVAL / FADE_DURATION)
+  const currentVolume = Number(instance.volume) || 0
+  const safeTarget = Math.max(0, Math.min(1, Number(targetVolume) || 0))
+  const steps = FADE_DURATION / FADE_INTERVAL
+  const delta = (safeTarget - currentVolume) / steps
 
   fadeTimer = setInterval(() => {
-    let newVolume = instance.volume + delta
+    let newVolume = Number(instance.volume) + delta
+    let done = false
 
-    if (delta > 0 && newVolume >= targetVolume) {
-      newVolume = targetVolume
-      clearFadeTimer()
-      callback && callback()
-    } else if (delta < 0 && newVolume <= targetVolume) {
-      newVolume = targetVolume
+    if (delta > 0 && newVolume >= safeTarget) {
+      newVolume = safeTarget
+      done = true
+    } else if (delta < 0 && newVolume <= safeTarget) {
+      newVolume = safeTarget
+      done = true
+    } else if (delta === 0) {
+      done = true
+    }
+
+    instance.volume = Math.max(0, Math.min(1, newVolume))
+
+    if (done) {
       clearFadeTimer()
       callback && callback()
     }
-
-    instance.volume = newVolume
   }, FADE_INTERVAL)
 }
 
 export function playBgm() {
   const instance = initAudio()
-  const targetVolume = getVolume()
-  
+  const targetVolume = getBgmVolume()
   clearFadeTimer()
   instance.volume = 0
   instance.play()
-  
   fadeTo(targetVolume)
   setBgmEnabled(true)
 }
 
 export function pauseBgm() {
   if (!audio) return
-
   fadeTo(0, () => {
     if (audio) {
       audio.pause()
@@ -130,12 +109,10 @@ export function pauseBgm() {
 
 export function toggleBgm() {
   const enabled = getBgmEnabled()
-
   if (enabled) {
     pauseBgm()
     return false
   }
-
   playBgm()
   return true
 }

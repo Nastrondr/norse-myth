@@ -86,28 +86,7 @@
       <view class="bottom-space"></view>
     </scroll-view>
 
-    <view class="bottom-tab">
-      <view class="tab-item active">
-        <view class="tab-icon-box"><view class="css-icon icon-home"></view></view>
-        <text class="tab-label">首页</text>
-      </view>
-      <view class="tab-item" @click="goToTab('gods')">
-        <view class="tab-icon-box"><view class="css-icon icon-gods"></view></view>
-        <text class="tab-label">神祇</text>
-      </view>
-      <view class="tab-item" @click="goToTab('stories')">
-        <view class="tab-icon-box"><view class="css-icon icon-stories"></view></view>
-        <text class="tab-label">故事</text>
-      </view>
-      <view class="tab-item" @click="goToTab('bestiary')">
-        <view class="tab-icon-box"><view class="css-icon icon-bestiary"></view></view>
-        <text class="tab-label">图鉴</text>
-      </view>
-      <view class="tab-item" @click="goToTab('fun')">
-        <view class="tab-icon-box"><view class="css-icon icon-fun"></view></view>
-        <text class="tab-label">档案</text>
-      </view>
-    </view>
+    <TabBar current="home" />
 
     <view
       v-if="isEnteringWorld"
@@ -151,7 +130,7 @@
     </view>
 
     <view class="volume-entry" @click="openVolumePanel">
-      <text>{{ getVolumePercent() }}%</text>
+      <text>{{ getSafeVolumePercent() }}%</text>
     </view>
   </view>
 
@@ -169,6 +148,9 @@
         @pointermove.stop="handleVolumePointer"
         @mousedown.stop="handleVolumeMouseDown" 
         @click.stop="handleVolumePointer"
+        @touchstart.stop="handleVolumeTouchStart"
+        @touchmove.stop="handleVolumeTouchMove"
+        @touchend.stop="handleVolumeTouchEnd"
       >
         <view 
           class="volume-fill" 
@@ -187,8 +169,10 @@
 
 <script>
 import { initAudio, getBgmEnabled, toggleBgm, getBgmVolume, setBgmVolume } from '../../utils/audioManager.js'
+import TabBar from '../../components/TabBar.vue'
 
 export default {
+  components: { TabBar },
   data() {
     return {
       bgmEnabled: false,
@@ -356,6 +340,23 @@ export default {
       window.addEventListener('mousemove', moveHandler)
       window.addEventListener('mouseup', upHandler)
     },
+    handleVolumeTouchStart(e) {
+      this.isDraggingVolume = true
+      const touch = e.touches && e.touches[0]
+      if (touch) {
+        this.updateVolumeByClientY(Number(touch.clientY))
+      }
+    },
+    handleVolumeTouchMove(e) {
+      if (!this.isDraggingVolume) return
+      const touch = e.touches && e.touches[0]
+      if (touch) {
+        this.updateVolumeByClientY(Number(touch.clientY))
+      }
+    },
+    handleVolumeTouchEnd() {
+      this.isDraggingVolume = false
+    },
     goToWorldDetail(world) {
       if (!world || !world.id) return
       uni.navigateTo({
@@ -519,17 +520,6 @@ export default {
         title: '已重置',
         icon: 'none'
       })
-    },
-    goToTab(tab) {
-      const routes = {
-        gods: '/pages/gods/god-list',
-        stories: '/pages/stories/story-list',
-        bestiary: '/pages/bestiary/bestiary-list',
-        fun: '/pages/profile/profile'
-      }
-      if (routes[tab]) {
-        uni.switchTab({ url: routes[tab] })
-      }
     }
   }
 }
@@ -918,548 +908,6 @@ export default {
 .bottom-space {
   height: 180rpx;
   background: #0B1118;
-}
-
-.tree-dots {
-  position: relative;
-  width: 120rpx;
-  height: 60rpx;
-  margin-bottom: 16rpx;
-}
-
-.tree-dot {
-  position: absolute;
-  width: 8rpx;
-  height: 8rpx;
-  border-radius: 50%;
-  background: #C6A15B;
-}
-
-.tree-dot-1 {
-  left: 0;
-  top: 0;
-}
-
-.tree-dot-2 {
-  left: 28rpx;
-  top: 20rpx;
-}
-
-.tree-dot-3 {
-  left: 56rpx;
-  top: 0;
-}
-
-.tree-dot-4 {
-  left: 84rpx;
-  top: 20rpx;
-}
-
-.tree-dot-5 {
-  left: 56rpx;
-  top: 52rpx;
-}
-
-.tree-name {
-  display: block;
-  font-size: 36rpx;
-  font-weight: 600;
-  color: #D8C27A;
-  letter-spacing: 4rpx;
-}
-
-.tree-subname {
-  display: block;
-  font-size: 24rpx;
-  color: #66727F;
-  margin-top: 8rpx;
-}
-
-.section {
-  padding: 48rpx 40rpx 24rpx;
-  background: #0B1118;
-}
-
-.section-title {
-  font-size: 36rpx;
-  font-weight: 600;
-  color: #F2F4F6;
-}
-
-.worlds-grid {
-  display: flex;
-  flex-wrap: wrap;
-  padding: 8rpx 20rpx;
-  background: #0B1118;
-}
-
-.world-card {
-  width: 320rpx;
-  margin: 12rpx;
-  padding: 28rpx;
-  background: #172230;
-  border: 2rpx solid #27384A;
-  border-radius: 12rpx;
-  box-sizing: border-box;
-}
-
-.world-card:active {
-  transform: scale(0.98);
-  border-color: rgba(198, 161, 91, 0.55);
-}
-
-.world-name {
-  display: block;
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #F2F4F6;
-  margin-bottom: 6rpx;
-}
-
-.world-name-en {
-  display: block;
-  font-size: 24rpx;
-  color: #C6A15B;
-  margin-bottom: 16rpx;
-}
-
-.world-type {
-  display: block;
-  font-size: 22rpx;
-  color: #66727F;
-  margin-bottom: 12rpx;
-}
-
-.world-desc {
-  display: block;
-  font-size: 26rpx;
-  color: #A8B3BD;
-  line-height: 1.5;
-  margin-bottom: 20rpx;
-}
-
-.progress-bar {
-  height: 6rpx;
-  background: #27384A;
-  border-radius: 3rpx;
-  margin-bottom: 10rpx;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #C6A15B, #D8C27A);
-  border-radius: 3rpx;
-}
-
-.progress-text {
-  display: block;
-  font-size: 20rpx;
-  color: #66727F;
-  text-align: right;
-}
-
-.recommend-list {
-  display: flex;
-  flex-direction: column;
-  padding: 8rpx 20rpx;
-  background: #0B1118;
-}
-
-.recommend-card {
-  margin: 12rpx 0;
-  padding: 32rpx 28rpx;
-  background: #172230;
-  border: 2rpx solid #27384A;
-  border-radius: 12rpx;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.recommend-label {
-  font-size: 28rpx;
-  color: #A8B3BD;
-}
-
-.recommend-value {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #C6A15B;
-}
-
-.dashboard-card {
-  background: #172230;
-  border: 1px solid #27384A;
-  border-radius: 24rpx;
-  padding: 28rpx;
-  margin: 28rpx 32rpx;
-  box-sizing: border-box;
-}
-
-.module-title {
-  display: block;
-  color: #F2F4F6;
-  font-size: 32rpx;
-  font-weight: 800;
-}
-
-.module-desc {
-  display: block;
-  margin-top: 8rpx;
-  color: #A8B3BD;
-  font-size: 24rpx;
-  line-height: 1.5;
-}
-
-.progress-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 20rpx;
-  align-items: baseline;
-}
-
-.progress-percent {
-  color: #C6A15B;
-  font-size: 36rpx;
-  font-weight: 800;
-}
-
-.main-progress {
-  width: 100%;
-  height: 12rpx;
-  margin-top: 26rpx;
-  background: #0B1118;
-  border-radius: 999rpx;
-  overflow: hidden;
-}
-
-.main-progress-fill {
-  height: 100%;
-  border-radius: 999rpx;
-  background: linear-gradient(90deg, #C6A15B, #D8C27A);
-}
-
-.progress-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14rpx;
-  margin-top: 24rpx;
-}
-
-.progress-item {
-  width: calc(50% - 7rpx);
-  background: rgba(11,17,24,0.58);
-  border: 1px solid rgba(39,56,74,0.72);
-  border-radius: 16rpx;
-  padding: 18rpx;
-  box-sizing: border-box;
-}
-
-.progress-label {
-  display: block;
-  color: #66727F;
-  font-size: 22rpx;
-}
-
-.progress-value {
-  display: block;
-  margin-top: 8rpx;
-  color: #F2F4F6;
-  font-size: 26rpx;
-  font-weight: 700;
-}
-
-.task-section {
-  margin: 32rpx;
-}
-
-.task-card {
-  display: flex;
-  align-items: center;
-  gap: 18rpx;
-  margin-top: 18rpx;
-  padding: 22rpx;
-  background: #172230;
-  border: 1px solid #27384A;
-  border-radius: 20rpx;
-  box-sizing: border-box;
-}
-
-.task-card.completed {
-  opacity: 0.68;
-  border-color: rgba(124,140,116,0.5);
-}
-
-.task-card.completed .task-action {
-  background: rgba(124,140,116,0.16);
-  border-color: rgba(124,140,116,0.38);
-  color: #7C8C74;
-}
-
-.task-count {
-  display: block;
-  margin-top: 12rpx;
-  color: #C6A15B;
-  font-size: 26rpx;
-  font-weight: 700;
-}
-
-.reset-task {
-  margin-top: 24rpx;
-  padding: 12rpx;
-  text-align: center;
-}
-
-.reset-task-text {
-  color: #66727F;
-  font-size: 22rpx;
-}
-
-.reset-task:active .reset-task-text {
-  color: #66727F;
-  opacity: 0.6;
-}
-
-.task-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.task-title {
-  display: block;
-  color: #F2F4F6;
-  font-size: 26rpx;
-  font-weight: 700;
-}
-
-.task-desc {
-  display: block;
-  margin-top: 6rpx;
-  color: #A8B3BD;
-  font-size: 22rpx;
-  line-height: 1.45;
-  white-space: normal;
-  word-break: break-word;
-}
-
-.task-reward {
-  display: block;
-  margin-top: 8rpx;
-  color: #C6A15B;
-  font-size: 20rpx;
-}
-
-.task-action {
-  min-width: 112rpx;
-  height: 52rpx;
-  padding: 0 16rpx;
-  border-radius: 999rpx;
-  background: rgba(198,161,91,0.16);
-  border: 1px solid rgba(198,161,91,0.42);
-  color: #C6A15B;
-  font-size: 22rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.bottom-space {
-  height: 200rpx;
-  background: #0B1118;
-}
-
-.bottom-tab {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 112rpx;
-  background: #111A24;
-  border-top: 1px solid #27384A;
-  display: flex;
-  z-index: 9999;
-  padding-bottom: env(safe-area-inset-bottom);
-  box-sizing: content-box;
-}
-
-.tab-item {
-  flex: 1;
-  height: 112rpx;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-  color: #66727F;
-  text-align: center;
-}
-
-.tab-item.active {
-  color: #C6A15B;
-}
-
-.tab-icon-box {
-  width: 48rpx;
-  height: 40rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: #66727F;
-}
-
-.tab-item.active .tab-icon-box {
-  color: #C6A15B;
-}
-
-.tab-label {
-  display: block;
-  height: 24rpx;
-  line-height: 24rpx;
-  font-size: 22rpx;
-  color: #66727F;
-  text-align: center;
-}
-
-.tab-item.active .tab-label {
-  color: #C6A15B;
-}
-
-.css-icon {
-  position: relative;
-  width: 32rpx;
-  height: 32rpx;
-  color: inherit;
-  box-sizing: border-box;
-  transform-origin: center center;
-}
-
-.css-icon::before,
-.css-icon::after {
-  box-sizing: border-box;
-  color: inherit;
-}
-
-.icon-home::before {
-  content: '';
-  position: absolute;
-  left: 7rpx;
-  top: 6rpx;
-  width: 18rpx;
-  height: 18rpx;
-  border-left: 3rpx solid;
-  border-top: 3rpx solid;
-  transform: rotate(45deg);
-  border-radius: 2rpx;
-  color: inherit;
-}
-
-.icon-home::after {
-  content: '';
-  position: absolute;
-  left: 8rpx;
-  top: 17rpx;
-  width: 16rpx;
-  height: 11rpx;
-  border: 3rpx solid;
-  border-top: none;
-  border-radius: 2rpx;
-  color: inherit;
-}
-
-.icon-gods::before {
-  content: '';
-  position: absolute;
-  left: 5rpx;
-  top: 5rpx;
-  width: 22rpx;
-  height: 6rpx;
-  border-left: 3rpx solid currentColor;
-  border-right: 3rpx solid currentColor;
-  border-top: 3rpx solid currentColor;
-  transform: skewX(-8deg);
-}
-
-.icon-gods::after {
-  content: '';
-  position: absolute;
-  left: 6rpx;
-  top: 14rpx;
-  width: 20rpx;
-  height: 14rpx;
-  border-left: 3rpx solid currentColor;
-  border-right: 3rpx solid currentColor;
-  box-shadow: 7rpx 0 0 -4rpx currentColor, -7rpx 0 0 -4rpx currentColor;
-}
-
-.icon-stories::before {
-  content: '';
-  position: absolute;
-  left: 5rpx;
-  top: 6rpx;
-  width: 11rpx;
-  height: 22rpx;
-  border: 3rpx solid currentColor;
-  border-radius: 4rpx 0 0 4rpx;
-}
-
-.icon-stories::after {
-  content: '';
-  position: absolute;
-  right: 5rpx;
-  top: 6rpx;
-  width: 11rpx;
-  height: 22rpx;
-  border: 3rpx solid currentColor;
-  border-radius: 0 4rpx 4rpx 0;
-}
-
-.icon-bestiary::before {
-  content: '';
-  position: absolute;
-  left: 8rpx;
-  top: 6rpx;
-  width: 16rpx;
-  height: 16rpx;
-  border: 3rpx solid currentColor;
-  transform: rotate(45deg);
-  border-radius: 3rpx;
-}
-
-.icon-bestiary::after {
-  content: '';
-  position: absolute;
-  left: 13rpx;
-  top: 11rpx;
-  width: 6rpx;
-  height: 6rpx;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.icon-fun::before {
-  content: '';
-  position: absolute;
-  left: 7rpx;
-  top: 7rpx;
-  width: 18rpx;
-  height: 18rpx;
-  border: 3rpx solid currentColor;
-  border-radius: 50%;
-}
-
-.icon-fun::after {
-  content: '';
-  position: absolute;
-  left: 14rpx;
-  top: 14rpx;
-  width: 4rpx;
-  height: 4rpx;
-  border-radius: 50%;
-  background: currentColor;
 }
 
 .world-enter-overlay {
