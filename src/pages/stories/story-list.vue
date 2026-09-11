@@ -216,6 +216,11 @@ export default {
 	justify-content: center;
 	font-size: 24rpx;
 	border: 1rpx solid #27384A;
+	transition: color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.toggle-btn:active {
+	transform: scale(0.96);
 }
 
 .toggle-btn.active {
@@ -295,8 +300,17 @@ export default {
 	color: #C6A15B;
 	font-size: 36rpx;
 	font-weight: 300;
-	width: 40rpx;
+	width: 56rpx;
+	height: 56rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	text-align: center;
+	transition: transform 0.15s ease;
+}
+
+.phase-toggle:active {
+	transform: scale(0.85);
 }
 
 .phase-events {
@@ -388,13 +402,19 @@ export default {
 }
 
 .tab {
-	padding: 12rpx 24rpx;
+	padding: 14rpx 26rpx;
 	color: #66727F;
 	font-size: 24rpx;
 	white-space: nowrap;
 	border-radius: 30rpx;
 	background: #172230;
 	margin-right: 12rpx;
+	border: 1rpx solid transparent;
+	transition: color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.tab:active {
+	transform: scale(0.95);
 }
 
 .tab.active {
@@ -416,6 +436,12 @@ export default {
 	padding: 24rpx;
 	margin-bottom: 16rpx;
 	box-sizing: border-box;
+	transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.story-card:active {
+	transform: scale(0.98);
+	border-color: rgba(198,161,91,0.55);
 }
 
 .story-icon {

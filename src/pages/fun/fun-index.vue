@@ -57,11 +57,9 @@
 </template>
 
 <script>
-import TabBar from '@/components/TabBar.vue'
 import { runes as runeData } from '@/data/runes.js'
 
 export default {
-  components: { TabBar },
   data() {
     return {
       userProfile: {
@@ -133,10 +131,9 @@ export default {
         'Fehu': '财富流动的开始。关注你最近忽略的那个人，他可能带来重要机会。',
         'Uruz': '生命力在恢复。适合运动或开始新计划，但注意休息。',
         'Thurisaz': '挑战在前。不要逃避，你比想象中更强。',
-        'Ansuz': '语言的力量。 今天适合写作、沟通、表达想法。',
         'Raido': '旅程开始。也许是物理的迁移，也许是内心的转变。',
         'Kenaz': '内在火焰点燃。适合创造性的工作或学习新技能。',
-        ' Gebo': '礼物与交换。给予会让你收获，合作比独斗更好。',
+        'Gebo': '礼物与交换。给予会让你收获，合作比独斗更好。',
         'Wunjo': '喜悦与目标达成。你走在了正确的道路上。'
       }
 
@@ -225,8 +222,10 @@ export default {
 .daily-symbol {
   display: block;
   font-size: 80rpx;
+  line-height: 1;
+  font-family: serif;
   color: #D8C27A;
-  margin-bottom: 16rpx;
+  margin-bottom: 20rpx;
 }
 
 .daily-name {
@@ -281,6 +280,12 @@ export default {
   background: #172230;
   border: 1rpx solid #27384A;
   border-radius: 12rpx;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.fun-card:active {
+  transform: scale(0.98);
+  border-color: rgba(198, 161, 91, 0.55);
 }
 
 .fun-icon {

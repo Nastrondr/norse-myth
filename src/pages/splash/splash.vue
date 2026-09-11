@@ -115,8 +115,10 @@ export default {
 
 .rune {
 	font-size: 100rpx;
+	line-height: 1;
 	color: #ffffff;
 	font-weight: bold;
+	font-family: serif;
 }
 
 .app-name {
@@ -141,6 +143,12 @@ export default {
 	background: rgba(255, 255, 255, 0.1);
 	border-radius: 30rpx;
 	backdrop-filter: blur(10rpx);
+	transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.skip-btn:active {
+	transform: scale(0.94);
+	background: rgba(255, 255, 255, 0.22);
 }
 
 .skip-text {

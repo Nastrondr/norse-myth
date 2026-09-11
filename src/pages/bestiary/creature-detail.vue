@@ -832,7 +832,7 @@ export default {
 		markClue(creature) {
 			uni.showToast({
 				title: '已标记线索',
-				icon: 'none'
+				icon: 'success'
 			})
 		},
 		getVisibleBadges() {
@@ -1358,6 +1358,12 @@ export default {
 	color: #C6A15B;
 	font-size: 48rpx;
 	font-weight: 300;
+	transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.back-btn:active {
+	transform: scale(0.9);
+	border-color: #C6A15B;
 }
 
 .container-inner {
@@ -1450,7 +1456,7 @@ export default {
 
 .reset-clue {
 	margin-top: 32rpx;
-	padding: 12rpx;
+	padding: 16rpx 24rpx;
 	text-align: center;
 }
 
@@ -2421,10 +2427,12 @@ export default {
 	align-items: center;
 	justify-content: center;
 	margin-top: 32rpx;
+	transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
-.collect-btn[hover-class] {
-	opacity: 0.8;
+.collect-btn:active {
+	opacity: 0.85;
+	transform: scale(0.98);
 }
 
 .collect-btn text {

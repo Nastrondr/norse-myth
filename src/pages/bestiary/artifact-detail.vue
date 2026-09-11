@@ -234,7 +234,7 @@ export default {
 }
 
 .meta-divider {
-	color: #27384A;
+	color: #66727F;
 }
 
 .rarity-tag {
@@ -383,5 +383,11 @@ export default {
 	color: #C6A15B;
 	font-size: 48rpx;
 	font-weight: 300;
+	transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.back-btn:active {
+	transform: scale(0.9);
+	border-color: #C6A15B;
 }
 </style>

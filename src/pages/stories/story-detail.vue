@@ -315,7 +315,17 @@ export default {
 	color: #F2F4F6;
 	font-size: 48rpx;
 	font-weight: 300;
-	width: 80rpx;
+	width: 88rpx;
+	height: 88rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.back-btn:active {
+	transform: scale(0.85);
+	opacity: 0.8;
 }
 
 .nav-title {

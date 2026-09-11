@@ -71,8 +71,13 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 4rpx;
+  height: 100%;
   color: #66727F;
-  transition: color 0.2s ease;
+  transition: color 0.2s ease, transform 0.15s ease;
+}
+
+.tab-item:active {
+  transform: scale(0.92);
 }
 
 .tab-item.active {
@@ -85,6 +90,11 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.tab-item.active .tab-icon-box {
+  transform: translateY(-2rpx);
 }
 
 .tab-label {

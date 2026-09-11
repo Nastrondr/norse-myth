@@ -1,9 +1,11 @@
 <template>
   <view class="quiz-page">
     <view class="quiz-nav">
-      <text class="back-btn" @click="goBack">‹</text>
+      <view class="nav-back" @click="goBack">
+        <text>‹</text>
+      </view>
       <text class="nav-title">谣言之书</text>
-      <text class="nav-placeholder"></text>
+      <view class="nav-placeholder"></view>
     </view>
 
     <view class="quiz-content">
@@ -332,6 +334,13 @@ export default {
         }, 300)
       } else if (this.currentRumorIndex >= total - 1) {
         this.quizState = 'summary'
+        // 写入完成记录，供档案页「谣言之书」状态与徽章解锁使用
+        uni.setStorageSync('norse_rumor_book_completion', {
+          accuracy: total ? Math.round(this.correctCount / total * 100) : 0,
+          correctCount: this.correctCount,
+          total,
+          date: Date.now()
+        })
       }
     },
     restartRumorQuiz() {
@@ -427,7 +436,7 @@ export default {
 
       uni.showToast({
         title: '传闻已收入谣言之书',
-        icon: 'none'
+        icon: 'success'
       })
 
       this.quizState = 'intro'
@@ -463,11 +472,30 @@ export default {
   border-bottom: 1px solid #27384A;
 }
 
-.back-btn,
-.nav-placeholder {
-  width: 56rpx;
+.nav-back {
+  width: 88rpx;
+  height: 96rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #C6A15B;
-  font-size: 48rpx;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.nav-back text {
+  font-size: 52rpx;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.nav-back:active {
+  transform: scale(0.85);
+  opacity: 0.8;
+}
+
+.nav-placeholder {
+  width: 88rpx;
+  height: 96rpx;
 }
 
 .nav-title {
@@ -969,6 +997,12 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.primary-btn:active {
+  transform: scale(0.97);
+  opacity: 0.9;
 }
 
 .secondary-btn {
@@ -978,6 +1012,12 @@ export default {
   border: 1px solid rgba(198,161,91,0.24);
   border-radius: 16rpx;
   background: rgba(198,161,91,0.06);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.secondary-btn:active {
+  transform: scale(0.98);
+  background: rgba(198,161,91,0.14);
 }
 
 .secondary-btn text {
@@ -995,8 +1035,14 @@ export default {
 
 .clear-link {
   margin-left: 16rpx;
+  padding: 8rpx 6rpx;
   color: #66727F;
   text-decoration: underline;
+  transition: opacity 0.15s ease;
+}
+
+.clear-link:active {
+  opacity: 0.6;
 }
 
 .page-indicator {
@@ -1478,6 +1524,12 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.next-btn:active {
+  transform: scale(0.97);
+  opacity: 0.9;
 }
 
 .score-display {

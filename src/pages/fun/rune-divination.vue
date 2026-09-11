@@ -1,7 +1,11 @@
 <template>
   <view class="divination-page">
-    <view class="page-header">
-      <text class="page-title">三符文占卜</text>
+    <view class="divination-nav">
+      <view class="nav-back" @click="goBack">
+        <text>‹</text>
+      </view>
+      <text class="nav-title">三符文占卜</text>
+      <view class="nav-placeholder"></view>
     </view>
 
     <view v-if="!divinationStarted" class="intro-section">
@@ -124,6 +128,16 @@ export default {
     }
   },
   methods: {
+    goBack() {
+      const pages = getCurrentPages()
+      if (pages.length <= 1) {
+        uni.switchTab({
+          url: '/pages/index/index'
+        })
+      } else {
+        uni.navigateBack()
+      }
+    },
     startDivination() {
       this.divinationStarted = true
       this.currentDrawStep = 0
@@ -171,6 +185,14 @@ export default {
 
         this.currentDrawStep += 1
         this.isDrawing = false
+
+        if (this.drawnRunes.length >= 3) {
+          const futureRune = this.drawnRunes[this.drawnRunes.length - 1]
+          uni.setStorageSync('norse_rune_record', {
+            runeName: futureRune ? futureRune.name : '已完成',
+            date: Date.now()
+          })
+        }
       }, 800)
     },
 
@@ -226,28 +248,56 @@ ${future.deeper}
   min-height: 100vh;
   background: #0B1118;
   color: #F2F4F6;
-  padding: 32rpx;
-  padding-bottom: 160rpx;
   box-sizing: border-box;
   overflow-x: hidden;
 }
 
-.page-header {
-  text-align: center;
-  padding: 24rpx 0 40rpx;
+.divination-nav {
+  height: 96rpx;
+  background: #111A24;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+  border-bottom: 1px solid #27384A;
 }
 
-.page-title {
-  display: block;
-  font-size: 44rpx;
-  font-weight: 700;
+.nav-back {
+  width: 88rpx;
+  height: 96rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #C6A15B;
-  letter-spacing: 6rpx;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.nav-back text {
+  font-size: 52rpx;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.nav-back:active {
+  transform: scale(0.85);
+  opacity: 0.8;
+}
+
+.nav-title {
+  color: #F2F4F6;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.nav-placeholder {
+  width: 88rpx;
+  height: 96rpx;
 }
 
 .intro-section {
   text-align: center;
-  padding: 80rpx 0;
+  padding: 80rpx 32rpx;
 }
 
 .intro-text {
@@ -260,6 +310,7 @@ ${future.deeper}
 
 .draw-section {
   text-align: center;
+  padding: 0 32rpx;
 }
 
 .draw-prompt {
@@ -523,6 +574,8 @@ ${future.deeper}
 
 .slot-symbol {
   font-size: 64rpx;
+  line-height: 1;
+  font-family: serif;
   color: #D8C27A;
 }
 
@@ -544,6 +597,7 @@ ${future.deeper}
   justify-content: center;
   box-shadow: 0 0 32rpx rgba(198, 161, 91, 0.22);
   margin: 32rpx auto 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .ritual-button:active {
@@ -561,8 +615,13 @@ ${future.deeper}
   box-shadow: none;
 }
 
+.result-section {
+  padding: 0 32rpx;
+}
+
 .interpretation-section {
   margin-top: 24rpx;
+  padding: 0 32rpx;
 }
 
 .result-card {
@@ -584,6 +643,8 @@ ${future.deeper}
 .result-symbol {
   display: block;
   font-size: 72rpx;
+  line-height: 1;
+  font-family: serif;
   color: #D8C27A;
   text-align: center;
   margin-bottom: 12rpx;

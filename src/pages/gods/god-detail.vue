@@ -152,12 +152,17 @@ export default {
 	},
 	computed: {
 		headerGradient() {
-			const factionColors = {
-				'阿萨神族': '#C6A15B',
-				'华纳神族': '#7C8C74',
-				'巨人': '#8B4A4A'
+			const faction = this.god.faction || ''
+			let color = '#8FB6D9'
+			if (faction.includes('华纳')) {
+				color = '#7C8C74'
+			} else if (faction.includes('巨人')) {
+				color = '#8B4A4A'
+			} else if (faction.includes('冥界')) {
+				color = '#66727F'
+			} else if (faction.includes('阿萨')) {
+				color = '#C6A15B'
 			}
-			const color = factionColors[this.god.faction] || '#8FB6D9'
 			return `linear-gradient(135deg, ${color}22 0%, #0B1118 100%)`
 		},
 		radarPoints() {
@@ -217,12 +222,12 @@ export default {
 	},
 	methods: {
 		getFactionClass(faction) {
-			const classes = {
-				'阿萨神族': 'asa',
-				'华纳神族': 'vana',
-				'巨人': 'giant'
-			}
-			return classes[faction] || ''
+			if (!faction) return ''
+			if (faction.includes('华纳')) return 'vana'
+			if (faction.includes('巨人')) return 'giant'
+			if (faction.includes('冥界')) return 'hel'
+			if (faction.includes('阿萨')) return 'asa'
+			return ''
 		},
 		goToRelated(name) {
 			const relatedId = name.toLowerCase()
@@ -268,6 +273,12 @@ export default {
 	color: #C6A15B;
 	font-size: 48rpx;
 	font-weight: 300;
+	transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.back-btn:active {
+	transform: scale(0.9);
+	border-color: #C6A15B;
 }
 
 .header {
@@ -291,6 +302,7 @@ export default {
 .avatar-large.asa { background: linear-gradient(135deg, #C6A15B, #8B7030); }
 .avatar-large.vana { background: linear-gradient(135deg, #5A7A5C, #3A4A3C); }
 .avatar-large.giant { background: linear-gradient(135deg, #8B4A4A, #5A2A2A); }
+.avatar-large.hel { background: linear-gradient(135deg, #66727F, #3A4450); }
 
 .avatar-text {
 	color: #F2F4F6;
@@ -326,6 +338,7 @@ export default {
 .faction-tag.asa { background: rgba(198, 161, 91, 0.2); color: #C6A15B; }
 .faction-tag.vana { background: rgba(90, 122, 92, 0.2); color: #7C8C74; }
 .faction-tag.giant { background: rgba(139, 74, 74, 0.2); color: #8B4A4A; }
+.faction-tag.hel { background: rgba(102, 114, 127, 0.2); color: #8FA3B8; }
 
 .section {
 	padding: 32rpx;
@@ -512,6 +525,12 @@ export default {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.relation-card:active {
+	transform: scale(0.95);
+	border-color: rgba(198,161,91,0.55);
 }
 
 .relation-card.rival {
@@ -545,6 +564,12 @@ export default {
 	border: 1rpx solid #27384A;
 	border-radius: 16rpx;
 	padding: 24rpx;
+	transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.story-card:active {
+	transform: scale(0.98);
+	border-color: rgba(198,161,91,0.55);
 }
 
 .story-title {

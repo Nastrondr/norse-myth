@@ -91,6 +91,7 @@
     <view
       v-if="isEnteringWorld"
       class="world-enter-overlay"
+      @click="skipEnterWorld"
     >
       <view class="world-enter-bg"></view>
 
@@ -118,6 +119,7 @@
       <text class="gate-hint">
         {{ getWorldEnterHint(enteringWorld) }}
       </text>
+      <text class="gate-skip-hint">轻触任意处立即进入</text>
     </view>
   </view>
   <view class="bgm-control">
@@ -251,12 +253,20 @@ export default {
       }
     }
   },
+  onShow() {
+    // 从其他页面返回时刷新任务与进度展示
+    this.loadHomeProgress()
+  },
   mounted() {
     this.bgmEnabled = getBgmEnabled()
     const safeVolume = getBgmVolume()
     setBgmVolume(safeVolume)
     this.bgmVolume = safeVolume
-    initAudio()
+    // 只在用户曾开启过 BGM 时才预创建 audio context，
+    // 避免浏览器 autoplay policy 触发 ERR_ABORTED
+    if (this.bgmEnabled) {
+      initAudio()
+    }
     this.loadHomeProgress()
   },
   beforeUnmount() {
@@ -371,14 +381,30 @@ export default {
         clearTimeout(this.enterTimer)
       }
       this.enterTimer = setTimeout(() => {
+        this.navigateToEnteringWorld()
+      }, 1200)
+    },
+    skipEnterWorld() {
+      if (!this.isEnteringWorld) return
+      if (this.enterTimer) {
+        clearTimeout(this.enterTimer)
+        this.enterTimer = null
+      }
+      this.navigateToEnteringWorld()
+    },
+    navigateToEnteringWorld() {
+      const world = this.enteringWorld
+      if (this.enterTimer) {
+        clearTimeout(this.enterTimer)
+        this.enterTimer = null
+      }
+      this.isEnteringWorld = false
+      this.enteringWorld = null
+      if (world && world.id) {
         uni.navigateTo({
           url: `/pages/world/world-detail?id=${world.id}`
         })
-        setTimeout(() => {
-          this.isEnteringWorld = false
-          this.enteringWorld = null
-        }, 300)
-      }, 1200)
+      }
     },
     getGateRuneStyle(index, total) {
       const angle = (360 / total) * index - 90
@@ -415,16 +441,20 @@ export default {
         })
         return
       }
-      const routes = {
-        realm: '/pages/world/world-detail?id=asgard',
+      // tabBar 页面必须用 switchTab，navigateTo 会跳转失败
+      const tabRoutes = {
         story: '/pages/stories/story-list',
-        bestiary: '/pages/bestiary/bestiary-list',
+        bestiary: '/pages/bestiary/bestiary-list'
+      }
+      const pageRoutes = {
+        realm: '/pages/world/world-detail?id=asgard',
         rune: '/pages/fun/rune-divination'
       }
-      const url = routes[task.type]
       this.completeTask(task.id)
-      if (url) {
-        uni.navigateTo({ url })
+      if (tabRoutes[task.type]) {
+        uni.switchTab({ url: tabRoutes[task.type] })
+      } else if (pageRoutes[task.type]) {
+        uni.navigateTo({ url: pageRoutes[task.type] })
       } else {
         uni.showToast({
           title: '功能正在开发中',
@@ -457,10 +487,13 @@ export default {
       this.applyTaskReward(task)
       this.recalculateTotalProgress()
       this.saveHomeProgress()
-      uni.showToast({
-        title: '任务已完成',
-        icon: 'none'
-      })
+      // 延迟弹出，避免与页面跳转动画叠加导致用户错过反馈
+      setTimeout(() => {
+        uni.showToast({
+          title: '任务已完成',
+          icon: 'success'
+        })
+      }, 300)
     },
     applyTaskReward(task) {
       if (!task) return
@@ -885,9 +918,9 @@ export default {
 }
 
 .task-btn {
-  min-width: 96rpx;
-  height: 52rpx;
-  padding: 0 16rpx;
+  min-width: 104rpx;
+  height: 60rpx;
+  padding: 0 18rpx;
   border-radius: 999rpx;
   background: rgba(198,161,91,0.16);
   border: 1px solid rgba(198,161,91,0.42);
@@ -897,6 +930,12 @@ export default {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.task-btn:active {
+  transform: scale(0.94);
+  background: rgba(198,161,91,0.3);
 }
 
 .task-item.completed .task-btn {
@@ -1015,6 +1054,17 @@ export default {
   animation: hintFadeUp 0.55s ease-out 0.18s both;
 }
 
+.gate-skip-hint {
+  position: relative;
+  z-index: 2;
+  display: block;
+  margin-top: 20rpx;
+  color: rgba(102,114,127,0.9);
+  font-size: 22rpx;
+  letter-spacing: 2rpx;
+  animation: hintFadeUp 0.55s ease-out 0.35s both;
+}
+
 @keyframes gateAppear {
   0% {
     opacity: 0;
@@ -1081,6 +1131,10 @@ export default {
   transition: all 0.3s ease;
 }
 
+.bgm-toggle:active .toggle-dot {
+  transform: translateY(-50%) scale(0.9);
+}
+
 .bgm-toggle.active {
   border-color: rgba(198,161,91,0.68);
   background: rgba(198,161,91,0.15);
@@ -1106,8 +1160,8 @@ export default {
 
 .volume-entry {
   height: 60rpx;
-  min-width: 70rpx;
-  padding: 0 14rpx;
+  min-width: 74rpx;
+  padding: 0 16rpx;
   border-radius: 999rpx;
   background: rgba(11,17,24,0.82);
   border: 1px solid rgba(198,161,91,0.38);
@@ -1116,6 +1170,12 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.volume-entry:active {
+  transform: scale(0.94);
+  background: rgba(198,161,91,0.18);
 }
 
 .volume-mask {
@@ -1123,6 +1183,7 @@ export default {
   inset: 0;
   z-index: 9998;
   background: rgba(0,0,0,0.20);
+  animation: volumeMaskIn 0.2s ease-out both;
 }
 
 .volume-panel {
@@ -1140,6 +1201,23 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
+  animation: volumePanelIn 0.24s ease-out both;
+}
+
+@keyframes volumeMaskIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes volumePanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(24rpx) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .volume-title {

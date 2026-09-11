@@ -6,7 +6,9 @@
 		</view>
 		
 		<view class="search-box">
-			<text class="search-icon">*</text>
+			<view class="search-icon">
+				<view class="search-icon-lens"></view>
+			</view>
 			<input class="search-input" placeholder="搜索神祇..." v-model="searchText" />
 		</view>
 		
@@ -43,10 +45,10 @@
 			>其他</text>
 		</view>
 		
-		<scroll-view class="god-list" scroll-y>
-			<view 
-				class="god-card" 
-				v-for="god in filteredGods" 
+		<view class="god-list">
+			<view
+				class="god-card"
+				v-for="god in filteredGods"
 				:key="god.id"
 				@click="goToDetail(god.id)"
 			>
@@ -63,7 +65,12 @@
 				</view>
 				<text class="arrow">›</text>
 			</view>
-		</scroll-view>
+			<view v-if="filteredGods.length === 0" class="empty-state">
+				<text class="empty-symbol">ᛟ</text>
+				<text class="empty-title">未找到相关神祇</text>
+				<text class="empty-desc">换个名字或切换阵营再试试。</text>
+			</view>
+		</view>
 
 		<TabBar current="gods" />
 	</view>
@@ -121,7 +128,7 @@ export default {
 	min-height: 100vh;
 	background: #0B1118;
 	padding: 32rpx;
-	padding-bottom: 120rpx;
+	padding-bottom: 180rpx;
 	box-sizing: border-box;
 }
 
@@ -156,8 +163,34 @@ export default {
 }
 
 .search-icon {
-	font-size: 28rpx;
+	width: 32rpx;
+	height: 32rpx;
 	margin-right: 16rpx;
+	position: relative;
+	flex-shrink: 0;
+}
+
+.search-icon-lens {
+	width: 20rpx;
+	height: 20rpx;
+	border: 3rpx solid #66727F;
+	border-radius: 50%;
+	box-sizing: border-box;
+	position: absolute;
+	left: 0;
+	top: 0;
+}
+
+.search-icon-lens::after {
+	content: '';
+	position: absolute;
+	right: -7rpx;
+	bottom: -7rpx;
+	width: 10rpx;
+	height: 3rpx;
+	background: #66727F;
+	border-radius: 2rpx;
+	transform: rotate(45deg);
 }
 
 .search-input {
@@ -178,13 +211,19 @@ export default {
 }
 
 .tab {
-	padding: 12rpx 24rpx;
+	padding: 14rpx 26rpx;
 	color: #66727F;
 	font-size: 24rpx;
 	white-space: nowrap;
 	border-radius: 30rpx;
 	background: #172230;
 	margin-right: 12rpx;
+	border: 1rpx solid transparent;
+	transition: color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.tab:active {
+	transform: scale(0.95);
 }
 
 .tab.active {
@@ -194,7 +233,7 @@ export default {
 }
 
 .god-list {
-	height: calc(100vh - 400rpx);
+	padding-bottom: 40rpx;
 }
 
 .god-card {
@@ -300,7 +339,35 @@ export default {
 
 .arrow {
 	color: #66727F;
-	font-size: 32rpx;
+	font-size: 36rpx;
+}
+
+.empty-state {
+	padding: 80rpx 0;
+	text-align: center;
+}
+
+.empty-symbol {
+	display: block;
+	font-size: 64rpx;
+	line-height: 1;
+	color: #27384A;
+	font-family: serif;
+	margin-bottom: 20rpx;
+}
+
+.empty-title {
+	display: block;
+	color: #A8B3BD;
+	font-size: 28rpx;
+	font-weight: 600;
+	margin-bottom: 8rpx;
+}
+
+.empty-desc {
+	display: block;
+	color: #66727F;
+	font-size: 22rpx;
 }
 
 </style>

@@ -175,31 +175,11 @@
 					</view>
 
 					<view v-else class="empty-timeline">
-						<text class="empty-title">时间线整理中</text>
-						<text class="empty-desc">该国度的历史阶段尚未收录，后续将补充地图与传说节点。</text>
-					</view>
-				</view>
-
-				<view v-if="currentTab === 'timeline' && getTimelineList().length" class="test-panel">
-					<view class="test-header">
-						<text class="test-title">测试工具</text>
-						<text class="test-btn" @click="clearTestLog">清空日志</text>
-					</view>
-					<view class="test-buttons">
-						<text class="test-button primary" @click="testTimelineSwitch">测试时间线切换</text>
-						<text class="test-button" @click="testBackLogic">测试返回逻辑</text>
-					</view>
-					<view v-if="testLog.length" class="test-log">
-						<text class="log-title">测试日志</text>
-						<scroll-view scroll-y class="log-content">
-							<view v-for="(log, index) in testLog" :key="index" class="log-item">
-								<text class="log-time">{{ log.time }}</text>
-								<text class="log-message">{{ log.message }}</text>
-							</view>
-						</scroll-view>
-					</view>
+					<text class="empty-title">时间线整理中</text>
+					<text class="empty-desc">该国度的历史阶段尚未收录，后续将补充地图与传说节点。</text>
 				</view>
 			</view>
+		</view>
 
 			<view class="bottom-space"></view>
 
@@ -268,12 +248,9 @@ export default {
 		return {
 			world: {},
 			currentTab: 'inhabitants',
-			isPinned: false,
 			selectedPin: -1,
 			mapLocations: [],
 			activeTimelineIndex: 2,
-			testMode: false,
-			testLog: [],
 			isMapFullscreen: false
 		}
 	},
@@ -297,7 +274,6 @@ export default {
 		const worldId = options.id || 'asgard'
 		this.world = norseWorlds.find(w => w.id === worldId) || norseWorlds[0]
 		this.initMapLocations()
-		this.checkPinStatus()
 		if (this.world.id === 'asgard') {
 			if (getRavensClueCount() < 3) {
 				unlockRavensClue('trace')
@@ -321,29 +297,6 @@ export default {
 				this.selectedPin = -1
 			}
 		},
-		togglePin() {
-			this.isPinned = !this.isPinned
-			const pinnedWorlds = uni.getStorageSync('pinnedWorlds') || []
-			if (this.isPinned) {
-				if (!pinnedWorlds.includes(this.world.id)) {
-					pinnedWorlds.push(this.world.id)
-				}
-			} else {
-				const index = pinnedWorlds.indexOf(this.world.id)
-				if (index > -1) {
-					pinnedWorlds.splice(index, 1)
-				}
-			}
-			uni.setStorageSync('pinnedWorlds', pinnedWorlds)
-			uni.showToast({
-				title: this.isPinned ? '已标记国度' : '已取消标记',
-				icon: 'none'
-			})
-		},
-		checkPinStatus() {
-			const pinnedWorlds = uni.getStorageSync('pinnedWorlds') || []
-			this.isPinned = pinnedWorlds.includes(this.world.id)
-		},
 		selectPin(index) {
 			this.selectedPin = this.selectedPin === index ? -1 : index
 			this.currentTab = 'locations'
@@ -355,14 +308,14 @@ export default {
 		getWorldLocations() {
 			const worldLocations = {
 				asgard: [
-					{ name: 'A', original: 'Gladsheim', icon: '⌂', desc: '诸神议事大厅', x: 45, y: 25 },
+					{ name: 'A', original: 'Gladsheim', icon: '◈', desc: '诸神议事大厅', x: 45, y: 25 },
 					{ name: 'B', original: 'Valhalla', icon: '▣', desc: '英灵殿', x: 72, y: 38 },
 					{ name: 'C', original: 'Fensalir', icon: '♧', desc: '弗丽嘉的宫殿', x: 22, y: 55 },
 					{ name: 'D', original: 'Breidablik', icon: '◇', desc: '光明神的居所', x: 55, y: 72 }
 				],
 				midgard: [
 					{ name: 'A', original: 'Midgard', icon: '◇', desc: '人类居所', x: 45, y: 40 },
-					{ name: 'B', original: 'Bifrost', icon: '⌁', desc: '连接九界的桥梁', x: 75, y: 20 }
+					{ name: 'B', original: 'Bifrost', icon: '✧', desc: '连接九界的桥梁', x: 75, y: 20 }
 				],
 				jotunheim: [
 					{ name: 'A', original: 'Utgard', icon: '△', desc: '巨人国度中心', x: 45, y: 35 },
@@ -375,12 +328,12 @@ export default {
 			return worldLocations[this.world.id] || worldLocations.default
 		},
 		getGodColor(faction) {
-			const colors = {
-				'阿萨神族': 'linear-gradient(135deg, #C6A15B 0%, #8B7030 100%)',
-				'华纳神族': 'linear-gradient(135deg, #7C8C74 0%, #4A5C4A 100%)',
-				'巨人': 'linear-gradient(135deg, #B94A48 0%, #7A2A2A 100%)'
-			}
-			return colors[faction] || 'linear-gradient(135deg, #66727F 0%, #3A4450 100%)'
+			if (!faction) return 'linear-gradient(135deg, #66727F 0%, #3A4450 100%)'
+			if (faction.includes('华纳')) return 'linear-gradient(135deg, #7C8C74 0%, #4A5C4A 100%)'
+			if (faction.includes('巨人')) return 'linear-gradient(135deg, #B94A48 0%, #7A2A2A 100%)'
+			if (faction.includes('冥界')) return 'linear-gradient(135deg, #66727F 0%, #3A4450 100%)'
+			if (faction.includes('阿萨')) return 'linear-gradient(135deg, #C6A15B 0%, #8B7030 100%)'
+			return 'linear-gradient(135deg, #66727F 0%, #3A4450 100%)'
 		},
 		goToGod(id) {
 			const god = gods.find(g => g.id === id)
@@ -396,26 +349,6 @@ export default {
 		},
 		selectTimeline(index) {
 			this.activeTimelineIndex = index
-		},
-		getMapIcon() {
-			const tone = this.currentTimeline?.mapTone
-			const icons = {
-				mist: '◈',
-				forest: '♧',
-				gold: '✦',
-				dusk: '☽',
-				fire: '✧'
-			}
-			return icons[tone] || '◈'
-		},
-		getRelatedTypeLabel(type) {
-			const labels = {
-				god: '神祇',
-				realm: '国度',
-				creature: '生物',
-				story: '故事'
-			}
-			return labels[type] || type
 		},
 		goToRelated(item) {
 			if (!item) return
@@ -445,9 +378,6 @@ export default {
 			const realmId = this.world && this.world.id ? this.world.id : this.id
 			return worldTimelines[realmId] || []
 		},
-		selectTimeline(index) {
-			this.activeTimelineIndex = index
-		},
 		getTimelineProgressWidth() {
 			const list = this.getTimelineList()
 			if (!list.length) return '0%'
@@ -461,66 +391,11 @@ export default {
 			const item = this.getCurrentTimeline()
 			return item && item.mapTone ? 'tone-' + item.mapTone : 'tone-default'
 		},
-		addTestLog(message) {
-			const time = new Date().toLocaleTimeString()
-			this.testLog.push({ time, message })
-			if (this.testLog.length > 20) {
-				this.testLog.shift()
-			}
-		},
 		openMapFullscreen() {
 			this.isMapFullscreen = true
 		},
 		closeMapFullscreen() {
 			this.isMapFullscreen = false
-		},
-		testTimelineSwitch() {
-			this.testMode = true
-			this.addTestLog('开始测试时间线切换')
-			
-			const testSequence = [0, 2, 4, 1, 3, 0]
-			let index = 0
-			
-			const runTest = () => {
-				if (index >= testSequence.length) {
-					this.addTestLog('时间线切换测试完成')
-					uni.showToast({ title: '时间线测试完成', icon: 'success' })
-					return
-				}
-				
-				const targetIndex = testSequence[index]
-				this.selectTimeline(targetIndex)
-				const timeline = this.getCurrentTimeline()
-				this.addTestLog(`切换到阶段 ${targetIndex}: ${timeline?.stage} - ${timeline?.title}`)
-				index++
-				setTimeout(runTest, 800)
-			}
-			
-			runTest()
-		},
-		testBackLogic() {
-			const pages = getCurrentPages()
-			this.addTestLog(`当前页面栈深度: ${pages.length}`)
-			this.addTestLog(`是否需要返回首页: ${pages.length <= 1}`)
-			
-			if (pages.length <= 1) {
-				this.addTestLog('测试: 将跳转到首页')
-				uni.showModal({
-					title: '返回测试',
-					content: `页面栈深度: ${pages.length}\n将跳转到首页`,
-					showCancel: false
-				})
-			} else {
-				this.addTestLog('测试: 将返回上一页')
-				uni.showModal({
-					title: '返回测试',
-					content: `页面栈深度: ${pages.length}\n将返回上一页`,
-					showCancel: false
-				})
-			}
-		},
-		clearTestLog() {
-			this.testLog = []
 		}
 	}
 }
@@ -554,6 +429,12 @@ export default {
 	color: #C6A15B;
 	font-size: 48rpx;
 	font-weight: 300;
+	transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.back-btn:active {
+	transform: scale(0.9);
+	border-color: #C6A15B;
 }
 
 .header {
@@ -634,6 +515,11 @@ export default {
 	justify-content: center;
 	border-bottom: 3rpx solid transparent;
 	margin-bottom: -1rpx;
+	transition: opacity 0.15s ease;
+}
+
+.tab-item:active {
+	opacity: 0.7;
 }
 
 .tab-item.active {
@@ -669,6 +555,12 @@ export default {
 	border: 1rpx solid #27384A;
 	border-radius: 16rpx;
 	padding: 20rpx;
+	transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.inhabitant-card:active {
+	transform: scale(0.98);
+	border-color: rgba(198,161,91,0.55);
 }
 
 .inhabitant-avatar {
@@ -722,7 +614,12 @@ export default {
 	border: 1rpx solid #27384A;
 	border-radius: 18rpx;
 	box-sizing: border-box;
-	transition: border-color 0.2s ease;
+	transition: border-color 0.2s ease, transform 0.15s ease;
+}
+
+.location-card:active {
+	transform: scale(0.98);
+	border-color: rgba(198,161,91,0.55);
 }
 
 .location-card.highlighted {
@@ -782,6 +679,12 @@ export default {
 	border: 1rpx solid #27384A;
 	border-radius: 16rpx;
 	padding: 24rpx;
+	transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.legend-card:active {
+	transform: scale(0.98);
+	border-color: rgba(198,161,91,0.55);
 }
 
 .legend-info {
@@ -998,8 +901,8 @@ export default {
 	z-index: 5;
 	right: 22rpx;
 	top: 22rpx;
-	height: 52rpx;
-	padding: 0 20rpx;
+	height: 56rpx;
+	padding: 0 24rpx;
 	border-radius: 999rpx;
 	background: rgba(11,17,24,0.68);
 	border: 1px solid rgba(198,161,91,0.45);
@@ -1008,6 +911,12 @@ export default {
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.map-fullscreen-btn:active {
+	transform: scale(0.94);
+	background: rgba(198,161,91,0.22);
 }
 
 .timeline-slider {
@@ -1163,11 +1072,17 @@ export default {
 }
 
 .related-tag {
-	padding: 8rpx 14rpx;
+	padding: 12rpx 20rpx;
 	border-radius: 999rpx;
 	background: rgba(198,161,91,0.14);
 	color: #C6A15B;
 	font-size: 22rpx;
+	transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.related-tag:active {
+	transform: scale(0.94);
+	background: rgba(198,161,91,0.28);
 }
 
 .empty-timeline {
@@ -1203,94 +1118,6 @@ export default {
 	}
 }
 
-.test-panel {
-	margin-top: 32rpx;
-	padding: 24rpx;
-	border-radius: 20rpx;
-	background: rgba(198,161,91,0.08);
-	border: 1px solid rgba(198,161,91,0.2);
-}
-
-.test-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 20rpx;
-}
-
-.test-title {
-	color: #C6A15B;
-	font-size: 26rpx;
-	font-weight: 700;
-}
-
-.test-btn {
-	color: #66727F;
-	font-size: 22rpx;
-}
-
-.test-buttons {
-	display: flex;
-	gap: 16rpx;
-	margin-bottom: 20rpx;
-}
-
-.test-button {
-	flex: 1;
-	height: 72rpx;
-	border-radius: 36rpx;
-	background: #172230;
-	border: 1px solid #27384A;
-	color: #A8B3BD;
-	font-size: 24rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.test-button.primary {
-	background: linear-gradient(135deg, #C6A15B, #D8C27A);
-	border-color: #C6A15B;
-	color: #0B1118;
-	font-weight: 700;
-}
-
-.test-log {
-	padding-top: 20rpx;
-	border-top: 1px solid rgba(39, 56, 74, 0.5);
-}
-
-.log-title {
-	display: block;
-	color: #66727F;
-	font-size: 22rpx;
-	margin-bottom: 12rpx;
-}
-
-.log-content {
-	max-height: 240rpx;
-	background: #0B1118;
-	border-radius: 12rpx;
-	padding: 16rpx;
-}
-
-.log-item {
-	display: flex;
-	gap: 12rpx;
-	margin-bottom: 8rpx;
-}
-
-.log-time {
-	color: #4A5568;
-	font-size: 20rpx;
-	flex-shrink: 0;
-}
-
-.log-message {
-	color: #A8B3BD;
-	font-size: 22rpx;
-}
-
 .fullscreen-map-layer {
 	position: fixed;
 	z-index: 9999;
@@ -1318,6 +1145,12 @@ export default {
 	align-items: center;
 	justify-content: center;
 	font-size: 24rpx;
+	transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.fullscreen-close:active {
+	transform: scale(0.94);
+	background: rgba(198,161,91,0.16);
 }
 
 .fullscreen-title-wrap {

@@ -67,17 +67,17 @@
         <text class="card-title">趣味互动</text>
         <view class="fun-grid">
           <view class="fun-item" @click="goGodMatch">
-            <text class="fun-icon">&#9731;</text>
+            <view class="fun-icon"><text>G</text></view>
             <text class="fun-name">神祇匹配</text>
             <text class="fun-desc">寻找你的神格回响</text>
           </view>
           <view class="fun-item" @click="goRumorBook">
-            <text class="fun-icon">&#9998;</text>
+            <view class="fun-icon"><text>Q</text></view>
             <text class="fun-name">谣言之书</text>
             <text class="fun-desc">验证传闻真伪</text>
           </view>
           <view class="fun-item" @click="goRuneDivination">
-            <text class="fun-icon">&#9830;</text>
+            <view class="fun-icon"><text>R</text></view>
             <text class="fun-name">卢恩占卜</text>
             <text class="fun-desc">三符文指引</text>
           </view>
@@ -117,9 +117,9 @@
         </view>
       </view>
     </view>
+  </scroll-view>
 
-    <TabBar current="profile" />
-	</view>
+  <TabBar current="profile" />
 </template>
 
 <script>
@@ -331,13 +331,31 @@ export default {
   border: 1px solid rgba(39,56,74,0.72);
   text-align: center;
   min-width: 0;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.fun-item:active {
+  transform: scale(0.96);
+  border-color: rgba(198,161,91,0.55);
 }
 
 .fun-icon {
-  display: block;
+  width: 56rpx;
+  height: 56rpx;
+  margin: 0 auto 10rpx;
+  border-radius: 14rpx;
+  background: rgba(198,161,91,0.15);
+  border: 1px solid rgba(198,161,91,0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fun-icon text {
   color: #C6A15B;
-  font-size: 36rpx;
-  margin-bottom: 8rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .fun-name {
@@ -424,6 +442,12 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.primary-button:active {
+  transform: scale(0.97);
+  opacity: 0.9;
 }
 
 

@@ -1,9 +1,11 @@
 <template>
   <view class="match-page">
     <view class="match-nav">
-      <text class="back-btn" @click="goBack">‹</text>
+      <view class="nav-back" @click="goBack">
+        <text>‹</text>
+      </view>
       <text class="nav-title">神祇匹配</text>
-      <text class="nav-placeholder"></text>
+      <view class="nav-placeholder"></view>
     </view>
 
     <scroll-view v-if="!testStarted && !testCompleted" scroll-y class="match-scroll">
@@ -1079,7 +1081,7 @@ export default {
       if (added) {
         uni.showToast({
           title: progress.revealed ? '渡鸦身份已显现' : '发现线索：独眼神明的使者',
-          icon: 'none'
+          icon: 'success'
         })
       }
     },
@@ -1157,11 +1159,30 @@ export default {
   border-bottom: 1px solid #27384A;
 }
 
-.back-btn,
-.nav-placeholder {
-  width: 56rpx;
+.nav-back {
+  width: 88rpx;
+  height: 96rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #C6A15B;
-  font-size: 48rpx;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.nav-back text {
+  font-size: 52rpx;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.nav-back:active {
+  transform: scale(0.85);
+  opacity: 0.8;
+}
+
+.nav-placeholder {
+  width: 88rpx;
+  height: 96rpx;
 }
 
 .nav-title {
@@ -1291,6 +1312,12 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.start-button:active {
+  transform: scale(0.97);
+  opacity: 0.9;
 }
 
 .question-panel {
@@ -1401,6 +1428,12 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.ghost-button:active {
+  transform: scale(0.97);
+  background: rgba(39, 56, 74, 0.4);
 }
 
 .ghost-button.disabled {
@@ -1651,6 +1684,12 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.primary-button:active {
+  transform: scale(0.97);
+  opacity: 0.9;
 }
 
 .ghost-button-result {
@@ -1734,6 +1773,12 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 24rpx;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.share-toggle:active {
+  transform: scale(0.97);
+  background: rgba(39, 56, 74, 0.4);
 }
 
 .share-card {

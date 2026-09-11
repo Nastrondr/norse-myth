@@ -227,9 +227,9 @@ export default {
 		},
 		getArtifactIcon(type) {
 			const icons = {
-				'神锤': 'H',
-				'神枪': 'S',
-				'神戒': 'R',
+				'神锤': 'T',
+				'神枪': 'I',
+				'神戒': 'O',
 				'神船': 'B',
 				'项链': 'N',
 				'束缚之链': 'C'
@@ -302,7 +302,7 @@ export default {
 	margin-bottom: 20rpx;
 	overflow-x: auto;
 	overflow-y: hidden;
-	-gwebkit-overflow-scrolling: touch;
+	-webkit-overflow-scrolling: touch;
 }
 
 .type-tabs::-webkit-scrollbar {
@@ -310,7 +310,7 @@ export default {
 }
 
 .tab {
-	padding: 8rpx 18rpx;
+	padding: 14rpx 24rpx;
 	color: #66727F;
 	font-size: 22rpx;
 	white-space: nowrap;
@@ -319,6 +319,11 @@ export default {
 	margin-right: 10rpx;
 	border: 1rpx solid transparent;
 	flex-shrink: 0;
+	transition: color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.tab:active {
+	transform: scale(0.95);
 }
 
 .tab.active {
@@ -412,8 +417,8 @@ export default {
 }
 
 .collect-status {
-	font-size: 22rpx;
-	color: #27384A;
+	font-size: 24rpx;
+	color: #66727F;
 }
 
 .collect-status.collected {

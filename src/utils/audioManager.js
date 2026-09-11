@@ -39,7 +39,7 @@ export function setBgmVolume(value) {
 export function initAudio() {
   if (audio) return audio
   audio = uni.createInnerAudioContext()
-  audio.src = '/static/audio/bgm-main.mp3'
+  audio.src = 'static/audio/bgm-main.mp3'
   audio.loop = true
   audio.volume = getBgmVolume()
   audio.onError((err) => {
