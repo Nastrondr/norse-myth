@@ -8,6 +8,13 @@
 			}
 		},
 		{
+			"path": "pages/codex/codex-index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "万物图鉴"
+			}
+		},
+		{
 			"path": "pages/profile/profile",
 			"style": {
 				"navigationStyle": "custom",
@@ -73,12 +80,19 @@
 			"root": "pages/bestiary",
 			"pages": [
 				{
-					"path": "bestiary-list",
-					"style": {
-						"navigationStyle": "custom",
-						"navigationBarTitleText": "神话生物"
-					}
-				},
+				"path": "bestiary-list",
+				"style": {
+					"navigationStyle": "custom",
+					"navigationBarTitleText": "神话生物"
+				}
+			},
+			{
+				"path": "artifact-list",
+				"style": {
+					"navigationStyle": "custom",
+					"navigationBarTitleText": "法器图鉴"
+				}
+			},
 				{
 					"path": "creature-detail",
 					"style": {
@@ -98,13 +112,6 @@
 		{
 			"root": "pages/fun",
 			"pages": [
-				{
-					"path": "fun-index",
-					"style": {
-						"navigationStyle": "custom",
-						"navigationBarTitleText": "趣味互动"
-					}
-				},
 				{
 					"path": "quiz",
 					"style": {
@@ -139,6 +146,18 @@
 					}
 				}
 			]
+		},
+		{
+			"root": "pages/lab",
+			"pages": [
+				{
+					"path": "abyss-lab",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "高危观测原型"
+					}
+				}
+			]
 		}
 	],
 	"globalStyle": {
@@ -158,16 +177,12 @@
 				"text": "首页"
 			},
 			{
-				"pagePath": "pages/gods/god-list",
-				"text": "神祇"
+				"pagePath": "pages/codex/codex-index",
+				"text": "图鉴"
 			},
 			{
 				"pagePath": "pages/stories/story-list",
 				"text": "故事"
-			},
-			{
-				"pagePath": "pages/bestiary/bestiary-list",
-				"text": "图鉴"
 			},
 			{
 				"pagePath": "pages/profile/profile",
