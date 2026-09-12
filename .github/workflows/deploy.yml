@@ -13,6 +13,9 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: uni-app
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -34,5 +37,5 @@ jobs:
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist/build/h5
+          publish_dir: ./uni-app/dist/build/h5
           force_orphan: true
