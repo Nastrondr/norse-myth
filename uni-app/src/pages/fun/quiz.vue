@@ -1,10 +1,6 @@
 <template>
-  <view class="quiz-page">
-    <view class="quiz-nav">
-      <text class="back-btn" @click="goBack">‹</text>
-      <text class="nav-title">谣言之书</text>
-      <text class="nav-placeholder"></text>
-    </view>
+  <view class="quiz-page page-enter-deep">
+    <NavBar title="谣言之书" />
 
     <view class="quiz-content">
       <view v-if="quizState === 'intro'" class="intro-panel">
@@ -23,7 +19,7 @@
           </view>
         </view>
 
-        <view class="primary-btn" @click="startRumorQuiz">
+        <view class="primary-btn btn-shine" @click="startRumorQuiz">
           <text>开始辨闻</text>
         </view>
 
@@ -66,34 +62,61 @@
 
       <view v-if="quizState === 'question'" class="question-panel">
         <view class="page-indicator">
-          <text class="page-num">第 {{ currentRumorIndex + 1 }} 页</text>
+          <text class="page-num">第 {{ currentRumorIndex + 1 }} / {{ getAllRumorQuestions().length }} 页</text>
           <view class="page-bar">
             <view class="page-bar-fill" :style="{ width: ((currentRumorIndex + 1) / getAllRumorQuestions().length * 100) + '%' }"></view>
           </view>
         </view>
 
-        <view class="rumor-archive">
-          <text class="rumor-kicker">九界传闻</text>
-          <text class="rumor-subtitle">这一页记载着一条流传已久的说法。</text>
-          <text class="rumor-text">{{ getCurrentRumor().rumor }}</text>
-        </view>
+        <view
+          class="rumor-scroll-card"
+          @touchstart="onPaperTouchStart"
+          @touchmove="onPaperTouchMove"
+          @touchend="onPaperTouchEnd"
+          @touchcancel="onPaperTouchEnd"
+        >
+          <view class="scroll-rod top"></view>
 
-        <view class="judgment-area">
-          <text class="judgment-label">你的判断</text>
-          <view class="judgment-btns">
-            <view class="judgment-btn" @click="selectRumorAnswer(true)">
-              <text>真实</text>
+          <view
+            class="scroll-paper"
+            :class="{ dragging: swipe.dragging }"
+            :style="{ transform: 'translateX(' + paperDrag + 'px)' }"
+          >
+            <view class="rumor-image-placeholder">
+              <text class="placeholder-symbol">{{ getCurrentRumorImageSymbol() }}</text>
             </view>
-            <view class="judgment-btn" @click="selectRumorAnswer(false)">
-              <text>谣言</text>
+
+            <view class="rumor-text-area">
+              <view class="paper-arrow left" @click="goPrevRumor">‹</view>
+              <view class="paper-arrow right" @click="goNextRumor">›</view>
+              <text class="rumor-quote" :class="animationDirection">“{{ getCurrentRumor().rumor }}”</text>
+            </view>
+
+            <view v-if="getCurrentRumor().source === '洛基的低语'" class="loki-source-tag">
+              <text>洛基的低语</text>
+            </view>
+
+            <view class="scroll-answer-row">
+              <view class="scroll-answer-btn" @click="selectRumorAnswer(true)">
+                <text>真实</text>
+              </view>
+              <view class="scroll-answer-btn" @click="selectRumorAnswer(false)">
+                <text>谣言</text>
+              </view>
             </view>
           </view>
+
+          <view class="scroll-rod bottom"></view>
         </view>
       </view>
 
       <view v-if="quizState === 'reveal'" class="reveal-panel">
-        <view class="stamp-result" :class="isCurrentCorrect() ? 'correct' : 'wrong'">
-          <text class="stamp-title">{{ isCurrentCorrect() ? '判断正确' : '传闻被误读了' }}</text>
+        <view class="result-modal" :class="isCurrentCorrect() ? 'correct' : 'wrong'">
+          <view class="modal-icon">
+            <text>{{ isCurrentCorrect() ? '✓' : '✗' }}</text>
+          </view>
+          <text class="modal-title">{{ isCurrentCorrect() ? '判断正确' : '传闻被误读了' }}</text>
+          <text class="modal-subtitle">{{ isCurrentCorrect() ? '你识破了九界的迷雾' : '真相藏在更深的地方' }}</text>
         </view>
 
         <view class="original-rumor">
@@ -151,7 +174,7 @@
         </view>
 
         <view class="ghost-btn" @click="goBack">
-          <text>返回趣味互动</text>
+          <text>返回首页</text>
         </view>
       </view>
     </view>
@@ -159,7 +182,10 @@
 </template>
 
 <script>
+import NavBar from '@/components/NavBar.vue'
+
 export default {
+  components: { NavBar },
   data() {
     return {
       quizState: 'intro',
@@ -169,6 +195,11 @@ export default {
       answeredIds: [],
       customRumorStorageKey: 'norse_custom_rumors',
       customRumors: [],
+      animationDirection: '',
+      isAnimating: false,
+      // 卷轴跟手滑动状态
+      swipe: { startX: 0, startY: 0, dx: 0, axis: '', dragging: false },
+      paperDrag: 0,
       newRumor: {
         rumor: '',
         answer: false,
@@ -240,7 +271,12 @@ export default {
   },
   methods: {
     goBack() {
-      uni.navigateBack()
+      const pages = getCurrentPages()
+      if (pages.length <= 1) {
+        uni.switchTab({ url: '/pages/index/index' })
+      } else {
+        uni.navigateBack()
+      }
     },
     startRumorQuiz() {
       this.quizState = 'question'
@@ -268,13 +304,90 @@ export default {
 
       this.quizState = 'reveal'
     },
+    // ===== 卷轴跟手滑动翻页 =====
+    onPaperTouchStart(e) {
+      if (this.quizState !== 'question' || this.isAnimating) return
+      const t = e.touches && e.touches[0]
+      if (!t) return
+      this.swipe = { startX: t.clientX, startY: t.clientY, dx: 0, axis: '', dragging: true }
+    },
+    onPaperTouchMove(e) {
+      if (!this.swipe.dragging) return
+      const t = e.touches && e.touches[0]
+      if (!t) return
+      const dx = t.clientX - this.swipe.startX
+      const dy = t.clientY - this.swipe.startY
+      // 轴锁定：纵向滑动交给页面滚动
+      if (!this.swipe.axis) {
+        if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return
+        this.swipe.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
+      }
+      if (this.swipe.axis !== 'x') return
+      this.swipe.dx = dx
+      const total = this.getAllRumorQuestions().length
+      // 已在首页/末页时加大阻尼，提示边界
+      const atEdge = (dx > 0 && this.currentRumorIndex <= 0) || (dx < 0 && this.currentRumorIndex >= total - 1)
+      this.paperDrag = dx * (atEdge ? 0.15 : 0.55)
+    },
+    onPaperTouchEnd() {
+      if (!this.swipe.dragging) return
+      const dx = this.swipe.dx
+      this.swipe.dragging = false
+      this.paperDrag = 0 // 松手弹回
+      const threshold = 70
+      if (this.swipe.axis === 'x' && Math.abs(dx) > threshold && !this.isAnimating) {
+        if (dx < 0) {
+          this.goNextRumor()
+        } else {
+          this.goPrevRumor()
+        }
+      }
+    },
+    goPrevRumor() {
+      const total = this.getAllRumorQuestions().length
+      if (this.currentRumorIndex > 0 && !this.isAnimating) {
+        this.isAnimating = true
+        this.animationDirection = 'slide-left'
+        setTimeout(() => {
+          this.currentRumorIndex -= 1
+          this.selectedAnswer = null
+          if (this.quizState === 'reveal') {
+            this.quizState = 'question'
+          }
+          this.animationDirection = 'slide-right-back'
+          setTimeout(() => {
+            this.animationDirection = ''
+            this.isAnimating = false
+          }, 300)
+        }, 300)
+      }
+    },
     goNextRumor() {
-      if (this.currentRumorIndex < this.getAllRumorQuestions().length - 1) {
-        this.currentRumorIndex += 1
-        this.selectedAnswer = null
-        this.quizState = 'question'
-      } else {
+      const total = this.getAllRumorQuestions().length
+      if (this.currentRumorIndex < total - 1 && !this.isAnimating) {
+        this.isAnimating = true
+        this.animationDirection = 'slide-right'
+        setTimeout(() => {
+          this.currentRumorIndex += 1
+          this.selectedAnswer = null
+          if (this.quizState === 'reveal') {
+            this.quizState = 'question'
+          }
+          this.animationDirection = 'slide-left-back'
+          setTimeout(() => {
+            this.animationDirection = ''
+            this.isAnimating = false
+          }, 300)
+        }, 300)
+      } else if (this.currentRumorIndex >= total - 1) {
         this.quizState = 'summary'
+        // 写入完成记录，供档案页「谣言之书」状态与徽章解锁使用
+        uni.setStorageSync('norse_rumor_book_completion', {
+          accuracy: total ? Math.round(this.correctCount / total * 100) : 0,
+          correctCount: this.correctCount,
+          total,
+          date: Date.now()
+        })
       }
     },
     restartRumorQuiz() {
@@ -298,6 +411,21 @@ export default {
       if (percent >= 80) return '你对九界传闻了如指掌，真相在你面前无处遁形。'
       if (percent >= 50) return '你能分辨部分真相，但仍有成长空间。'
       return '你刚开始记录九界的传闻，继续探索吧。'
+    },
+    getCurrentRumorImageSymbol() {
+      const rumor = this.getCurrentRumor ? this.getCurrentRumor() : null
+      if (!rumor) return 'R'
+
+      const text = (rumor.rumor || '') + ' ' + ((rumor.related || []).join(' '))
+
+      if (text.includes('索尔')) return 'TH'
+      if (text.includes('洛基')) return 'LK'
+      if (text.includes('奥丁')) return 'OD'
+      if (text.includes('巴德尔')) return 'BD'
+      if (text.includes('诸神黄昏')) return 'RG'
+      if (text.includes('世界树')) return 'YG'
+
+      return 'MY'
     },
     loadCustomRumors() {
       const saved = uni.getStorageSync(this.customRumorStorageKey)
@@ -355,7 +483,7 @@ export default {
 
       uni.showToast({
         title: '传闻已收入谣言之书',
-        icon: 'none'
+        icon: 'success'
       })
 
       this.quizState = 'intro'
@@ -378,30 +506,6 @@ export default {
   background: #0B1118;
   color: #F2F4F6;
   padding-bottom: 180rpx;
-}
-
-.quiz-nav {
-  height: 96rpx;
-  background: #111A24;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 32rpx;
-  box-sizing: border-box;
-  border-bottom: 1px solid #27384A;
-}
-
-.back-btn,
-.nav-placeholder {
-  width: 56rpx;
-  color: #C6A15B;
-  font-size: 48rpx;
-}
-
-.nav-title {
-  color: #F2F4F6;
-  font-size: 30rpx;
-  font-weight: 700;
 }
 
 .intro-panel {
@@ -897,6 +1001,12 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.primary-btn:active {
+  transform: scale(0.97);
+  opacity: 0.9;
 }
 
 .secondary-btn {
@@ -906,6 +1016,12 @@ export default {
   border: 1px solid rgba(198,161,91,0.24);
   border-radius: 16rpx;
   background: rgba(198,161,91,0.06);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.secondary-btn:active {
+  transform: scale(0.98);
+  background: rgba(198,161,91,0.14);
 }
 
 .secondary-btn text {
@@ -923,8 +1039,14 @@ export default {
 
 .clear-link {
   margin-left: 16rpx;
+  padding: 8rpx 6rpx;
   color: #66727F;
   text-decoration: underline;
+  transition: opacity 0.15s ease;
+}
+
+.clear-link:active {
+  opacity: 0.6;
 }
 
 .page-indicator {
@@ -950,8 +1072,294 @@ export default {
 
 .page-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #C6A15B, #D8C27A);
+  background: #C6A15B;
   border-radius: 3rpx;
+}
+
+.rumor-scroll-card {
+  position: relative;
+  margin: 36rpx auto 0;
+  width: 86%;
+  max-width: 620rpx;
+}
+
+.scroll-paper {
+  position: relative;
+  min-height: 800rpx;
+  padding: 40rpx 32rpx 40rpx;
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255,255,255,0.16), transparent 26%),
+    linear-gradient(180deg, #E8D29B 0%, #D8BD7C 100%);
+  border: 2rpx solid rgba(92,62,28,0.45);
+  box-shadow:
+    inset 0 0 34rpx rgba(88,54,24,0.22),
+    0 18rpx 48rpx rgba(0,0,0,0.28);
+  color: #2B1E12;
+  /* 松手后弹回原位 */
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.scroll-paper.dragging {
+  transition: none;
+}
+
+.scroll-rod {
+  position: relative;
+  z-index: 2;
+  height: 54rpx;
+  margin: 0 -28rpx;
+  border-radius: 999rpx;
+  background:
+    linear-gradient(90deg, #6E4724 0%, #B77A3C 16%, #6E4724 50%, #B77A3C 84%, #6E4724 100%);
+  box-shadow: 0 8rpx 20rpx rgba(0,0,0,0.28);
+}
+
+.scroll-rod.top {
+  margin-bottom: -10rpx;
+}
+
+.scroll-rod.bottom {
+  margin-top: -10rpx;
+}
+
+.scroll-rod::before,
+.scroll-rod::after {
+  content: '';
+  position: absolute;
+  top: -8rpx;
+  width: 42rpx;
+  height: 70rpx;
+  border-radius: 18rpx;
+  background: linear-gradient(180deg, #8A5A2E, #5F3B1F);
+  box-shadow: inset 0 0 12rpx rgba(0,0,0,0.28);
+}
+
+.scroll-rod::before {
+  left: -10rpx;
+}
+
+.scroll-rod::after {
+  right: -10rpx;
+}
+
+.rumor-image-placeholder {
+  aspect-ratio: 4/3;
+  border-radius: 22rpx;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(142,91,43,0.22), transparent 38%),
+    rgba(92,62,28,0.10);
+  border: 1px dashed rgba(92,62,28,0.34);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.placeholder-symbol {
+  color: rgba(92,62,28,0.36);
+  font-size: 70rpx;
+  font-weight: 900;
+  letter-spacing: 4rpx;
+}
+
+.rumor-text-area {
+  position: relative;
+  margin-top: 34rpx;
+  min-height: 140rpx;
+  padding: 0 50rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rumor-quote {
+  color: #2B1E12;
+  font-size: 30rpx;
+  font-weight: 800;
+  line-height: 1.6;
+  text-align: center;
+  white-space: normal;
+  word-break: break-word;
+  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+.rumor-quote.slide-left {
+  transform: translateX(-30rpx);
+  opacity: 0.3;
+}
+
+.rumor-quote.slide-right {
+  transform: translateX(30rpx);
+  opacity: 0.3;
+}
+
+.rumor-quote.slide-left-back {
+  animation: slideLeftBack 0.3s ease-out;
+}
+
+.rumor-quote.slide-right-back {
+  animation: slideRightBack 0.3s ease-out;
+}
+
+@keyframes slideLeftBack {
+  from {
+    transform: translateX(30rpx);
+    opacity: 0.3;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideRightBack {
+  from {
+    transform: translateX(-30rpx);
+    opacity: 0.3;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.paper-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  color: rgba(92,62,28,0.45);
+  font-size: 38rpx;
+  font-weight: 700;
+  padding: 20rpx 15rpx;
+  width: 60rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.paper-arrow.left {
+  left: 0;
+}
+
+.paper-arrow.right {
+  right: 0;
+}
+
+.paper-arrow:active {
+  color: rgba(92,62,28,0.75);
+}
+
+.loki-source-tag {
+  position: absolute;
+  left: 28rpx;
+  top: 26rpx;
+  padding: 6rpx 12rpx;
+  border-radius: 999rpx;
+  background: rgba(43,30,18,0.10);
+  color: #6B4423;
+  font-size: 20rpx;
+}
+
+.scroll-answer-row {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 36rpx;
+  padding-top: 30rpx;
+  border-top: 1px dashed rgba(92,62,28,0.34);
+}
+
+.scroll-answer-btn {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 16rpx;
+  background: rgba(92,62,28,0.22);
+  border: 1px solid rgba(92,62,28,0.45);
+  color: #1A120A;
+  font-size: 28rpx;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scroll-answer-btn:active {
+  background: rgba(92,62,28,0.38);
+  border-color: rgba(92,62,28,0.68);
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.18);
+}
+
+.result-modal {
+  position: relative;
+  margin-bottom: 32rpx;
+  padding: 40rpx;
+  border-radius: 28rpx;
+  text-align: center;
+  overflow: hidden;
+}
+
+.result-modal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.08;
+}
+
+.result-modal.correct {
+  background: linear-gradient(135deg, rgba(124,140,116,0.18), rgba(124,140,116,0.08));
+  border: 1px solid rgba(124,140,116,0.35);
+}
+
+.result-modal.correct::before {
+  background: radial-gradient(circle at 50% 0%, rgba(124,140,116,0.3), transparent 50%);
+}
+
+.result-modal.wrong {
+  background: linear-gradient(135deg, rgba(185,74,72,0.18), rgba(185,74,72,0.08));
+  border: 1px solid rgba(185,74,72,0.35);
+}
+
+.result-modal.wrong::before {
+  background: radial-gradient(circle at 50% 0%, rgba(185,74,72,0.3), transparent 50%);
+}
+
+.modal-icon {
+  width: 100rpx;
+  height: 100rpx;
+  margin: 0 auto 24rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 52rpx;
+  font-weight: 900;
+}
+
+.result-modal.correct .modal-icon {
+  background: rgba(124,140,116,0.3);
+  color: #7C8C74;
+  box-shadow: 0 0 40rpx rgba(124,140,116,0.35);
+}
+
+.result-modal.wrong .modal-icon {
+  background: rgba(185,74,72,0.3);
+  color: #B94A48;
+  box-shadow: 0 0 40rpx rgba(185,74,72,0.35);
+}
+
+.modal-title {
+  display: block;
+  color: #F2F4F6;
+  font-size: 36rpx;
+  font-weight: 900;
+}
+
+.modal-subtitle {
+  display: block;
+  margin-top: 12rpx;
+  color: #A8B3BD;
+  font-size: 24rpx;
 }
 
 .rumor-archive {
@@ -1126,6 +1534,12 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.next-btn:active {
+  transform: scale(0.97);
+  opacity: 0.9;
 }
 
 .score-display {

@@ -1,33 +1,33 @@
 <template>
-  <scroll-view scroll-y class="profile-page">
+  <scroll-view scroll-y class="profile-page page-enter">
     <view class="profile-content">
-      <view class="profile-hero">
-        <text class="hero-kicker">EXPLORER ARCHIVE</text>
-        <text class="hero-title">{{ profileStats.title }}</text>
-        <text class="hero-subtitle">世界树等级 Lv.{{ profileStats.level }} | {{ profileStats.totalProgress }}% 探索度</text>
-      </view>
+      <PageHeader
+        kicker="EXPLORER ARCHIVE"
+        :title="profileStats.title"
+        :subtitle="'世界树等级 Lv.' + profileStats.level + ' | ' + profileStats.totalProgress + '% 探索度'"
+      />
 
       <view class="profile-card">
         <text class="card-title">数据统计</text>
         <view class="stat-grid">
           <view class="stat-item">
-            <text class="stat-value">{{ getProgress().realms.current }}/{{ getProgress().realms.total }}</text>
+            <text class="stat-value"><AnimNumber :value="getProgress().realms.current" />/<AnimNumber :value="getProgress().realms.total" /></text>
             <text class="stat-label">九界探索</text>
           </view>
           <view class="stat-item">
-            <text class="stat-value">{{ getProgress().gods.current }}/{{ getProgress().gods.total }}</text>
+            <text class="stat-value"><AnimNumber :value="getProgress().gods.current" />/<AnimNumber :value="getProgress().gods.total" /></text>
             <text class="stat-label">神祇收录</text>
           </view>
           <view class="stat-item">
-            <text class="stat-value">{{ getProgress().creatures.current }}/{{ getProgress().creatures.total }}</text>
+            <text class="stat-value"><AnimNumber :value="getProgress().creatures.current" />/<AnimNumber :value="getProgress().creatures.total" /></text>
             <text class="stat-label">图鉴发现</text>
           </view>
           <view class="stat-item">
-            <text class="stat-value">{{ getProgress().stories.current }}/{{ getProgress().stories.total }}</text>
+            <text class="stat-value"><AnimNumber :value="getProgress().stories.current" />/<AnimNumber :value="getProgress().stories.total" /></text>
             <text class="stat-label">故事阅读</text>
           </view>
           <view class="stat-item">
-            <text class="stat-value">{{ getProgress().runes.current }}/{{ getProgress().runes.total }}</text>
+            <text class="stat-value"><AnimNumber :value="getProgress().runes.current" />/<AnimNumber :value="getProgress().runes.total" /></text>
             <text class="stat-label">卢恩收集</text>
           </view>
         </view>
@@ -64,20 +64,33 @@
       </view>
 
       <view class="profile-card">
+        <text class="card-title">今日符文</text>
+        <view class="daily-rune" v-if="dailyRune">
+          <text class="rune-symbol">{{ dailyRune.symbol }}</text>
+          <view class="rune-info">
+            <text class="rune-name">{{ dailyRune.name }} · {{ dailyRune.originalName }}</text>
+            <text class="rune-keywords">{{ dailyRune.keywords.join(' · ') }}</text>
+          </view>
+        </view>
+        <text class="rune-message" v-if="dailyMessage">{{ dailyMessage }}</text>
+        <text class="rune-note">{{ todayKey }} · 符文随日期流转</text>
+      </view>
+
+      <view class="profile-card">
         <text class="card-title">趣味互动</text>
         <view class="fun-grid">
           <view class="fun-item" @click="goGodMatch">
-            <text class="fun-icon">&#9731;</text>
+            <view class="fun-icon"><text>G</text></view>
             <text class="fun-name">神祇匹配</text>
             <text class="fun-desc">寻找你的神格回响</text>
           </view>
           <view class="fun-item" @click="goRumorBook">
-            <text class="fun-icon">&#9998;</text>
+            <view class="fun-icon"><text>Q</text></view>
             <text class="fun-name">谣言之书</text>
             <text class="fun-desc">验证传闻真伪</text>
           </view>
           <view class="fun-item" @click="goRuneDivination">
-            <text class="fun-icon">&#9830;</text>
+            <view class="fun-icon"><text>R</text></view>
             <text class="fun-name">卢恩占卜</text>
             <text class="fun-desc">三符文指引</text>
           </view>
@@ -117,34 +130,18 @@
         </view>
       </view>
     </view>
-
-    <view class="bottom-tab">
-      <view class="tab-item" @click="goToTab('home')">
-        <view class="tab-icon-box"><view class="css-icon icon-home"></view></view>
-        <text class="tab-label">首页</text>
-      </view>
-      <view class="tab-item" @click="goToTab('gods')">
-        <view class="tab-icon-box"><view class="css-icon icon-gods"></view></view>
-        <text class="tab-label">神祇</text>
-      </view>
-      <view class="tab-item" @click="goToTab('stories')">
-        <view class="tab-icon-box"><view class="css-icon icon-stories"></view></view>
-        <text class="tab-label">故事</text>
-      </view>
-      <view class="tab-item" @click="goToTab('bestiary')">
-        <view class="tab-icon-box"><view class="css-icon icon-bestiary"></view></view>
-        <text class="tab-label">图鉴</text>
-      </view>
-      <view class="tab-item active">
-        <view class="tab-icon-box"><view class="css-icon icon-fun"></view></view>
-        <text class="tab-label">档案</text>
-      </view>
-    </view>
   </scroll-view>
+
+  <TabBar current="profile" />
 </template>
 
 <script>
+import TabBar from '@/components/TabBar.vue'
+import PageHeader from '@/components/PageHeader.vue'
+import { db } from '@/db'
+import AnimNumber from '@/components/AnimNumber.vue'
 export default {
+  components: { TabBar, PageHeader, AnimNumber },
   data() {
     return {
       profileStats: {
@@ -156,7 +153,10 @@ export default {
       worldTreeProgress: null,
       rumorBookRecord: null,
       runeRecord: null,
-      ravensProgress: null
+      ravensProgress: null,
+      dailyRune: null,
+      todayKey: '',
+      dailyMessage: ''
     }
   },
   computed: {
@@ -225,6 +225,27 @@ export default {
       this.ravensProgress = uni.getStorageSync('ravens_clue_progress') || null
 
       this.updateProfileTitle()
+      this.initDailyRune()
+    },
+    initDailyRune() {
+      const now = new Date()
+      const y = now.getFullYear()
+      const m = String(now.getMonth() + 1).padStart(2, '0')
+      const d = String(now.getDate()).padStart(2, '0')
+      this.todayKey = `${y}-${m}-${d}`
+
+      const runes = db.findAll('runeDetails')
+      if (!runes.length) return
+
+      // 以日期为种子稳定取符，同一天结果不变
+      let hash = 0
+      const seed = 'rune|' + this.todayKey
+      for (let i = 0; i < seed.length; i++) {
+        hash = ((hash << 5) - hash) + seed.charCodeAt(i)
+        hash |= 0
+      }
+      this.dailyRune = runes[Math.abs(hash) % runes.length]
+      this.dailyMessage = this.dailyRune.dailyMessage || `今天，「${this.dailyRune.name}」在呼唤你的注意。`
     },
     updateProfileTitle() {
       const progress = this.worldTreeProgress
@@ -241,13 +262,14 @@ export default {
       this.profileStats.totalProgress = total || 36
     },
     getDefaultProgress() {
+      // 总数以数据库为准（单一事实源），current 为占位进度
       return {
         totalProgress: 36,
-        realms: { current: 3, total: 9 },
-        gods: { current: 6, total: 12 },
-        creatures: { current: 8, total: 20 },
-        stories: { current: 5, total: 18 },
-        runes: { current: 4, total: 24 }
+        realms: { current: 3, total: db.count('realms') },
+        gods: { current: 6, total: db.count('gods') },
+        creatures: { current: 8, total: db.count('creatures') },
+        stories: { current: 5, total: db.count('stories') },
+        runes: { current: 4, total: db.count('runeDetails') }
       }
     },
     getProgress() {
@@ -265,17 +287,6 @@ export default {
     },
     goRuneDivination() {
       uni.navigateTo({ url: '/pages/fun/rune-divination' })
-    },
-    goToTab(tab) {
-      const routes = {
-        home: '/pages/index/index',
-        gods: '/pages/gods/god-list',
-        stories: '/pages/stories/story-list',
-        bestiary: '/pages/bestiary/bestiary-list'
-      }
-      if (routes[tab]) {
-        uni.switchTab({ url: routes[tab] })
-      }
     }
   }
 }
@@ -296,36 +307,6 @@ export default {
   box-sizing: border-box;
 }
 
-.profile-hero {
-  padding: 36rpx 32rpx;
-  border-radius: 28rpx;
-  background:
-    radial-gradient(circle at 80% 20%, rgba(198,161,91,0.16), transparent 34%),
-    #172230;
-  border: 1px solid #27384A;
-}
-
-.hero-kicker {
-  color: #C6A15B;
-  font-size: 22rpx;
-  letter-spacing: 4rpx;
-}
-
-.hero-title {
-  display: block;
-  margin-top: 14rpx;
-  color: #F2F4F6;
-  font-size: 44rpx;
-  font-weight: 900;
-}
-
-.hero-subtitle {
-  display: block;
-  margin-top: 10rpx;
-  color: #A8B3BD;
-  font-size: 26rpx;
-}
-
 .profile-card {
   margin-top: 28rpx;
   padding: 28rpx;
@@ -340,6 +321,64 @@ export default {
   font-size: 30rpx;
   font-weight: 800;
   margin-bottom: 20rpx;
+}
+
+.daily-rune {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.rune-symbol {
+  width: 110rpx;
+  height: 110rpx;
+  border-radius: 50%;
+  background: rgba(216, 194, 122, 0.08);
+  border: 1rpx solid rgba(198, 161, 91, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: serif;
+  font-size: 56rpx;
+  color: #D8C27A;
+  flex-shrink: 0;
+}
+
+.rune-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.rune-name {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #F2F4F6;
+  margin-bottom: 8rpx;
+}
+
+.rune-keywords {
+  display: block;
+  font-size: 24rpx;
+  color: #C6A15B;
+}
+
+.rune-message {
+  display: block;
+  font-size: 26rpx;
+  color: #C8D0D8;
+  line-height: 1.7;
+  padding: 20rpx;
+  background: #0B1118;
+  border-radius: 12rpx;
+  margin-bottom: 16rpx;
+}
+
+.rune-note {
+  display: block;
+  font-size: 22rpx;
+  color: #66727F;
 }
 
 .stat-grid {
@@ -361,13 +400,31 @@ export default {
   border: 1px solid rgba(39,56,74,0.72);
   text-align: center;
   min-width: 0;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.fun-item:active {
+  transform: scale(0.96);
+  border-color: rgba(198,161,91,0.55);
 }
 
 .fun-icon {
-  display: block;
+  width: 56rpx;
+  height: 56rpx;
+  margin: 0 auto 10rpx;
+  border-radius: 14rpx;
+  background: rgba(198,161,91,0.15);
+  border: 1px solid rgba(198,161,91,0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fun-icon text {
   color: #C6A15B;
-  font-size: 36rpx;
-  margin-bottom: 8rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .fun-name {
@@ -454,113 +511,30 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
-.bottom-tab {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 108rpx;
-  background: #172230;
-  border-top: 1rpx solid #27384A;
-  display: flex;
-  align-items: center;
-  padding-bottom: env(safe-area-inset-bottom);
-  z-index: 100;
+.primary-button:active {
+  transform: scale(0.97);
+  opacity: 0.9;
 }
 
-.tab-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 10rpx 0;
-}
 
-.tab-item.active .tab-label {
-  color: #C6A15B;
-}
 
-.tab-item.active .css-icon {
-  color: #C6A15B;
-}
 
-.tab-icon-box {
-  width: 48rpx;
-  height: 48rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 4rpx;
-}
 
-.tab-label {
-  color: #66727F;
-  font-size: 20rpx;
-}
 
-.css-icon {
-  width: 40rpx;
-  height: 40rpx;
-  color: #66727F;
-  position: relative;
-}
 
-.icon-home::after {
-  content: '';
-  position: absolute;
-  left: 8rpx;
-  top: 10rpx;
-  width: 12rpx;
-  height: 12rpx;
-  border-left: 3rpx solid currentColor;
-  border-bottom: 3rpx solid currentColor;
-  transform: rotate(-135deg);
-}
 
-.icon-gods::after {
-  content: '';
-  position: absolute;
-  left: 6rpx;
-  top: 8rpx;
-  width: 14rpx;
-  height: 14rpx;
-  border: 3rpx solid currentColor;
-  border-radius: 50%;
-}
 
-.icon-stories::after {
-  content: '';
-  position: absolute;
-  left: 8rpx;
-  top: 8rpx;
-  width: 12rpx;
-  height: 16rpx;
-  border: 3rpx solid currentColor;
-  border-radius: 2rpx;
-}
 
-.icon-bestiary::after {
-  content: '';
-  position: absolute;
-  left: 8rpx;
-  top: 8rpx;
-  width: 12rpx;
-  height: 12rpx;
-  border: 3rpx solid currentColor;
-  transform: rotate(45deg);
-}
 
-.icon-fun::after {
-  content: '';
-  position: absolute;
-  left: 14rpx;
-  top: 14rpx;
-  width: 4rpx;
-  height: 4rpx;
-  border-radius: 50%;
-  background: currentColor;
-}
+
+
+
+
+
+
+
+
 </style>
