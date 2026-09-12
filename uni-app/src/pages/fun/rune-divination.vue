@@ -1,12 +1,10 @@
 <template>
-  <view class="divination-page">
-    <view class="page-header">
-      <text class="page-title">三符文占卜</text>
-    </view>
+  <view class="divination-page page-enter-deep">
+    <NavBar title="三符文占卜" />
 
     <view v-if="!divinationStarted" class="intro-section">
       <text class="intro-text">在雾与树影之间，抽取属于你的过去、现在与未来。</text>
-      <view class="ritual-button" @click="startDivination">
+      <view class="ritual-button btn-shine" @click="startDivination">
         <text>开始占卜</text>
       </view>
     </view>
@@ -106,13 +104,15 @@
 </template>
 
 <script>
-import { runes as runeData } from '@/data/runes.js'
+import { db } from '@/db'
+import NavBar from '@/components/NavBar.vue'
 
 export default {
+  components: { NavBar },
   data() {
     return {
-      runes: runeData,
-      displayRunes: runeData.slice(0, 8),
+      runes: db.findAll('runeDetails'),
+      displayRunes: db.findAll('runeDetails').slice(0, 8),
       divinationStarted: false,
       currentDrawStep: 0,
       drawPositions: ['过去', '现在', '未来'],
@@ -154,30 +154,15 @@ export default {
 
       setTimeout(() => {
         const step = this.currentDrawStep
-
-        const seed = [
-          this.getTodayKey(),
-          'Guest',
-          step
-        ].join('|')
-
-        const list = this.runes || []
-        if (!list.length) {
+        const availableRunes = this.runes.filter(r => !this.drawnRunes.some(d => d.id === r.id))
+        
+        if (!availableRunes.length) {
           this.isDrawing = false
           return
         }
 
-        let index = this.hashString(seed) % list.length
-        let selected = list[index]
-
-        const usedIds = this.drawnRunes.map(item => item.id)
-        let guard = 0
-
-        while (usedIds.includes(selected.id) && guard < list.length) {
-          index = (index + 1) % list.length
-          selected = list[index]
-          guard++
-        }
+        const randomIndex = Math.floor(Math.random() * availableRunes.length)
+        const selected = availableRunes[randomIndex]
 
         this.drawnRunes.push({
           ...selected,
@@ -186,6 +171,14 @@ export default {
 
         this.currentDrawStep += 1
         this.isDrawing = false
+
+        if (this.drawnRunes.length >= 3) {
+          const futureRune = this.drawnRunes[this.drawnRunes.length - 1]
+          uni.setStorageSync('norse_rune_record', {
+            runeName: futureRune ? futureRune.name : '已完成',
+            date: Date.now()
+          })
+        }
       }, 800)
     },
 
@@ -196,22 +189,28 @@ export default {
       const present = this.drawnRunes[1]
       const future = this.drawnRunes[2]
 
-      return `这组三符文显示，你正在从「${past.meaning}」的经验中走来，当前最需要面对的是「${present.meaning}」，而下一阶段将逐渐走向「${future.meaning}」。请不要急于得到一个绝对答案，先看清过去留下的痕迹、现在正在发生的变化，以及未来要求你调整的方向。`
-    },
+      const pastElement = past.element || ''
+      const presentElement = present.element || ''
+      const futureElement = future.element || ''
 
-    hashString(str) {
-      let hash = 0
-      for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i)
-        hash = ((hash << 5) - hash) + char
-        hash = hash & hash
-      }
-      return Math.abs(hash)
-    },
+      return `这组三符文揭示了你的生命旅程正在经历的转变。
 
-    getTodayKey() {
-      const now = new Date()
-      return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`
+【过去 · ${pastElement}】${past.name}（${past.symbol}）—— ${past.meaning}
+${past.uprightMeaning}
+
+【现在 · ${presentElement}】${present.name}（${present.symbol}）—— ${present.meaning}
+${present.uprightMeaning}
+
+【未来 · ${futureElement}】${future.name}（${future.symbol}）—— ${future.meaning}
+${future.uprightMeaning}
+
+这是来自古老符文的启示：从${past.name}所代表的${past.meaning}，经由${present.name}象征的${present.meaning}，最终走向${future.name}预示的${future.meaning}。每一个阶段都有其深意，关键在于你如何解读与行动。
+
+${past.deeper}
+${present.deeper}
+${future.deeper}
+
+请记住，符文不是宿命的宣判，而是可能性的指引。你的选择，将决定这段旅程的走向。`
     },
 
     getOrbitRuneStyle(index, total, ring) {
@@ -235,28 +234,13 @@ export default {
   min-height: 100vh;
   background: #0B1118;
   color: #F2F4F6;
-  padding: 32rpx;
-  padding-bottom: 160rpx;
   box-sizing: border-box;
   overflow-x: hidden;
 }
 
-.page-header {
-  text-align: center;
-  padding: 24rpx 0 40rpx;
-}
-
-.page-title {
-  display: block;
-  font-size: 44rpx;
-  font-weight: 700;
-  color: #C6A15B;
-  letter-spacing: 6rpx;
-}
-
 .intro-section {
   text-align: center;
-  padding: 80rpx 0;
+  padding: 80rpx 32rpx;
 }
 
 .intro-text {
@@ -269,6 +253,7 @@ export default {
 
 .draw-section {
   text-align: center;
+  padding: 0 32rpx;
 }
 
 .draw-prompt {
@@ -532,6 +517,8 @@ export default {
 
 .slot-symbol {
   font-size: 64rpx;
+  line-height: 1;
+  font-family: serif;
   color: #D8C27A;
 }
 
@@ -553,6 +540,7 @@ export default {
   justify-content: center;
   box-shadow: 0 0 32rpx rgba(198, 161, 91, 0.22);
   margin: 32rpx auto 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .ritual-button:active {
@@ -570,8 +558,13 @@ export default {
   box-shadow: none;
 }
 
+.result-section {
+  padding: 0 32rpx;
+}
+
 .interpretation-section {
   margin-top: 24rpx;
+  padding: 0 32rpx;
 }
 
 .result-card {
@@ -593,6 +586,8 @@ export default {
 .result-symbol {
   display: block;
   font-size: 72rpx;
+  line-height: 1;
+  font-family: serif;
   color: #D8C27A;
   text-align: center;
   margin-bottom: 12rpx;
@@ -646,12 +641,15 @@ export default {
   display: block;
   width: 100%;
   max-width: 100%;
-  white-space: normal;
+  white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: break-word;
-  line-height: 1.8;
-  color: #A8B3BD;
+  line-height: 1.9;
+  color: #C8D0D8;
   font-size: 28rpx;
+  padding: 24rpx 0;
+  border-top: 1px solid rgba(198,161,91,0.2);
+  border-bottom: 1px solid rgba(198,161,91,0.2);
 }
 
 .bottom-space {

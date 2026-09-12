@@ -1,14 +1,10 @@
 <template>
-	<view class="story-detail-page">
-		<view class="nav-bar">
-			<text class="back-btn" @click="goBack">‹</text>
-			<text class="nav-title">故事详情</text>
-			<view class="nav-placeholder"></view>
-		</view>
+	<view class="story-detail-page page-enter-deep">
+		<NavBar title="故事详情" />
 
-		<scroll-view class="content-scroll" scroll-y>
+		<scroll-view class="content-scroll" scroll-y @scroll="onHeroScroll">
 			<view class="story-content">
-				<view class="story-hero">
+				<view class="story-hero" :style="heroStyle">
 					<text class="story-title">{{ story.title }}</text>
 					<text class="story-original">{{ storyOriginalTitle }}</text>
 					<view class="story-meta-row">
@@ -101,10 +97,14 @@
 </template>
 
 <script>
-import { stories } from '@/data/norse.js'
+import { db } from '@/db'
 import { unlockRavensClue, getRavensClueCount } from '@/utils/clueProgress.js'
+import NavBar from '@/components/NavBar.vue'
+import heroParallax from '@/mixins/heroParallax.js'
 
 export default {
+	components: { NavBar },
+	mixins: [heroParallax],
 	data() {
 		return {
 			story: {},
@@ -177,7 +177,7 @@ export default {
 	},
 	onLoad(options) {
 		const storyId = options.id
-		this.story = stories.find(s => s.id === storyId) || stories[0]
+		this.story = db.findById('stories', storyId) || db.findAll('stories')[0]
 		this.initCharacters()
 		this.initPhases()
 		if (this.isOdinRelatedStory(this.story)) {
@@ -187,9 +187,6 @@ export default {
 		}
 	},
 	methods: {
-		goBack() {
-			uni.navigateBack()
-		},
 		isOdinRelatedStory(story) {
 			if (!story) return false
 			if (story.characters && story.characters.includes('odin')) return true
@@ -301,37 +298,8 @@ export default {
 	box-sizing: border-box;
 }
 
-.nav-bar {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	height: 88rpx;
-	padding: 0 24rpx;
-	background: #111A24;
-	flex-shrink: 0;
-}
-
-.back-btn {
-	color: #F2F4F6;
-	font-size: 48rpx;
-	font-weight: 300;
-	width: 80rpx;
-}
-
-.nav-title {
-	color: #F2F4F6;
-	font-size: 32rpx;
-	font-weight: 600;
-	flex: 1;
-	text-align: center;
-}
-
-.nav-placeholder {
-	width: 80rpx;
-}
-
 .content-scroll {
-	height: calc(100vh - 88rpx);
+	height: calc(100vh - 88rpx - env(safe-area-inset-top));
 }
 
 .story-content {

@@ -1,53 +1,44 @@
 <template>
-	<view class="container">
-		<view class="header">
-			<text class="title">神祇百科</text>
-			<text class="subtitle">认识阿萨神族、华纳神族与巨人之间复杂而古老的关系</text>
+	<view
+		class="container page-enter"
+		@touchstart="onPullTouchStart"
+		@touchmove="onPullTouchMove"
+		@touchend="onPullTouchEnd"
+		@touchcancel="onPullTouchEnd"
+	>
+		<view class="pull-refresh-indicator" :class="{ loading: pullLoading, dragging: pullActive }" :style="pullIndicatorStyle">
+			<text class="pull-rune" :style="pullRuneStyle">ᚱ</text>
 		</view>
-		
+		<PageHeader back kicker="PANTHEON" title="神祇百科" subtitle="认识阿萨神族、华纳神族与巨人之间复杂而古老的关系" />
+
 		<view class="search-box">
-			<text class="search-icon">*</text>
+			<view class="search-icon">
+				<view class="search-icon-lens"></view>
+			</view>
 			<input class="search-input" placeholder="搜索神祇..." v-model="searchText" />
 		</view>
 		
 		<view class="faction-tabs">
-			<text 
-				class="tab" 
-				:class="{ active: currentFaction === '' }"
-				@click="currentFaction = ''"
-			>全部</text>
-			<text 
-				class="tab" 
-				:class="{ active: currentFaction === '阿萨神族' }"
-				@click="currentFaction = '阿萨神族'"
-			>阿萨神族</text>
-			<text 
-				class="tab" 
-				:class="{ active: currentFaction === '华纳神族' }"
-				@click="currentFaction = '华纳神族'"
-			>华纳神族</text>
-			<text 
-				class="tab" 
-				:class="{ active: currentFaction === '巨人血统' }"
-				@click="currentFaction = '巨人血统'"
-			>巨人血统</text>
-			<text 
-				class="tab" 
-				:class="{ active: currentFaction === '冥界' }"
-				@click="currentFaction = '冥界'"
-			>冥界</text>
-			<text 
-				class="tab" 
-				:class="{ active: currentFaction === '其他' }"
-				@click="currentFaction = '其他'"
-			>其他</text>
+			<text
+				v-for="faction in factionTabs"
+				:key="faction.value"
+				class="tab"
+				:class="{ active: currentFaction === faction.value }"
+				@click="setFaction(faction.value)"
+			>{{ faction.label }}</text>
+			<view
+				v-if="tabIndicator.ready"
+				class="tab-indicator"
+				:style="{ transform: 'translateX(' + tabIndicator.left + 'px)', width: tabIndicator.width + 'px' }"
+			></view>
 		</view>
 		
-		<scroll-view class="god-list" scroll-y>
-			<view 
-				class="god-card" 
-				v-for="god in filteredGods" 
-				:key="god.id"
+		<view class="god-list">
+			<view
+				class="god-card stagger-item"
+				v-for="(god, index) in filteredGods"
+				:key="god.id + '-' + refreshTick"
+				:style="{ animationDelay: Math.min(index, 12) * 0.05 + 's' }"
 				@click="goToDetail(god.id)"
 			>
 				<view class="god-avatar" :class="getFactionClass(god.faction)">
@@ -63,43 +54,45 @@
 				</view>
 				<text class="arrow">›</text>
 			</view>
-		</scroll-view>
-
-		<view class="bottom-tab">
-			<view class="tab-item" @click="goToTab('home')">
-				<view class="tab-icon-box"><view class="css-icon icon-home"></view></view>
-				<text class="tab-label">首页</text>
-			</view>
-			<view class="tab-item active">
-				<view class="tab-icon-box"><view class="css-icon icon-gods"></view></view>
-				<text class="tab-label">神祇</text>
-			</view>
-			<view class="tab-item" @click="goToTab('stories')">
-				<view class="tab-icon-box"><view class="css-icon icon-stories"></view></view>
-				<text class="tab-label">故事</text>
-			</view>
-			<view class="tab-item" @click="goToTab('bestiary')">
-				<view class="tab-icon-box"><view class="css-icon icon-bestiary"></view></view>
-				<text class="tab-label">图鉴</text>
-			</view>
-			<view class="tab-item" @click="goToTab('fun')">
-				<view class="tab-icon-box"><view class="css-icon icon-fun"></view></view>
-				<text class="tab-label">档案</text>
+			<view v-if="filteredGods.length === 0" class="empty-state">
+				<text class="empty-symbol">ᛟ</text>
+				<text class="empty-title">未找到相关神祇</text>
+				<text class="empty-desc">换个名字或切换阵营再试试。</text>
 			</view>
 		</view>
+
+		<TabBar current="codex" />
 	</view>
 </template>
 
 <script>
-import { norseGods } from '@/data/norseGods.js'
+import TabBar from '@/components/TabBar.vue'
+import PageHeader from '@/components/PageHeader.vue'
+import { godFactions } from '@/data/norse.js'
+import { db } from '@/db'
+import pullRefresh from '@/mixins/pullRefresh.js'
 
 export default {
+  components: { TabBar, PageHeader },
+	mixins: [pullRefresh],
 	data() {
 		return {
-			gods: norseGods,
+			gods: db.findAll('gods'),
 			searchText: '',
-			currentFaction: ''
+			currentFaction: '',
+			factionTabs: [
+				{ label: '全部', value: '' },
+				{ label: '阿萨神族', value: '阿萨神族' },
+				{ label: '华纳神族', value: '华纳神族' },
+				{ label: '巨人血统', value: '巨人血统' },
+				{ label: '冥界', value: '冥界' },
+				{ label: '其他', value: '其他' }
+			],
+			tabIndicator: { left: 0, width: 0, ready: false }
 		}
+	},
+	mounted() {
+		this.updateTabIndicator()
 	},
 	computed: {
 		filteredGods() {
@@ -117,6 +110,35 @@ export default {
 		}
 	},
 	methods: {
+		// 下拉刷新回调：重新读取神祇数据
+		onRefresh() {
+			this.gods = db.findAll('gods')
+		},
+		setFaction(value) {
+			this.currentFaction = value
+			this.updateTabIndicator()
+		},
+		// 测量当前激活 tab 的位置，驱动滑动指示器
+		updateTabIndicator() {
+			this.$nextTick(() => {
+				uni.createSelectorQuery().in(this)
+					.select('.faction-tabs').boundingClientRect()
+					.selectAll('.faction-tabs .tab').boundingClientRect()
+					.exec((res) => {
+						const barRect = res && res[0]
+						const tabRects = res && res[1]
+						if (!barRect || !tabRects || !tabRects.length) return
+						const index = Math.max(0, this.factionTabs.findIndex(t => t.value === this.currentFaction))
+						const rect = tabRects[index]
+						if (!rect) return
+						this.tabIndicator = {
+							left: rect.left - barRect.left,
+							width: rect.width,
+							ready: true
+						}
+					})
+			})
+		},
 		goToDetail(id) {
 			uni.navigateTo({
 				url: `/pages/gods/god-detail?id=${id}`
@@ -130,17 +152,6 @@ export default {
 				'洛基之女 / 冥界统治者': 'hel'
 			}
 			return classes[faction] || ''
-		},
-		goToTab(tab) {
-			const routes = {
-				home: '/pages/index/index',
-				stories: '/pages/stories/story-list',
-				bestiary: '/pages/bestiary/bestiary-list',
-				fun: '/pages/profile/profile'
-			}
-			if (routes[tab]) {
-				uni.switchTab({ url: routes[tab] })
-			}
 		}
 	}
 }
@@ -150,29 +161,8 @@ export default {
 .container {
 	min-height: 100vh;
 	background: #0B1118;
-	padding: 32rpx;
-	padding-bottom: 120rpx;
+	padding: 0 32rpx 180rpx;
 	box-sizing: border-box;
-}
-
-.header {
-	text-align: center;
-	padding: 24rpx 0 40rpx;
-}
-
-.title {
-	display: block;
-	font-size: 40rpx;
-	font-weight: 700;
-	color: #C6A15B;
-	letter-spacing: 4rpx;
-	margin-bottom: 12rpx;
-}
-
-.subtitle {
-	display: block;
-	font-size: 26rpx;
-	color: #A8B3BD;
 }
 
 .search-box {
@@ -186,8 +176,34 @@ export default {
 }
 
 .search-icon {
-	font-size: 28rpx;
+	width: 32rpx;
+	height: 32rpx;
 	margin-right: 16rpx;
+	position: relative;
+	flex-shrink: 0;
+}
+
+.search-icon-lens {
+	width: 20rpx;
+	height: 20rpx;
+	border: 3rpx solid #66727F;
+	border-radius: 50%;
+	box-sizing: border-box;
+	position: absolute;
+	left: 0;
+	top: 0;
+}
+
+.search-icon-lens::after {
+	content: '';
+	position: absolute;
+	right: -7rpx;
+	bottom: -7rpx;
+	width: 10rpx;
+	height: 3rpx;
+	background: #66727F;
+	border-radius: 2rpx;
+	transform: rotate(45deg);
 }
 
 .search-input {
@@ -198,6 +214,7 @@ export default {
 
 .faction-tabs {
 	display: flex;
+	position: relative;
 	margin-bottom: 24rpx;
 	overflow-x: auto;
 	overflow-y: hidden;
@@ -208,23 +225,41 @@ export default {
 }
 
 .tab {
-	padding: 12rpx 24rpx;
+	padding: 14rpx 26rpx;
 	color: #66727F;
 	font-size: 24rpx;
 	white-space: nowrap;
 	border-radius: 30rpx;
 	background: #172230;
 	margin-right: 12rpx;
+	border: 1rpx solid transparent;
+	transition: color 0.2s ease, transform 0.15s ease;
+}
+
+.tab:active {
+	transform: scale(0.95);
 }
 
 .tab.active {
-	background: transparent;
-	border: 1rpx solid #C6A15B;
 	color: #C6A15B;
 }
 
+/* 滑动胶囊指示器：随激活 tab 平移 */
+.tab-indicator {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	border: 1rpx solid #C6A15B;
+	border-radius: 30rpx;
+	box-sizing: border-box;
+	pointer-events: none;
+	z-index: 1;
+	transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .god-list {
-	height: calc(100vh - 400rpx);
+	padding-bottom: 40rpx;
 }
 
 .god-card {
@@ -330,186 +365,35 @@ export default {
 
 .arrow {
 	color: #66727F;
-	font-size: 32rpx;
+	font-size: 36rpx;
 }
 
-.bottom-tab {
-	position: fixed;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	height: 112rpx;
-	background: #111A24;
-	border-top: 1px solid #27384A;
-	display: flex;
-	z-index: 9999;
-	padding-bottom: env(safe-area-inset-bottom);
-	box-sizing: content-box;
-}
-
-.tab-item {
-	flex: 1;
-	height: 112rpx;
-	min-width: 0;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: 8rpx;
-	color: #66727F;
+.empty-state {
+	padding: 80rpx 0;
 	text-align: center;
 }
 
-.tab-item.active {
-	color: #C6A15B;
-}
-
-.tab-icon-box {
-	width: 48rpx;
-	height: 40rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	flex-shrink: 0;
-}
-
-.tab-label {
+.empty-symbol {
 	display: block;
-	height: 24rpx;
-	line-height: 24rpx;
+	font-size: 64rpx;
+	line-height: 1;
+	color: #27384A;
+	font-family: serif;
+	margin-bottom: 20rpx;
+}
+
+.empty-title {
+	display: block;
+	color: #A8B3BD;
+	font-size: 28rpx;
+	font-weight: 600;
+	margin-bottom: 8rpx;
+}
+
+.empty-desc {
+	display: block;
+	color: #66727F;
 	font-size: 22rpx;
-	color: currentColor;
-	text-align: center;
 }
 
-.css-icon {
-	position: relative;
-	width: 32rpx;
-	height: 32rpx;
-	color: currentColor;
-	box-sizing: border-box;
-	transform-origin: center center;
-}
-
-.css-icon::before,
-.css-icon::after {
-	box-sizing: border-box;
-}
-
-.icon-home::before {
-	content: '';
-	position: absolute;
-	left: 7rpx;
-	top: 6rpx;
-	width: 18rpx;
-	height: 18rpx;
-	border-left: 3rpx solid currentColor;
-	border-top: 3rpx solid currentColor;
-	transform: rotate(45deg);
-	border-radius: 2rpx;
-}
-
-.icon-home::after {
-	content: '';
-	position: absolute;
-	left: 8rpx;
-	top: 17rpx;
-	width: 16rpx;
-	height: 11rpx;
-	border: 3rpx solid currentColor;
-	border-top: none;
-	border-radius: 2rpx;
-}
-
-.icon-gods::before {
-	content: '';
-	position: absolute;
-	left: 5rpx;
-	top: 5rpx;
-	width: 22rpx;
-	height: 6rpx;
-	border-left: 3rpx solid currentColor;
-	border-right: 3rpx solid currentColor;
-	border-top: 3rpx solid currentColor;
-	transform: skewX(-8deg);
-}
-
-.icon-gods::after {
-	content: '';
-	position: absolute;
-	left: 6rpx;
-	top: 14rpx;
-	width: 20rpx;
-	height: 14rpx;
-	border-left: 3rpx solid currentColor;
-	border-right: 3rpx solid currentColor;
-	box-shadow: 7rpx 0 0 -4rpx currentColor, -7rpx 0 0 -4rpx currentColor;
-}
-
-.icon-stories::before {
-	content: '';
-	position: absolute;
-	left: 5rpx;
-	top: 6rpx;
-	width: 11rpx;
-	height: 22rpx;
-	border: 3rpx solid currentColor;
-	border-radius: 4rpx 0 0 4rpx;
-}
-
-.icon-stories::after {
-	content: '';
-	position: absolute;
-	right: 5rpx;
-	top: 6rpx;
-	width: 11rpx;
-	height: 22rpx;
-	border: 3rpx solid currentColor;
-	border-radius: 0 4rpx 4rpx 0;
-}
-
-.icon-bestiary::before {
-	content: '';
-	position: absolute;
-	left: 8rpx;
-	top: 6rpx;
-	width: 16rpx;
-	height: 16rpx;
-	border: 3rpx solid currentColor;
-	transform: rotate(45deg);
-	border-radius: 3rpx;
-}
-
-.icon-bestiary::after {
-	content: '';
-	position: absolute;
-	left: 13rpx;
-	top: 11rpx;
-	width: 6rpx;
-	height: 6rpx;
-	border-radius: 50%;
-	background: currentColor;
-}
-
-.icon-fun::before {
-	content: '';
-	position: absolute;
-	left: 7rpx;
-	top: 7rpx;
-	width: 18rpx;
-	height: 18rpx;
-	border: 3rpx solid currentColor;
-	border-radius: 50%;
-}
-
-.icon-fun::after {
-	content: '';
-	position: absolute;
-	left: 14rpx;
-	top: 14rpx;
-	width: 4rpx;
-	height: 4rpx;
-	border-radius: 50%;
-	background: currentColor;
-}
 </style>

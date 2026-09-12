@@ -1,6 +1,7 @@
 <template>
-	<view class="container">
-		<view class="header" :style="{ background: headerGradient }">
+	<view class="container page-enter-deep">
+		<NavBar title="神祇详情" />
+		<view class="header" :style="{ background: headerGradient, transform: heroStyle.transform, opacity: heroStyle.opacity }">
 			<view class="avatar-large" :class="getFactionClass(god.faction)">
 				<text class="avatar-text">{{ god.name[0] }}</text>
 			</view>
@@ -103,6 +104,16 @@
 				</view>
 			</view>
 			
+			<view class="relation-group" v-if="god.relationships.rivals && god.relationships.rivals.length">
+				<text class="relation-type">竞争关系</text>
+				<view class="relation-cards">
+					<view class="relation-card rival" v-for="rival in god.relationships.rivals" :key="rival" @click="goToRelated(rival)">
+						<text class="relation-name">{{ rival }}</text>
+						<text class="relation-label">竞争者</text>
+					</view>
+				</view>
+			</view>
+			
 			<view class="relation-group" v-if="god.relationships.enemies && god.relationships.enemies.length">
 				<text class="relation-type">冲突关系</text>
 				<view class="relation-cards">
@@ -127,11 +138,14 @@
 </template>
 
 <script>
-import { gods } from '@/data/norse.js'
-import { stories } from '@/data/norse.js'
+import { db } from '@/db'
 import { unlockRavensClue, getRavensClueCount } from '@/utils/clueProgress.js'
+import NavBar from '@/components/NavBar.vue'
+import heroParallax from '@/mixins/heroParallax.js'
 
 export default {
+	components: { NavBar },
+	mixins: [heroParallax],
 	data() {
 		return {
 			god: {}
@@ -139,12 +153,17 @@ export default {
 	},
 	computed: {
 		headerGradient() {
-			const factionColors = {
-				'阿萨神族': '#C6A15B',
-				'华纳神族': '#7C8C74',
-				'巨人': '#8B4A4A'
+			const faction = this.god.faction || ''
+			let color = '#8FB6D9'
+			if (faction.includes('华纳')) {
+				color = '#7C8C74'
+			} else if (faction.includes('巨人')) {
+				color = '#8B4A4A'
+			} else if (faction.includes('冥界')) {
+				color = '#66727F'
+			} else if (faction.includes('阿萨')) {
+				color = '#C6A15B'
 			}
-			const color = factionColors[this.god.faction] || '#8FB6D9'
 			return `linear-gradient(135deg, ${color}22 0%, #0B1118 100%)`
 		},
 		radarPoints() {
@@ -186,34 +205,38 @@ export default {
 		},
 		hasRelationships() {
 			const r = this.god.relationships
-			return r && (r.parents?.length || r.children?.length || r.spouse?.length || r.allies?.length || r.enemies?.length)
+			return r && (r.parents?.length || r.children?.length || r.spouse?.length || r.allies?.length || r.rivals?.length || r.enemies?.length)
 		},
 		relatedStories() {
 			if (!this.god.stories) return []
-			return this.god.stories.map(id => stories.find(s => s.id === id)).filter(Boolean)
+			return this.god.stories.map(id => db.findById('stories', id)).filter(Boolean)
 		}
 	},
 	onLoad(options) {
 		const godId = options.id || 'odin'
-		this.god = gods.find(g => g.id === godId) || gods[0]
+		this.god = db.findById('gods', godId) || db.findAll('gods')[0]
 		if (this.god.id === 'odin') {
 			if (getRavensClueCount() < 3) {
 				unlockRavensClue('relation')
 			}
 		}
 	},
+	// 头部视差：hero 随滚动缓慢下移并淡出
+	onPageScroll(e) {
+		this.updateHeroParallax(e.scrollTop)
+	},
 	methods: {
 		getFactionClass(faction) {
-			const classes = {
-				'阿萨神族': 'asa',
-				'华纳神族': 'vana',
-				'巨人': 'giant'
-			}
-			return classes[faction] || ''
+			if (!faction) return ''
+			if (faction.includes('华纳')) return 'vana'
+			if (faction.includes('巨人')) return 'giant'
+			if (faction.includes('冥界')) return 'hel'
+			if (faction.includes('阿萨')) return 'asa'
+			return ''
 		},
 		goToRelated(name) {
 			const relatedId = name.toLowerCase()
-			const god = gods.find(g => g.id === relatedId || g.name === name)
+			const god = db.findById('gods', relatedId) || db.findOne('gods', { name })
 			if (god) {
 				uni.navigateTo({ url: `/pages/gods/god-detail?id=${god.id}` })
 			} else {
@@ -234,7 +257,7 @@ export default {
 }
 
 .header {
-	padding: 60rpx 32rpx 40rpx;
+	padding: 24rpx 32rpx 40rpx;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -254,6 +277,7 @@ export default {
 .avatar-large.asa { background: linear-gradient(135deg, #C6A15B, #8B7030); }
 .avatar-large.vana { background: linear-gradient(135deg, #5A7A5C, #3A4A3C); }
 .avatar-large.giant { background: linear-gradient(135deg, #8B4A4A, #5A2A2A); }
+.avatar-large.hel { background: linear-gradient(135deg, #66727F, #3A4450); }
 
 .avatar-text {
 	color: #F2F4F6;
@@ -289,6 +313,7 @@ export default {
 .faction-tag.asa { background: rgba(198, 161, 91, 0.2); color: #C6A15B; }
 .faction-tag.vana { background: rgba(90, 122, 92, 0.2); color: #7C8C74; }
 .faction-tag.giant { background: rgba(139, 74, 74, 0.2); color: #8B4A4A; }
+.faction-tag.hel { background: rgba(102, 114, 127, 0.2); color: #8FA3B8; }
 
 .section {
 	padding: 32rpx;
@@ -475,6 +500,16 @@ export default {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.relation-card:active {
+	transform: scale(0.95);
+	border-color: rgba(198,161,91,0.55);
+}
+
+.relation-card.rival {
+	border-color: rgba(198, 161, 91, 0.3);
 }
 
 .relation-card.enemy {
@@ -504,6 +539,12 @@ export default {
 	border: 1rpx solid #27384A;
 	border-radius: 16rpx;
 	padding: 24rpx;
+	transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.story-card:active {
+	transform: scale(0.98);
+	border-color: rgba(198,161,91,0.55);
 }
 
 .story-title {

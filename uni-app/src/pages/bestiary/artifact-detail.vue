@@ -1,6 +1,7 @@
 <template>
-	<scroll-view scroll-y class="container">
-		<view class="artifact-hero">
+	<scroll-view scroll-y class="container page-enter-deep" @scroll="onHeroScroll">
+		<NavBar title="法器详情" />
+		<view class="artifact-hero" :style="heroStyle">
 			<view class="artifact-icon-box">
 				<text class="artifact-icon">{{ getArtifactIcon(artifact.type) }}</text>
 			</view>
@@ -98,17 +99,18 @@
 				</view>
 			</view>
 		</view>
-
-		<view class="back-button" @click="goBack">
-			<text>返回图鉴</text>
-		</view>
 	</scroll-view>
 </template>
 
 <script>
-import { getArtifactById, getRarityLabel } from '@/data/norseArtifacts.js'
+import { getRarityLabel } from '@/data/norseArtifacts.js'
+import { db } from '@/db'
+import NavBar from '@/components/NavBar.vue'
+import heroParallax from '@/mixins/heroParallax.js'
 
 export default {
+	components: { NavBar },
+	mixins: [heroParallax],
 	data() {
 		return {
 			artifact: null
@@ -127,7 +129,7 @@ export default {
 	},
 	onLoad(options) {
 		if (options.id) {
-			this.artifact = getArtifactById(options.id)
+			this.artifact = db.findById('artifacts', options.id)
 		}
 	},
 	methods: {
@@ -159,9 +161,6 @@ export default {
 			uni.navigateTo({
 				url: `/pages/bestiary/creature-detail?id=${id}`
 			})
-		},
-		goBack() {
-			uni.navigateBack()
 		}
 	}
 }
@@ -176,7 +175,7 @@ export default {
 }
 
 .artifact-hero {
-	padding: 120rpx 40rpx 60rpx;
+	padding: 48rpx 40rpx 60rpx;
 	background:
 		radial-gradient(circle at 50% 20%, rgba(198,161,91,0.12), transparent 50%),
 		#0B1118;
@@ -234,7 +233,7 @@ export default {
 }
 
 .meta-divider {
-	color: #27384A;
+	color: #66727F;
 }
 
 .rarity-tag {
@@ -362,25 +361,5 @@ export default {
 	display: block;
 	color: #66727F;
 	font-size: 22rpx;
-}
-
-.back-button {
-	margin: 40rpx 32rpx;
-	height: 80rpx;
-	border-radius: 40rpx;
-	background: #172230;
-	border: 1px solid #27384A;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.back-button:active {
-	background: #1a2a3d;
-}
-
-.back-button text {
-	color: #A8B3BD;
-	font-size: 26rpx;
 }
 </style>

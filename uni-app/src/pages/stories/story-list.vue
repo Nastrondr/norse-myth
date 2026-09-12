@@ -1,9 +1,6 @@
 <template>
-	<view class="container">
-		<view class="header">
-			<text class="title">神话故事</text>
-			<text class="subtitle">沿着命运的时间线，阅读从创世到诸神黄昏与世界重生的故事。</text>
-		</view>
+	<view class="container page-enter">
+		<PageHeader kicker="SAGA OF THE NORTH" title="神话故事" subtitle="沿着命运的时间线，阅读从创世到诸神黄昏与世界重生的故事。" />
 
 		<view class="view-toggle">
 			<view
@@ -24,9 +21,10 @@
 
 		<view v-if="viewMode === 'timeline'" class="timeline-list">
 			<view
-				v-for="phase in timeline"
-				:key="phase.id"
-				class="timeline-phase"
+				v-for="(phase, index) in timeline"
+				:key="phase.id + '-' + refreshTick"
+				class="timeline-phase stagger-item"
+				:style="{ animationDelay: Math.min(index, 12) * 0.05 + 's' }"
 			>
 				<view class="phase-header" @click="togglePhase(phase.id)">
 					<view class="phase-marker" :style="{ background: phase.color }"></view>
@@ -66,31 +64,24 @@
 		<view v-if="viewMode === 'list'" class="list-mode">
 			<view class="category-tabs">
 				<text
+					v-for="cat in categories"
+					:key="cat.id"
 					class="tab"
-					:class="{ active: currentCategory === '' }"
-					@click="currentCategory = ''"
-				>全部</text>
-				<text
-					class="tab"
-					:class="{ active: currentCategory === '创世神话' }"
-					@click="currentCategory = '创世神话'"
-				>创世神话</text>
-				<text
-					class="tab"
-					:class="{ active: currentCategory === '神器传说' }"
-					@click="currentCategory = '神器传说'"
-				>神器传说</text>
-				<text
-					class="tab"
-					:class="{ active: currentCategory === '末日预言' }"
-					@click="currentCategory = '末日预言'"
-				>末日预言</text>
+					:class="{ active: currentCategory === cat.id }"
+					@click="setCategory(cat.id)"
+				>{{ cat.label }}</text>
+				<view
+					v-if="tabIndicator.ready"
+					class="tab-indicator"
+					:style="{ transform: 'translateX(' + tabIndicator.left + 'px)', width: tabIndicator.width + 'px' }"
+				></view>
 			</view>
 
 			<scroll-view class="story-list" scroll-y>
-				<view class="story-card"
-					v-for="story in filteredStories"
+				<view class="story-card stagger-item"
+					v-for="(story, index) in filteredStories"
 					:key="story.id"
+					:style="{ animationDelay: Math.min(index, 12) * 0.05 + 's' }"
 					@click="goToDetail(story.id)"
 				>
 					<view class="story-icon">{{ story.title.charAt(0) }}</view>
@@ -107,43 +98,33 @@
 			</scroll-view>
 		</view>
 
-		<view class="bottom-tab">
-			<view class="tab-item" @click="goToTab('home')">
-				<view class="tab-icon-box"><view class="css-icon icon-home"></view></view>
-				<text class="tab-label">首页</text>
-			</view>
-			<view class="tab-item" @click="goToTab('gods')">
-				<view class="tab-icon-box"><view class="css-icon icon-gods"></view></view>
-				<text class="tab-label">神祇</text>
-			</view>
-			<view class="tab-item active">
-				<view class="tab-icon-box"><view class="css-icon icon-stories"></view></view>
-				<text class="tab-label">故事</text>
-			</view>
-			<view class="tab-item" @click="goToTab('bestiary')">
-				<view class="tab-icon-box"><view class="css-icon icon-bestiary"></view></view>
-				<text class="tab-label">图鉴</text>
-			</view>
-			<view class="tab-item" @click="goToTab('fun')">
-				<view class="tab-icon-box"><view class="css-icon icon-fun"></view></view>
-				<text class="tab-label">档案</text>
-			</view>
-		</view>
+		<TabBar current="stories" />
 	</view>
 </template>
 
 <script>
-import { stories } from '@/data/norse.js'
-import { norseTimeline } from '@/data/norseTimeline.js'
+import TabBar from '@/components/TabBar.vue'
+import PageHeader from '@/components/PageHeader.vue'
+import { db } from '@/db'
+import { storyCategories } from '@/data/norseStories.js'
 
 export default {
+  components: { TabBar, PageHeader },
 	data() {
 		return {
-			stories: stories,
-			timeline: norseTimeline,
+			stories: db.findAll('stories'),
+			timeline: db.findAll('timeline'),
+			categories: storyCategories,
 			viewMode: 'timeline',
 			currentCategory: '',
-			expandedPhaseIds: ['creation-age']
+			expandedPhaseIds: ['creation-age'],
+			tabIndicator: { left: 0, width: 0, ready: false }
+		}
+	},
+	watch: {
+		// 切到列表视图时 tab 才首次渲染，需要重新测量指示器
+		viewMode(val) {
+			if (val === 'list') this.updateTabIndicator()
 		}
 	},
 	computed: {
@@ -153,6 +134,36 @@ export default {
 		}
 	},
 	methods: {
+		// 下拉刷新回调：重新读取故事与时间线
+		onRefresh() {
+			this.stories = db.findAll('stories')
+			this.timeline = db.findAll('timeline')
+		},
+		setCategory(id) {
+			this.currentCategory = id
+			this.updateTabIndicator()
+		},
+		// 测量当前激活 tab 的位置，驱动滑动指示器
+		updateTabIndicator() {
+			this.$nextTick(() => {
+				uni.createSelectorQuery().in(this)
+					.select('.category-tabs').boundingClientRect()
+					.selectAll('.category-tabs .tab').boundingClientRect()
+					.exec((res) => {
+						const barRect = res && res[0]
+						const tabRects = res && res[1]
+						if (!barRect || !tabRects || !tabRects.length) return
+						const index = Math.max(0, this.categories.findIndex(c => c.id === this.currentCategory))
+						const rect = tabRects[index]
+						if (!rect) return
+						this.tabIndicator = {
+							left: rect.left - barRect.left,
+							width: rect.width,
+							ready: true
+						}
+					})
+			})
+		},
 		togglePhase(id) {
 			if (!id) return
 			const index = this.expandedPhaseIds.indexOf(id)
@@ -182,17 +193,6 @@ export default {
 					url: `/pages/stories/story-detail?id=${storyId}`
 				})
 			}
-		},
-		goToTab(tab) {
-			const routes = {
-				home: '/pages/index/index',
-				gods: '/pages/gods/god-list',
-				bestiary: '/pages/bestiary/bestiary-list',
-				fun: '/pages/profile/profile'
-			}
-			if (routes[tab]) {
-				uni.switchTab({ url: routes[tab] })
-			}
 		}
 	}
 }
@@ -202,31 +202,9 @@ export default {
 .container {
 	min-height: 100vh;
 	background: #0B1118;
-	padding: 32rpx;
-	padding-bottom: 160rpx;
+	padding: 0 32rpx 160rpx;
 	box-sizing: border-box;
 	overflow-x: hidden;
-}
-
-.header {
-	text-align: center;
-	padding: 24rpx 0 28rpx;
-}
-
-.title {
-	display: block;
-	font-size: 40rpx;
-	font-weight: 800;
-	line-height: 1.25;
-	color: #F2F4F6;
-}
-
-.subtitle {
-	display: block;
-	margin-top: 12rpx;
-	color: #A8B3BD;
-	font-size: 24rpx;
-	line-height: 1.5;
 }
 
 .view-toggle {
@@ -246,6 +224,11 @@ export default {
 	justify-content: center;
 	font-size: 24rpx;
 	border: 1rpx solid #27384A;
+	transition: color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.toggle-btn:active {
+	transform: scale(0.96);
 }
 
 .toggle-btn.active {
@@ -325,8 +308,17 @@ export default {
 	color: #C6A15B;
 	font-size: 36rpx;
 	font-weight: 300;
-	width: 40rpx;
+	width: 56rpx;
+	height: 56rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	text-align: center;
+	transition: transform 0.15s ease;
+}
+
+.phase-toggle:active {
+	transform: scale(0.85);
 }
 
 .phase-events {
@@ -408,6 +400,7 @@ export default {
 
 .category-tabs {
 	display: flex;
+	position: relative;
 	margin-bottom: 24rpx;
 	overflow-x: auto;
 	overflow-y: hidden;
@@ -418,19 +411,37 @@ export default {
 }
 
 .tab {
-	padding: 12rpx 24rpx;
+	padding: 14rpx 26rpx;
 	color: #66727F;
 	font-size: 24rpx;
 	white-space: nowrap;
 	border-radius: 30rpx;
 	background: #172230;
 	margin-right: 12rpx;
+	border: 1rpx solid transparent;
+	transition: color 0.2s ease, transform 0.15s ease;
+}
+
+.tab:active {
+	transform: scale(0.95);
 }
 
 .tab.active {
-	background: transparent;
-	border: 1rpx solid #C6A15B;
 	color: #C6A15B;
+}
+
+/* 滑动胶囊指示器：随激活 tab 平移 */
+.tab-indicator {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	border: 1rpx solid #C6A15B;
+	border-radius: 30rpx;
+	box-sizing: border-box;
+	pointer-events: none;
+	z-index: 1;
+	transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .story-list {
@@ -446,6 +457,12 @@ export default {
 	padding: 24rpx;
 	margin-bottom: 16rpx;
 	box-sizing: border-box;
+	transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.story-card:active {
+	transform: scale(0.98);
+	border-color: rgba(198,161,91,0.55);
 }
 
 .story-icon {
@@ -495,183 +512,4 @@ export default {
 	font-size: 36rpx;
 }
 
-.bottom-tab {
-	position: fixed;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	height: 112rpx;
-	background: #111A24;
-	border-top: 1px solid #27384A;
-	display: flex;
-	z-index: 9999;
-	padding-bottom: env(safe-area-inset-bottom);
-	box-sizing: content-box;
-}
-
-.tab-item {
-	flex: 1;
-	height: 112rpx;
-	min-width: 0;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: 8rpx;
-	color: #66727F;
-	text-align: center;
-}
-
-.tab-item.active {
-	color: #C6A15B;
-}
-
-.tab-icon-box {
-	width: 48rpx;
-	height: 40rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	flex-shrink: 0;
-}
-
-.tab-label {
-	display: block;
-	height: 24rpx;
-	line-height: 24rpx;
-	font-size: 22rpx;
-	color: currentColor;
-	text-align: center;
-}
-
-.css-icon {
-	position: relative;
-	width: 32rpx;
-	height: 32rpx;
-	color: currentColor;
-	box-sizing: border-box;
-	transform-origin: center center;
-}
-
-.css-icon::before,
-.css-icon::after {
-	box-sizing: border-box;
-}
-
-.icon-home::before {
-	content: '';
-	position: absolute;
-	left: 7rpx;
-	top: 6rpx;
-	width: 18rpx;
-	height: 18rpx;
-	border-left: 3rpx solid currentColor;
-	border-top: 3rpx solid currentColor;
-	transform: rotate(45deg);
-	border-radius: 2rpx;
-}
-
-.icon-home::after {
-	content: '';
-	position: absolute;
-	left: 8rpx;
-	top: 17rpx;
-	width: 16rpx;
-	height: 11rpx;
-	border: 3rpx solid currentColor;
-	border-top: none;
-	border-radius: 2rpx;
-}
-
-.icon-gods::before {
-	content: '';
-	position: absolute;
-	left: 5rpx;
-	top: 5rpx;
-	width: 22rpx;
-	height: 6rpx;
-	border-left: 3rpx solid currentColor;
-	border-right: 3rpx solid currentColor;
-	border-top: 3rpx solid currentColor;
-	transform: skewX(-8deg);
-}
-
-.icon-gods::after {
-	content: '';
-	position: absolute;
-	left: 6rpx;
-	top: 14rpx;
-	width: 20rpx;
-	height: 14rpx;
-	border-left: 3rpx solid currentColor;
-	border-right: 3rpx solid currentColor;
-	box-shadow: 7rpx 0 0 -4rpx currentColor, -7rpx 0 0 -4rpx currentColor;
-}
-
-.icon-stories::before {
-	content: '';
-	position: absolute;
-	left: 5rpx;
-	top: 6rpx;
-	width: 11rpx;
-	height: 22rpx;
-	border: 3rpx solid currentColor;
-	border-radius: 4rpx 0 0 4rpx;
-}
-
-.icon-stories::after {
-	content: '';
-	position: absolute;
-	right: 5rpx;
-	top: 6rpx;
-	width: 11rpx;
-	height: 22rpx;
-	border: 3rpx solid currentColor;
-	border-radius: 0 4rpx 4rpx 0;
-}
-
-.icon-bestiary::before {
-	content: '';
-	position: absolute;
-	left: 8rpx;
-	top: 6rpx;
-	width: 16rpx;
-	height: 16rpx;
-	border: 3rpx solid currentColor;
-	transform: rotate(45deg);
-	border-radius: 3rpx;
-}
-
-.icon-bestiary::after {
-	content: '';
-	position: absolute;
-	left: 13rpx;
-	top: 11rpx;
-	width: 6rpx;
-	height: 6rpx;
-	border-radius: 50%;
-	background: currentColor;
-}
-
-.icon-fun::before {
-	content: '';
-	position: absolute;
-	left: 7rpx;
-	top: 7rpx;
-	width: 18rpx;
-	height: 18rpx;
-	border: 3rpx solid currentColor;
-	border-radius: 50%;
-}
-
-.icon-fun::after {
-	content: '';
-	position: absolute;
-	left: 14rpx;
-	top: 14rpx;
-	width: 4rpx;
-	height: 4rpx;
-	border-radius: 50%;
-	background: currentColor;
-}
 </style>
