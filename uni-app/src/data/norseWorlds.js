@@ -1,5 +1,13 @@
 // 九界数据 - 北欧神话世界观 V2.0
 // 包含：九界名称、描述、相关神祇、生物、故事
+//
+// 手绘地图接入工作流：
+// 1. 图片放到 src/static/maps/<世界id>.png（任意比例均可，建议宽边 1125~1500px、单张 <200KB）
+// 2. 给对应世界加 mapImage: '/static/maps/<文件名>'（不写则回退到现有 CSS 渐变风格）
+// 3. mapLocations 是地图点位，x/y 为相对图片画面宽高的百分比（0~100）；
+//    内嵌舞台固定 4:3 横版（竖图居中裁切，点位自动映射并夹到画框内），
+//    全屏为 3:4 画框内嵌可拖动画布（图比画框宽→左右拖，图比画框高→上下拖），
+//    支持双指缩放；换图后请按画面中地物的实际位置重新标注坐标
 
 export const norseWorlds = [
   {
@@ -15,6 +23,13 @@ export const norseWorlds = [
     relatedGods: ['odin', 'thor', 'frigg', 'baldr', 'tyr', 'heimdall'],
     relatedCreatures: ['sleipnir'],
     relatedStories: ['odin-wisdom', 'baldr-death', 'ragnarok'],
+    mapImage: '/static/maps/asgard-goldenage.png',
+    mapLocations: [
+      { name: 'A', original: 'Gladsheim', icon: '◈', desc: '诸神议事大厅', x: 45, y: 25 },
+      { name: 'B', original: 'Valhalla', icon: '▣', desc: '英灵殿', x: 72, y: 38 },
+      { name: 'C', original: 'Fensalir', icon: '♧', desc: '弗丽嘉的宫殿', x: 22, y: 55 },
+      { name: 'D', original: 'Breidablik', icon: '◇', desc: '光明神的居所', x: 55, y: 72 }
+    ],
     unlocked: true,
     progress: 68
   },
@@ -31,6 +46,10 @@ export const norseWorlds = [
     relatedGods: ['thor', 'heimdall', 'loki'],
     relatedCreatures: ['jormungandr'],
     relatedStories: ['thor-fishing', 'creation-of-humans', 'ragnarok'],
+    mapLocations: [
+      { name: 'A', original: 'Midgard', icon: '◇', desc: '人类居所', x: 45, y: 40 },
+      { name: 'B', original: 'Bifrost', icon: '✧', desc: '连接九界的桥梁', x: 75, y: 20 }
+    ],
     unlocked: true,
     progress: 45
   },
@@ -47,6 +66,10 @@ export const norseWorlds = [
     relatedGods: ['loki', 'skadi'],
     relatedCreatures: ['fenrir', 'jormungandr'],
     relatedStories: ['loki-children', 'thor-giants', 'ragnarok'],
+    mapLocations: [
+      { name: 'A', original: 'Utgard', icon: '△', desc: '巨人国度中心', x: 45, y: 35 },
+      { name: 'B', original: 'Thrymheim', icon: '△', desc: '霜巨人领地', x: 22, y: 65 }
+    ],
     unlocked: true,
     progress: 36
   },
@@ -60,7 +83,7 @@ export const norseWorlds = [
     keywords: ['丰饶', '自然', '魔法', '交换', '和平'],
     atmosphere: '湿润、森林、苔藓、河流、低饱和绿',
     color: '#7C8C74',
-    relatedGods: ['freya', 'freyr', 'njord'],
+    relatedGods: ['freyja', 'freyr', 'njord'],
     relatedCreatures: [],
     relatedStories: ['aesir-vanir-war', 'freya-necklace'],
     unlocked: false,
@@ -77,7 +100,7 @@ export const norseWorlds = [
     atmosphere: '冷光、森林、薄雾、银白色',
     color: '#BFD7EA',
     relatedGods: ['freyr'],
-    relatedCreatures: ['light-elves'],
+    relatedCreatures: ['elf'],
     relatedStories: ['freyr-alfheim'],
     unlocked: false,
     progress: 0
@@ -93,8 +116,8 @@ export const norseWorlds = [
     atmosphere: '地下、火光、矿石、铁灰、暗金',
     color: '#8A6F45',
     relatedGods: ['thor', 'odin', 'freyr', 'loki'],
-    relatedCreatures: ['dwarves'],
-    relatedStories: ['mjolnir-forging', 'loki-hair-trick'],
+    relatedCreatures: ['dwarf'],
+    relatedStories: ['thors-hammer', 'loki-hair-trick'],
     unlocked: false,
     progress: 0
   },
@@ -110,7 +133,7 @@ export const norseWorlds = [
     color: '#6F8FA6',
     relatedGods: ['hel'],
     relatedCreatures: ['nidhogg'],
-    relatedStories: ['creation-of-world', 'hel-realm'],
+    relatedStories: ['creation', 'hel-realm'],
     unlocked: false,
     progress: 0
   },
@@ -126,7 +149,7 @@ export const norseWorlds = [
     color: '#A5533D',
     relatedGods: [],
     relatedCreatures: ['surtr'],
-    relatedStories: ['creation-of-world', 'ragnarok'],
+    relatedStories: ['creation', 'ragnarok'],
     unlocked: false,
     progress: 0
   },

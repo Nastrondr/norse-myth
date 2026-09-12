@@ -1,4 +1,7 @@
-// 生物/种族/神话存在数据 - 北欧神话
+// 生物图鉴统一数据 v3.0（已合并 norse.js creatures 与原 codexCreatures）
+// 实体 = 14 个：9 个 codex 原生 + dwarf/elf（id 统一为短 id）+ jotun/raven/wolf（原 creatures 独有）
+// id 统一规则：物种用短 id（dwarf / elf），worlds/stories 中的 'dwarves'/'light-elves' 已同步替换
+// 分类筛选使用 category（见文件尾 creatureFilters）；type 保留为展示用的具体形态
 export const norseCreatures = [
   {
     id: 'fenrir',
@@ -11,6 +14,8 @@ export const norseCreatures = [
     relatedWorlds: ['jotunheim', 'asgard'],
     dangerLevel: '极高',
     dangerScore: 100,
+    interactionType: 'danger',
+    power: '吞噬天地',
     shortDescription: '洛基之子，注定在诸神黄昏中挣脱束缚，并吞噬奥丁的巨狼。',
     description: '芬里尔是洛基与女巨人安格尔波达之子，也是北欧神话中最具终末意味的怪物之一。诸神因预言畏惧他的成长，将他带到阿斯加德并试图束缚。最终，矮人打造的细索格莱普尼尔将他困住，而提尔为了完成这场欺骗，将自己的手放入狼口作为担保。芬里尔咬断提尔之手，却仍被束缚至诸神黄昏。到终末来临时，他将挣脱锁链，吞噬奥丁，随后被维达尔复仇杀死。',
     appearance: '体型巨大，远超普通狼类。眼部带冷金或暗红光，口鼻处有铁链、符文束缚痕迹，毛发如霜雪与阴影混杂。',
@@ -39,6 +44,8 @@ export const norseCreatures = [
     relatedWorlds: ['midgard', 'jotunheim'],
     dangerLevel: '极高',
     dangerScore: 98,
+    interactionType: 'abyss',
+    power: '毒液环绕世界',
     shortDescription: '洛基之子，被奥丁投入大海，最终长成环绕人间世界的巨蛇。',
     description: '耶梦加得是洛基与安格尔波达之子，也是芬里尔与海拉的兄弟。奥丁将他投入环绕世界的大海中，他在那里不断成长，直到首尾相接，环绕米德加德。索尔曾试图将他从深海中钓起，两者短暂对峙，仿佛诸神黄昏前的预演。在终末之战中，索尔会杀死耶梦加得，但自己也会因蛇毒而倒下。',
     appearance: '巨大到足以环绕世界的海蛇。深海蓝黑色鳞片、冷白腹鳞、毒雾环绕，身体部分隐没在海浪与雾气中，只显露头部与巨大环形身躯。',
@@ -53,20 +60,19 @@ export const norseCreatures = [
     tags: ['洛基之子', '世界之蛇', '深海', '索尔宿敌', '诸神黄昏'],
     color: '#6F8FA6',
     icon: 'serpent',
-    interactionType: 'abyss',
-    collected: false,
-    status: 'undiscovered',
-    abyssAwareness: 0,
+    collected: true,
+    status: 'observed',
+    abyssAwareness: 8,
     abyssMax: 100,
-    riskLevel: 0,
+    riskLevel: 5,
     riskMax: 100,
+    abyssStage: '海雾之下',
+    mood: '不可测',
     abyssFrozen: false,
     missing: false,
     lastSignal: '无',
     interactionCount: 0,
     highRiskCount: 0,
-    abyssStage: '海雾之下',
-    mood: '不可测',
     likes: ['深海', '边界', '潮汐'],
     dislikes: ['雷霆', '挑衅', '靠近'],
     interactionStats: {
@@ -90,7 +96,7 @@ export const norseCreatures = [
       clueRealm: '据说盘绕在人类世界之外',
       clueAbility: '与潮汐、边界和终末预兆有关',
       clueDesc: '远海偶尔出现不合常理的弧线，像岛，又像某种正在移动的身体。',
-      unlockHints: ['前往米德加德', '阅读《索尔钓起世界之蛇》', '完成一次“远观海面”']
+      unlockHints: ['前往米德加德', '阅读《索尔钓起世界之蛇》', '完成一次"远观海面"']
     },
     unlockCondition: '阅读故事《索尔钓起世界之蛇》后解锁'
   },
@@ -105,6 +111,8 @@ export const norseCreatures = [
     relatedWorlds: ['helheim', 'niflheim'],
     dangerLevel: '高',
     dangerScore: 88,
+    interactionType: 'underworld',
+    power: '死亡支配',
     shortDescription: '洛基之女，掌管亡者之地，象征死亡秩序与不可逆命运。',
     description: '海拉是洛基与安格尔波达之女，被奥丁安置在亡者之地。她掌管那些未进入英灵殿的亡者。她不是单纯邪恶的形象，更像死亡秩序本身的化身。巴德尔死后，赫尔莫德前往赫尔海姆请求释放他，海拉提出只有世间万物都为巴德尔哭泣，他才能返回。最终条件未能达成，巴德尔继续留在亡者之地。',
     appearance: '半边生者、半边亡者的形象：一侧面容苍白冷静，另一侧带有死亡痕迹。整体色调以冷灰、黑蓝、雾白为主。',
@@ -181,7 +189,7 @@ export const norseCreatures = [
     artifacts: [],
     relatedGods: [],
     relatedCreatures: [],
-    relatedStories: ['creation-of-world', 'ragnarok'],
+    relatedStories: ['creation', 'ragnarok'],
     tags: ['世界树', '龙', '腐蚀', '尼福尔海姆', '根部'],
     color: '#7C8C74',
     icon: 'dragon',
@@ -279,7 +287,7 @@ export const norseCreatures = [
     abilities: ['选择战死者', '战场飞行', '引导亡者', '战争预兆'],
     weaknesses: ['依附奥丁体系', '非独立终末级存在'],
     artifacts: ['长矛', '盾牌', '羽翼披风'],
-    relatedGods: ['odin', 'freya'],
+    relatedGods: ['odin', 'freyja'],
     relatedCreatures: [],
     relatedStories: ['ragnarok'],
     tags: ['女武神', '英灵殿', '战场', '奥丁', '亡者引导'],
@@ -289,7 +297,35 @@ export const norseCreatures = [
     unlockCondition: '默认解锁'
   },
   {
-    id: 'dwarves',
+    id: 'ymir',
+    name: '伊米尔',
+    originalName: 'Ymir',
+    title: '世界由其身体生成的原初巨人',
+    type: '原初巨人',
+    category: '原初存在',
+    realm: 'niflheim',
+    relatedWorlds: ['niflheim', 'muspelheim', 'midgard'],
+    dangerLevel: '极高',
+    dangerScore: 92,
+    shortDescription: '诞生于冰与火交汇处的原初巨人，世界由他的身体被塑造而成。',
+    description: '伊米尔是创世叙事中的原初巨人，诞生于寒冰与火焰之间的巨大虚空。后来，奥丁与兄弟杀死伊米尔，并以他的身体塑造世界：血成为海，肉成为大地，骨成为山，头骨成为天空。伊米尔并不是传统意义上的反派，而是旧混沌被拆解为世界秩序的源头。',
+    appearance: '巨大到近乎地貌化的人形巨人。视觉上可将他的身体与山脉、冰川、海洋联系起来，表现为"身体即世界材料"。',
+    temperament: '原初、混沌、迟缓、庞大。他更像世界形成前的生命状态，而不是具备明确意志的角色。',
+    symbolism: '伊米尔象征原初混沌、创世牺牲、身体化宇宙和秩序从暴力分割中诞生。',
+    abilities: ['原初生命力', '巨人始祖', '身体化世界材料'],
+    weaknesses: ['被诸神杀死', '属于创世前秩序'],
+    artifacts: [],
+    relatedGods: ['odin'],
+    relatedCreatures: ['jotun'],
+    relatedStories: ['creation'],
+    tags: ['原初巨人', '创世', '冰与火', '世界材料', '混沌'],
+    color: '#6F8FA6',
+    icon: 'mountain',
+    collected: true,
+    unlockCondition: '阅读故事《世界的创造》后解锁'
+  },
+  {
+    id: 'dwarf',
     name: '矮人',
     originalName: 'Dvergar / Dwarves',
     title: '地下工坊中的神器锻造者',
@@ -299,6 +335,8 @@ export const norseCreatures = [
     relatedWorlds: ['svartalfheim'],
     dangerLevel: '中',
     dangerScore: 58,
+    interactionType: 'craftsman',
+    power: '锻造',
     shortDescription: '居于地下世界的工匠种族，许多诸神神器都出自他们之手。',
     description: '矮人与地下、矿石和锻造技艺密切相关。诸神最重要的一批神器都可与矮人的工艺相连，例如索尔的雷神之锤、奥丁的长矛与弗雷的宝船。矮人不应被简单表现为滑稽小人，而应是掌握隐秘技艺、契约和材料知识的地下工匠。',
     appearance: '身形可较矮壮，穿深色皮革、金属护具或工匠围裙。场景多为矿石、炉火，铁砧，暗金火星。',
@@ -309,17 +347,17 @@ export const norseCreatures = [
     artifacts: ['妙尔尼尔', '冈格尼尔', '斯基德普拉特尼', '德罗普尼尔'],
     relatedGods: ['loki', 'thor', 'odin', 'freyr'],
     relatedCreatures: [],
-    relatedStories: ['mjolnir-forging'],
+    relatedStories: ['thors-hammer'],
     tags: ['矮人', '锻造', '神器', '地下', '契约'],
     color: '#8A6F45',
     icon: 'hammer',
-    collected: false,
+    collected: true,
     unlockCondition: '解锁斯瓦塔尔夫海姆后出现'
   },
   {
-    id: 'light-elves',
-    name: '光明精灵',
-    originalName: 'Ljósálfar / Light Elves',
+    id: 'elf',
+    name: '精灵',
+    originalName: 'Álfar / Elves',
     title: '亚尔夫海姆的明亮族群',
     type: '光明精灵',
     category: '种族',
@@ -327,8 +365,10 @@ export const norseCreatures = [
     relatedWorlds: ['alfheim'],
     dangerLevel: '低',
     dangerScore: 32,
-    shortDescription: '与光，自然灵性和亚尔夫海姆相关的神秘族群。',
-    description: '光明精灵常与亚尔夫海姆相关，被理解为接近光，美，自然灵性和轻盈秩序的存在。他们不像阿萨神族那样承担战争与王权，也不像巨人那样代表原始混沌，而更像世界中较为明亮、细微、难以捕捉的一层。',
+    interactionType: 'spirit',
+    power: '魔法',
+    shortDescription: '与光、自然灵性和亚尔夫海姆相关的神秘族群，分为光明精灵与黑暗精灵。',
+    description: '精灵分为光明精灵和黑暗精灵：光明精灵住在亚尔夫海姆，被理解为接近光、美、自然灵性和轻盈秩序的存在；黑暗精灵则多与地下的矮人相混同。他们不像阿萨神族那样承担战争与王权，也不像巨人那样代表原始混沌，而更像世界中较为明亮、细微、难以捕捉的一层。',
     appearance: '可采用银白、淡蓝、冷金色调。形象应轻盈、安静、带有自然和光感，不宜做成高饱和奇幻精灵。',
     temperament: '疏离，清澈、安静。与人类和诸神保持距离，更像自然光影中的神秘存在。',
     symbolism: '光明精灵象征美、灵性，轻盈秩序，自然生命力和难以占有的明亮之物。',
@@ -337,12 +377,11 @@ export const norseCreatures = [
     artifacts: [],
     relatedGods: ['freyr'],
     relatedCreatures: [],
-    relatedStories: ['freyr-alfheim'],
+    relatedStories: [],
     tags: ['光明精灵', '亚尔夫海姆', '自然', '灵性', '冷光'],
     color: '#BFD7EA',
     icon: 'spark',
-    interactionType: 'spirit',
-    collected: false,
+    collected: true,
     bondLevel: 0,
     bondExp: 0,
     bondMax: 100,
@@ -371,40 +410,178 @@ export const norseCreatures = [
       clueRealm: '常与光、森林和静默有关',
       clueAbility: '似乎能回应安静、赠礼与等待',
       clueDesc: '你看见树影间有短暂的冷光闪过。它没有靠近，也没有离开。',
-      unlockHints: ['前往亚尔夫海姆', '阅读与弗雷相关的故事', '完成一次“静候”']
+      unlockHints: ['前往亚尔夫海姆', '阅读与弗雷相关的故事', '完成一次"静候"']
     },
-    unlockCondition: '解锁亚尔夫海姆后出现'
+    unlockCondition: '解锁亚尔夫海姆后出现',
+    // ===== 精灵"微光结契"互动配置（与耶梦加得高危观测体系镜像差异化）=====
+    // trust=信任之光(0-100, 即 bondExp)；disturbance=惊扰度(0-100, 越高越危险)
+    // 差异原则：善良生物无冻结/死亡结局，惊扰只会"回避"且可通过静候修复；羁绊产出徽章
+    spiritConfig: {
+      storageKey: 'elf_spirit_state',
+      stages: [
+        { min: 20, stage: '林间相遇', mood: '回应', desc: '光明精灵开始回应你的存在，但它们仍不愿被贸然靠近。你需要用安静证明自己的善意。' },
+        { min: 40, stage: '赠礼往来', mood: '接纳', desc: '它们允许你沿着同一条林间小径前行。那不是亲近，而是一种谨慎的许可。' },
+        { min: 70, stage: '光之共鸣', mood: '亲近', desc: '你开始理解它们的沉默。光明精灵并不拒绝关系，只拒绝粗暴的占有。' },
+        { min: 100, stage: '亚尔夫之友', mood: '信任', desc: '光明精灵不会宣誓效忠，也不会许下永恒陪伴。但当你再次走入亚尔夫海姆，微光会为你让出道路。' }
+      ],
+      stageInitial: { stage: '初见微光', mood: '警觉', desc: '你在树影间看见一束短暂的冷光。它没有靠近，也没有逃离。' },
+      stageFinalTitle: '亚尔夫之友',
+      actions: [
+        { key: 'wait', label: '静候', unlock: 0, trust: 2, disturb: -8, tone: 'safe', message: '你没有打扰它们。微光在树影间停留得更久了一些。' },
+        { key: 'listen', label: '倾听', unlock: 0, trust: 3, disturb: 1, tone: 'low', message: '你听见风穿过枝叶，像某种尚未成形的语言。' },
+        { key: 'gift', label: '赠礼', unlock: 10, trust: 6, disturb: 4, tone: 'low', message: '你放下一枚洁净的小物，它被光轻轻覆盖。', messageDisturbed: '你的赠礼被接受了，但它们此刻仍在留意你的动静。' },
+        { key: 'call', label: '呼唤', unlock: 30, trust: -5, disturb: 15, tone: 'extreme', message: '你的声音撞进林间，惊起一片细碎的光。', confirm: { title: '确认', content: '你确定要出声呼唤吗？林间的宁静一旦打破，再想复原就需要更久的等待。', confirmText: '呼唤', cancelText: '沉默' } },
+        { key: 'resonate', label: '共鸣', unlock: 40, trust: 8, disturb: 6, tone: 'gold', requireQuietStreak: 2, message: '你顺着光的节奏放慢呼吸，短暂感到某种温和的回应。' },
+        { key: 'guard', label: '守林', unlock: 60, trust: 4, disturb: 0, tone: 'safe', message: '你清理了被黑雾侵蚀的树根。微光在你身边停留了很久。' }
+      ],
+      events: {
+        gaze: { message: '它停下了动作，正在看着你。' },
+        ironNoise: {
+          name: '铁器的噪声',
+          description: '微光忽然全部退入林间深处。它们没有消失——只是不再出现在你能看见的地方。你带来的声响惊扰了这片林地长久以来的安静。'
+        },
+        returnGift: {
+          name: '林间的回赠',
+          description: '一片带着微光的叶子落在你手边。它没有停在上面，也没有索取什么——这是光明精灵第一次主动走向你。赠礼被记住了，而不仅仅是被接受。'
+        }
+      },
+      receding: {
+        enterMessage: '微光退入了林间深处。现在，只有静候能让它们回来。',
+        quietNeed: 3,
+        returnMessage: '微光重新出现在林间。它们回来了——带着一点比之前更近的距离。',
+        trustPenalty: 10
+      },
+      badgeRules: {
+        listen: 5,
+        resonate: 3,
+        guard: 5,
+        goodGift: 3,
+        friendTrust: 100
+      }
+    }
   },
   {
-    id: 'ymir',
-    name: '伊米尔',
-    originalName: 'Ymir',
-    title: '世界由其身体生成的原初巨人',
-    type: '原初巨人',
-    category: '原初存在',
-    realm: 'niflheim',
-    relatedWorlds: ['niflheim', 'muspelheim', 'midgard'],
-    dangerLevel: '极高',
-    dangerScore: 92,
-    shortDescription: '诞生于冰与火交汇处的原初巨人，世界由他的身体被塑造而成。',
-    description: '伊米尔是创世叙事中的原初巨人，诞生于寒冰与火焰之间的巨大虚空。后来，奥丁与兄弟杀死伊米尔，并以他的身体塑造世界：血成为海，肉成为大地，骨成为山，头骨成为天空。伊米尔并不是传统意义上的反派，而是旧混沌被拆解为世界秩序的源头。',
-    appearance: '巨大到近乎地貌化的人形巨人。视觉上可将他的身体与山脉、冰川、海洋联系起来，表现为"身体即世界材料"。',
-    temperament: '原初、混沌、迟缓、庞大。他更像世界形成前的生命状态，而不是具备明确意志的角色。',
-    symbolism: '伊米尔象征原初混沌、创世牺牲、身体化宇宙和秩序从暴力分割中诞生。',
-    abilities: ['原初生命力', '巨人始祖', '身体化世界材料'],
-    weaknesses: ['被诸神杀死', '属于创世前秩序'],
+    id: 'jotun',
+    name: '巨人',
+    originalName: 'Jötnar',
+    title: '与诸神为敌的古老种族',
+    type: '巨人',
+    category: '巨人',
+    realm: 'jotunheim',
+    relatedWorlds: ['jotunheim'],
+    dangerLevel: '高',
+    dangerScore: 80,
+    interactionType: 'person',
+    power: '自然之力',
+    shortDescription: '北欧神话中最古老的种族，与阿萨神族长期对抗，也是诸神的镜像。',
+    description: '巨人是北欧神话中最古老的种族，他们与阿萨神族长期战斗。许多巨人都有着强大的力量。他们不只是野蛮的敌人，也代表古老自然、混沌力量、预言智慧和诸神无法完全控制的另一面。',
+    appearance: '体型远超人类的类人存在，多与霜雪、山岩、风暴等原始自然元素相关。',
+    temperament: '多样：既有暴烈的霜巨人，也有掌握诗歌与预言的智者。',
+    symbolism: '巨人象征自然力、混沌、古老智慧，以及秩序世界之外的另一种可能。',
+    abilities: ['怪力', '风暴与寒霜', '变形', '古老智慧'],
+    weaknesses: ['组织松散', '常被诸神以智取胜'],
+    artifacts: [],
+    relatedGods: ['thor', 'loki', 'skadi'],
+    relatedCreatures: ['ymir'],
+    relatedStories: ['thors-hammer'],
+    tags: ['巨人', '约顿海姆', '自然力', '混沌'],
+    color: '#B94A48',
+    icon: 'giant',
+    collected: true,
+    unlockCondition: '进入约顿海姆后解锁'
+  },
+  {
+    id: 'raven',
+    name: '渡鸦',
+    originalName: 'Ravens',
+    title: '奥丁的思想与记忆',
+    type: '鸟类',
+    category: '神话群体',
+    realm: 'asgard',
+    relatedWorlds: ['asgard', 'midgard'],
+    dangerLevel: '低',
+    dangerScore: 30,
+    interactionType: 'beast',
+    power: '全知',
+    shortDescription: '奥丁的使者，代表思想与记忆。每天清晨飞向世界，夜晚回到奥丁肩头汇报。',
+    description: '奥丁身边有两只渡鸦，福金（Huginn，思想）和雾尼（Muninn，记忆）。它们每天早晨飞向世界各处，夜晚回到奥丁肩头，向他汇报所见所闻。它们是奥丁全知能力的重要延伸。',
+    appearance: '黑色渡鸦，眼神锐利，常栖于高处的王座与殿堂边缘。',
+    temperament: '警觉、沉默、忠于使命。',
+    symbolism: '渡鸦象征思想、记忆、消息与被观看的世界。',
+    abilities: ['飞行侦查', '记忆传递', '语言'],
+    weaknesses: ['依附奥丁'],
     artifacts: [],
     relatedGods: ['odin'],
-    relatedCreatures: ['giants'],
-    relatedStories: ['creation-of-world'],
-    tags: ['原初巨人', '创世', '冰与火', '世界材料', '混沌'],
-    color: '#6F8FA6',
-    icon: 'mountain',
-    collected: true,
-    unlockCondition: '阅读故事《世界的生成》后解锁'
+    relatedCreatures: [],
+    relatedStories: ['odin-wisdom'],
+    tags: ['渡鸦', '奥丁', '思想', '记忆'],
+    color: '#66727F',
+    icon: 'raven',
+    collected: false,
+    unlocked: false,
+    clueProfile: {
+      clueName: '天空的影子',
+      clueType: '飞行生物',
+      clueStatus: '身份未明',
+      clueDesc: '你只在高处见过它们的影子。它们似乎总是在清晨离开，又在夜色降临前归来。',
+      clues: [
+        {
+          id: 'trace',
+          title: '出没迹象',
+          text: '它们常在高处、殿堂边缘与王座附近出现，像是在等待某种命令。'
+        },
+        {
+          id: 'ability',
+          title: '能力传闻',
+          text: '它们似乎与记忆、消息和远方视野有关，总能带回不应被轻易知晓的见闻。'
+        },
+        {
+          id: 'relation',
+          title: '关系暗示',
+          text: '有人说，它们替一位独眼神明观看世界，也替他带回思想与记忆。'
+        }
+      ],
+      unlockHints: [
+        '前往阿斯加德相关页面',
+        '阅读与奥丁相关的故事',
+        '完成一次"观察天空"'
+      ]
+    },
+    unlockCondition: '集齐 3 条线索后解锁'
+  },
+  {
+    id: 'wolf',
+    name: '狼',
+    originalName: 'Wolves',
+    title: '奥丁身侧的猎狼',
+    type: '狼',
+    category: '神兽',
+    realm: 'asgard',
+    relatedWorlds: ['asgard'],
+    dangerLevel: '中',
+    dangerScore: 50,
+    interactionType: 'beast',
+    power: '守护',
+    shortDescription: '奥丁身边有两匹狼，格力和基利，象征着贪婪与食欲，是奥丁的忠实伙伴。',
+    description: '奥丁身边有两匹狼，格里（Geri，贪婪者）与基利（Freki，暴食者）。它们蹲踞在奥丁的王座旁，接受他分享的肉食，是奥丁的忠实伙伴，也常被视为战场与王室威严的象征。',
+    appearance: '灰黑色的健壮巨狼，眼神锐利，常伴随王座与战场意象出现。',
+    temperament: '忠诚、警觉、只在主人身边停留。',
+    symbolism: '狼象征食欲、忠诚与王权旁的野性。',
+    abilities: ['战斗', '追踪', '守护'],
+    weaknesses: ['依附奥丁'],
+    artifacts: [],
+    relatedGods: ['odin'],
+    relatedCreatures: ['fenrir'],
+    relatedStories: [],
+    tags: ['狼', '奥丁', '王座'],
+    color: '#8A8F98',
+    icon: 'wolf',
+    collected: false,
+    unlockCondition: '前往阿斯加德后出现'
   }
 ]
 
+// 分类筛选选项（bestiary-list 使用）
 export const creatureFilters = [
   { id: '', label: '全部' },
   { id: '灾厄生物', label: '灾厄生物' },

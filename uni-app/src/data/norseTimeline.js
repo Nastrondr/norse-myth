@@ -13,7 +13,7 @@ export const norseTimeline = [
 				title: '金伦加鸿沟',
 				originalTitle: 'Ginnungagap',
 				summary: '世界尚未形成，寒冰与火焰隔着巨大虚空相望。',
-				relatedStory: 'creation-of-world',
+				relatedStory: 'creation',
 				tags: ['原初', '虚空']
 			},
 			{
@@ -21,7 +21,7 @@ export const norseTimeline = [
 				title: '伊米尔诞生',
 				originalTitle: 'Ymir',
 				summary: '冰与火的气息交汇，原初巨人伊米尔从混沌中出现。',
-				relatedStory: 'creation-of-world',
+				relatedStory: 'creation',
 				tags: ['原初巨人', '混沌']
 			},
 			{
@@ -29,7 +29,7 @@ export const norseTimeline = [
 				title: '世界被塑造',
 				originalTitle: 'Creation of the World',
 				summary: '奥丁与兄弟杀死伊米尔，以其身体塑造大地、海洋、山脉与天空。',
-				relatedStory: 'creation-of-world',
+				relatedStory: 'creation',
 				tags: ['创世', '奥丁']
 			},
 			{
@@ -91,7 +91,7 @@ export const norseTimeline = [
 				title: '雷神之锤诞生',
 				originalTitle: 'Forging of Mjolnir',
 				summary: '洛基的恶作剧引出矮人锻造竞赛，妙尔尼尔由此诞生。',
-				relatedStory: 'mjolnir-forging',
+				relatedStory: 'thors-hammer',
 				tags: ['神器', '索尔', '洛基']
 			},
 			{

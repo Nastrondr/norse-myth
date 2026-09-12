@@ -18,7 +18,7 @@ export const norseArtifacts = [
       { type: 'god', id: 'loki', name: '洛基', desc: '与法器诞生故事相关' }
     ],
     relatedStories: [
-      { type: 'story', id: 'theft-of-mjolnir', name: '雷神之锤失窃', desc: '索尔夺回神锤的故事' }
+      { type: 'story', id: 'thors-hammer', name: '雷神之锤的诞生', desc: '神锤的锻造与由来' }
     ]
   },
   {
@@ -125,7 +125,7 @@ export const norseArtifacts = [
       { type: 'creature', id: 'fenrir', name: '芬里尔', desc: '被束缚者' }
     ],
     relatedStories: [
-      { type: 'story', id: 'binding-of-fenrir', name: '芬里尔的束缚', desc: '誓言、牺牲与灾厄封印' }
+      { type: 'story', id: 'binding-fenrir', name: '芬里尔被缚', desc: '誓言、牺牲与灾厄封印' }
     ]
   }
 ]
