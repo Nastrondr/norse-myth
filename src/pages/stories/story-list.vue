@@ -111,6 +111,7 @@
 </template>
 
 <script>
+import { sfxPage } from '@/utils/sfx.js'
 import TabBar from '@/components/TabBar.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -192,6 +193,7 @@ export default {
 			return this.expandedPhaseIds.includes(id)
 		},
 		goToDetail(id) {
+			sfxPage()
 			if (!id) return
 			const story = this.stories.find(s => s.id === id)
 			if (story) {

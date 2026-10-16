@@ -12,6 +12,8 @@
 </template>
 
 <script>
+import { sfxBack } from '../utils/sfx.js'
+
 export default {
   name: 'NavBar',
   props: {
@@ -22,6 +24,7 @@ export default {
   },
   methods: {
     goBack() {
+      sfxBack()
       const pages = getCurrentPages()
       if (pages.length > 1) {
         uni.navigateBack()

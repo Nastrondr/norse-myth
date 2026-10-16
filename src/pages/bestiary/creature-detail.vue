@@ -587,6 +587,7 @@
 </template>
 
 <script>
+import { sfxUnlock } from '@/utils/sfx.js'
 import { db } from '@/db'
 import { getRavensClueProgress, saveRavensClueProgress, isRavensRevealed as checkRavensRevealed, getRavensClueCount as getClueCount, isRavensClueUnlocked as checkRavensClueUnlocked, resetRavensClues } from '@/utils/clueProgress.js'
 import NavBar from '@/components/NavBar.vue'
@@ -1480,6 +1481,7 @@ export default {
 		}
 			this.interactionMessage = '你在树影间看见一束短暂的冷光。它没有靠近，也没有逃离。'
 			this.playUnlockAnimation = true
+				sfxUnlock()
 			this.isCollected = true
 			this.showCelebration({
 				symbol: this.creature.name[0],
@@ -1693,6 +1695,7 @@ export default {
 			this.creature.mood = '未回应'
 			this.interactionMessage = '你看见远海上有一道不合常理的弧线。它不像浪，也不像岛。它在缓慢移动。'
 			this.playUnlockAnimation = true
+				sfxUnlock()
 			this.isCollected = true
 			this.showCelebration({
 				symbol: this.creature.name[0],

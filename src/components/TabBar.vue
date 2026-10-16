@@ -17,6 +17,7 @@
 
 <script>
 import { Home, Library, BookOpen, Gamepad2 } from 'lucide-vue-next'
+import { sfxTap } from '../utils/sfx.js'
 
 export default {
   name: 'TabBar',
@@ -40,6 +41,7 @@ export default {
   methods: {
     handleTabClick(tab) {
       if (tab.id === this.current) return
+      sfxTap()
       this.$emit('change', tab)
       uni.switchTab({ url: tab.path })
     }

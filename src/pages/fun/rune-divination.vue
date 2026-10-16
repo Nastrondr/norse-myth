@@ -104,6 +104,7 @@
 </template>
 
 <script>
+import { sfxDivine } from '@/utils/sfx.js'
 import { db } from '@/db'
 import { state } from '@/state'
 import NavBar from '@/components/NavBar.vue'
@@ -126,6 +127,7 @@ export default {
   },
   methods: {
     startDivination() {
+			sfxDivine()
       this.divinationStarted = true
       this.currentDrawStep = 0
       this.drawnRunes = []

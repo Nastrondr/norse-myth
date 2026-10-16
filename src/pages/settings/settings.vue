@@ -46,6 +46,16 @@
           </view>
         </view>
       </view>
+
+      <view class="setting-row">
+        <view class="setting-info">
+          <text class="setting-name">交互音效</text>
+          <text class="setting-desc">翻页、解锁与占卜时的金石轻响</text>
+        </view>
+        <view class="toggle" :class="{ on: sfxEnabled }" @click="onToggleSfx">
+          <view class="toggle-thumb"></view>
+        </view>
+      </view>
     </view>
 
     <!-- 关于 -->
@@ -74,6 +84,7 @@
 import NavBar from '../../components/NavBar.vue'
 import { state } from '../../state'
 import { getBgmEnabled, toggleBgm } from '../../utils/audioManager.js'
+import { getSfxEnabled, setSfxEnabled, sfxTap } from '../../utils/sfx.js'
 import {
   Palette as PaletteIcon,
   Moon as MoonIcon,
@@ -94,12 +105,14 @@ export default {
   data() {
     return {
       theme: 'dark',
-      bgmEnabled: true
+      bgmEnabled: true,
+      sfxEnabled: true
     }
   },
   onLoad() {
     this.theme = state.get('settings.theme', 'dark')
     this.bgmEnabled = getBgmEnabled()
+    this.sfxEnabled = getSfxEnabled()
   },
   methods: {
     setTheme(value) {
@@ -112,6 +125,12 @@ export default {
     },
     onToggleBgm() {
       this.bgmEnabled = toggleBgm()
+    },
+    onToggleSfx() {
+      this.sfxEnabled = !this.sfxEnabled
+      setSfxEnabled(this.sfxEnabled)
+      // 开启时给一声反馈
+      if (this.sfxEnabled) sfxTap()
     }
   }
 }
