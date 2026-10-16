@@ -21,13 +21,16 @@
 					<text class="story-lead">{{ storySummary }}</text>
 				</view>
 
-				<view class="section-card">
-					<text class="section-title">故事摘要</text>
-					<text class="section-text">{{ storySummary }}</text>
+				<view class="section-card scroll-prose" v-if="storyParagraphs.length">
+					<text class="section-title">卷轴正文</text>
+					<template v-for="(para, pi) in storyParagraphs" :key="pi">
+						<view class="rune-divider" v-if="pi > 0">ᛝ</view>
+						<text class="prose-para" :class="{ 'prose-first': pi === 0 }">{{ para }}</text>
+					</template>
 				</view>
 
-				<view class="section-card">
-					<text class="section-title">故事正文</text>
+				<view class="section-card" v-if="storyPhases.length">
+					<text class="section-title">情节脉络</text>
 					<view class="timeline-section">
 						<view
 							v-for="(phase, index) in storyPhases"
@@ -118,7 +121,6 @@ export default {
 		return {
 			story: {},
 			notFound: false,
-			storyCharacters: [],
 			storyPhases: []
 		}
 	},
@@ -152,6 +154,20 @@ export default {
 			if (this.story.symbolicMeaning) return this.story.symbolicMeaning
 			return meanings[this.story.id] || meanings.default
 		},
+		storyParagraphs() {
+			if (Array.isArray(this.story.paragraphs) && this.story.paragraphs.length) {
+				return this.story.paragraphs
+			}
+			// 回退：把单段 content 按句号粗切成 2~3 句一段
+			const c = this.story.content || ''
+			if (!c) return []
+			const sentences = c.split(/(?<=[。！？])/).filter(x => x.trim())
+			const paras = []
+			for (let i = 0; i < sentences.length; i += 2) {
+				paras.push(sentences.slice(i, i + 2).join('').trim())
+			}
+			return paras
+		},
 		storySummary() {
 			const summaries = {
 				'ragnarok': '诸神黄昏不是单纯毁灭，而是一场命运已经写定、但诸神仍然选择迎战的终末。',
@@ -161,28 +177,28 @@ export default {
 			return summaries[this.story.id] || summaries.default
 		},
 		relatedGods() {
-			const godsMap = {
-				'ragnarok': ['奥丁', '索尔', '洛基', '海姆达尔', '提尔'],
-				'creation': ['奥丁', '维利', '威'],
-				'default': ['奥丁', '索尔', '洛基']
-			}
-			return godsMap[this.story.id] || godsMap.default
+			return (this.story.relatedGods || [])
+				.map(id => {
+					const g = db.findById('gods', id)
+					return g ? g.name : null
+				})
+				.filter(Boolean)
 		},
 		relatedCreatures() {
-			const creaturesMap = {
-				'ragnarok': ['芬里尔', '耶梦加得', '海拉'],
-				'creation': ['尤弥尔'],
-				'default': []
-			}
-			return creaturesMap[this.story.id] || creaturesMap.default
+			return (this.story.relatedCreatures || [])
+				.map(id => {
+					const c = db.findById('creatures', id)
+					return c ? c.name : null
+				})
+				.filter(Boolean)
 		},
 		relatedWorlds() {
-			const worldsMap = {
-				'ragnarok': ['阿斯加德', '米德加德', '尼福尔海姆'],
-				'creation': ['阿斯加德', '约顿海姆', '尼福尔海姆'],
-				'default': ['阿斯加德']
-			}
-			return worldsMap[this.story.id] || worldsMap.default
+			return (this.story.realms || [])
+				.map(id => {
+					const w = db.findById('worlds', id)
+					return w ? w.name : null
+				})
+				.filter(Boolean)
 		}
 	},
 	onLoad(options) {
@@ -194,7 +210,6 @@ export default {
 			return
 		}
 		this.story = found || db.findAll('stories')[0]
-		this.initCharacters()
 		this.initPhases()
 		if (this.isOdinRelatedStory(this.story)) {
 			if (getRavensClueCount() < 3) {
@@ -223,18 +238,6 @@ export default {
 		},
 		formatIndex(num) {
 			return String(num).padStart(2, '0')
-		},
-		initCharacters() {
-			if (this.story.characters && this.story.characters.length) {
-				this.storyCharacters = this.story.characters
-			} else {
-				const defaultChars = {
-					'ragnarok': ['奥丁', '索尔', '洛基', '芬里尔', '耶梦加得', '海姆达尔', '苏尔特', '海拉'],
-					'creation': ['奥丁', '维利', '威', '尤弥尔', '布里的女儿'],
-					'default': ['奥丁', '索尔', '洛基']
-				}
-				this.storyCharacters = defaultChars[this.story.id] || defaultChars.default
-			}
 		},
 		initPhases() {
 			const phasesMap = {
@@ -301,15 +304,10 @@ export default {
 							'矮人从巨人尸体中诞生'
 						]
 					}
-				],
-				'default': [
-					{
-						title: '开端',
-						items: [this.story.summary || '故事从此展开']
-					}
 				]
 			}
-			this.storyPhases = phasesMap[this.story.id] || phasesMap.default
+			// 仅渲染有专属脉络的故事；其余显示「卷轴正文」即可
+			this.storyPhases = phasesMap[this.story.id] || []
 		}
 	}
 }
@@ -417,6 +415,28 @@ export default {
 	font-size: 30rpx;
 	font-weight: 800;
 	margin-bottom: 16rpx;
+}
+
+/* 卷轴正文：衬线长文排版，段间符文分隔 */
+.prose-para {
+	display: block;
+	color: var(--text-secondary);
+	font-size: 28rpx;
+	line-height: 2;
+	letter-spacing: 1.5rpx;
+	font-family: 'Songti SC', 'STSong', 'Noto Serif SC', 'Source Han Serif SC', Georgia, serif;
+	white-space: normal;
+	word-break: break-word;
+}
+
+.prose-first::first-letter {
+	float: left;
+	font-size: 84rpx;
+	line-height: 1.05;
+	padding: 6rpx 14rpx 0 0;
+	color: var(--accent);
+	font-weight: 700;
+	text-shadow: 0 2rpx 14rpx rgba(var(--accent-rgb), 0.35);
 }
 
 .section-text {

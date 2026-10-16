@@ -98,14 +98,6 @@ export function sfxUnlock() {
   tone(1568.0, { dur: 0.4, delay: 0.24, vol: 0.8, echo: 0.3 })
 }
 
-// 符文占卜抽牌：神秘感——低音垫 + 下行滑音
-export function sfxDivine() {
-  if (!enabled()) return
-  tone(220, { dur: 0.5, vol: 0.4, type: 'sine' })
-  tone(880, { dur: 0.3, delay: 0.1, vol: 0.3, type: 'sine' })
-  tone(587.33, { dur: 0.5, delay: 0.2, vol: 0.35, type: 'sine', echo: 0.4 })
-}
-
 // 返回/关闭：下行双音
 export function sfxBack() {
   if (!enabled()) return

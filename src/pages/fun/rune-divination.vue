@@ -86,7 +86,12 @@
         <text class="result-symbol">{{ rune.symbol }}</text>
         <text class="result-name">{{ rune.name }}</text>
         <text class="result-meaning">{{ rune.meaning }}</text>
-        <text class="result-upright">{{ rune.uprightMeaning }}</text>
+        <template v-if="rune.upright">
+          <text class="oracle-line">{{ rune.upright.oracle }}</text>
+          <text class="oracle-reading">{{ rune.upright.reading }}</text>
+          <text class="oracle-advice">{{ rune.upright.advice }}</text>
+        </template>
+        <text v-else class="result-upright">{{ rune.uprightMeaning }}</text>
       </view>
 
       <view class="interpretation">
@@ -104,7 +109,6 @@
 </template>
 
 <script>
-import { sfxDivine } from '@/utils/sfx.js'
 import { db } from '@/db'
 import { state } from '@/state'
 import NavBar from '@/components/NavBar.vue'
@@ -127,7 +131,6 @@ export default {
   },
   methods: {
     startDivination() {
-			sfxDivine()
       this.divinationStarted = true
       this.currentDrawStep = 0
       this.drawnRunes = []
@@ -192,28 +195,14 @@ export default {
       const present = this.drawnRunes[1]
       const future = this.drawnRunes[2]
 
-      const pastElement = past.element || ''
-      const presentElement = present.element || ''
-      const futureElement = future.element || ''
+      const phrase = r => (r.upright && r.upright.oracle) || r.meaning
+      const advice = r => (r.upright && r.upright.advice) || ''
 
-      return `这组三符文揭示了你的生命旅程正在经历的转变。
+      return `三枚符文串起一条线：过去是${past.name}（${past.meaning}），现在是${present.name}（${present.meaning}），未来指向${future.name}（${future.meaning}）。
 
-【过去 · ${pastElement}】${past.name}（${past.symbol}）—— ${past.meaning}
-${past.uprightMeaning}
+「${phrase(past)}」「${phrase(present)}」「${phrase(future)}」——你正走在从旧局走向新局的路上。
 
-【现在 · ${presentElement}】${present.name}（${present.symbol}）—— ${present.meaning}
-${present.uprightMeaning}
-
-【未来 · ${futureElement}】${future.name}（${future.symbol}）—— ${future.meaning}
-${future.uprightMeaning}
-
-这是来自古老符文的启示：从${past.name}所代表的${past.meaning}，经由${present.name}象征的${present.meaning}，最终走向${future.name}预示的${future.meaning}。每一个阶段都有其深意，关键在于你如何解读与行动。
-
-${past.deeper}
-${present.deeper}
-${future.deeper}
-
-请记住，符文不是宿命的宣判，而是可能性的指引。你的选择，将决定这段旅程的走向。`
+${advice(present) || '宜静观此刻，顺势而行。'}记住，符文不是宿命的宣判，而是可能性的指引。`
     },
 
     getOrbitRuneStyle(index, total, ring) {
@@ -622,6 +611,41 @@ ${future.deeper}
   font-size: 26rpx;
   color: var(--text-muted);
   line-height: 1.6;
+}
+
+/* 三段式神谕：箴言 / 解读 / 指引 */
+.oracle-line {
+  display: block;
+  width: 100%;
+  margin-top: 18rpx;
+  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', Georgia, serif;
+  font-size: 34rpx;
+  font-weight: 700;
+  letter-spacing: 4rpx;
+  color: var(--accent);
+  text-shadow: 0 2rpx 14rpx rgba(var(--accent-rgb), 0.35);
+}
+
+.oracle-reading {
+  display: block;
+  width: 100%;
+  margin-top: 14rpx;
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  line-height: 1.9;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.oracle-advice {
+  display: block;
+  width: 100%;
+  margin-top: 14rpx;
+  padding-top: 14rpx;
+  border-top: 1rpx solid var(--border-soft);
+  font-size: 24rpx;
+  color: var(--text-muted);
+  letter-spacing: 1rpx;
 }
 
 .interpretation {
