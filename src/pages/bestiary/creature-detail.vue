@@ -1,9 +1,15 @@
 <template>
-	<view class="container">
-		<view class="back-btn-wrap">
-			<text class="back-btn" @click="goBack">‹</text>
+	<view class="container page-enter-deep">
+		<NavBar title="生物详情" />
+		<view v-if="notFound">
+			<EmptyState
+				type="notfound"
+				size="page"
+				:actions="[{ label: '返回图鉴', variant: 'primary', event: 'back' }]"
+				@action="onEmptyAction"
+			/>
 		</view>
-		<view v-if="isCreatureUnknown(creature) && creature.id !== 'raven'" class="unknown-detail">
+		<view v-else-if="isCreatureUnknown(creature) && creature.id !== 'raven'" class="unknown-detail">
 			<view class="unknown-hero">
 				<view class="creature-icon unknown">
 					<text>?</text>
@@ -110,11 +116,11 @@
 		</view>
 
 		<view v-else class="known-detail">
-			<view class="header" :class="{ 'unlock-glow': playUnlockAnimation }">
-				<view class="creature-icon" :class="getDangerClass(creature.dangerLevel)">
-					<text>{{ creature.name[0] }}</text>
-				</view>
-				<text class="name">{{ creature.name }}</text>
+		<view class="header" :class="{ 'unlock-glow': playUnlockAnimation }" :style="creatureAuraStyle">
+			<view class="creature-icon" :class="getDangerClass(creature.dangerLevel)">
+				<PortraitImage :src="creature.portrait" :name="creature.name" :text-size="56" />
+			</view>
+			<text class="name">{{ creature.name }}</text>
 				<text class="original-name">{{ creature.originalName }}</text>
 				<view class="type-tags">
 					<text class="type-tag">{{ creature.type }}</text>
@@ -140,57 +146,185 @@
 			</view>
 
 			<view class="section" v-if="creature.interactionType === 'abyss' && !isCollected">
-				<text class="section-title">海雾之下</text>
-				<view class="unlock-card abyss-layer">
-					<view class="abyss-overlay"></view>
-					<text class="unlock-text">你尚未真正见过世界之蛇。只有在海潮异常回落、远方海面形成闭合的环时，才可能发现它的踪迹。</text>
-					<view class="unlock-tasks">
-						<text class="task-label">探索任务：</text>
-						<text class="task-item">1. 阅读《索尔钓起世界之蛇》</text>
-						<text class="task-item">2. 进入米德加德详情页</text>
-						<text class="task-item">3. 远观海面一次</text>
-					</view>
-					<view class="unlock-btn abyss" @click="unlockJormungandr">
-						<text class="unlock-btn-text">远观海面一次</text>
-					</view>
+			<text class="section-title">深入观测</text>
+			<view class="unlock-card abyss-layer">
+				<view class="abyss-overlay"></view>
+				<text class="unlock-text">图鉴中早已记下它的名字，但从未有人真正观测过活着的它。只有在海潮异常回落、远方海面形成闭合的环时，才可能发现它的踪迹。</text>
+				<view class="unlock-tasks">
+					<text class="task-label">线索：</text>
+					<text class="task-item">1. 《索尔钓起世界之蛇》记下了它的样子</text>
+					<text class="task-item">2. 米德加德的海民见过它的踪影</text>
+					<text class="task-item">3. 在海潮回落时，你终于等到了它</text>
+				</view>
+				<view class="unlock-btn abyss" @click="unlockJormungandr">
+					<text class="unlock-btn-text">远观海面一次</text>
 				</view>
 			</view>
+		</view>
 
-		<view class="section bond-section" v-if="isCollected && creature.interactionType === 'spirit'">
+		<view class="section bond-section" v-if="isCollected && (creature.interactionType === 'spirit' || isBondCreature())">
 			<text class="section-title">羁绊</text>
 			<view class="bond-card">
 				<view class="bond-header">
-					<text class="bond-level">羁绊 Lv.{{ creature.bondLevel }}</text>
-					<text class="bond-title">{{ creature.bondStage }}</text>
+					<text class="bond-level">羁绊 Lv.{{ getBondStageInfo().level }}</text>
+					<text class="bond-title">{{ getBondStageInfo().name }}</text>
 				</view>
 				<view class="bond-progress">
 					<view class="bond-track">
 						<view class="bond-fill spirit" :style="{ width: bondProgress + '%' }"></view>
 					</view>
-					<text class="bond-exp">{{ creature.bondExp || 0 }} / {{ creature.bondMax || 100 }}</text>
+					<text class="bond-exp"><AnimNumber :value="Number(creature.bondExp) || 0" /> / <AnimNumber :value="Number(creature.bondMax) || 100" /></text>
 				</view>
 				<view class="bond-mood-row">
-					<text class="bond-mood-label">当前情绪：</text>
-					<text class="bond-mood-value">{{ creature.mood || '疏离' }}</text>
+					<text class="bond-mood-label">当前阶段：</text>
+					<text class="bond-mood-value">{{ getBondStageInfo().name }}</text>
 				</view>
-				<text class="bond-desc">{{ getBondStageDescription() }}</text>
+				<text class="bond-desc">{{ getGenericBondDescription() }}</text>
+		</view>
+	</view>
+
+	<!-- ============ 精灵：微光结契互动区（镜像耶梦加得高危观测区，基调差异化） ============ -->
+	<view class="section elf-section" v-if="isCollected && creature.interactionType === 'spirit' && creature.spiritConfig">
+		<text class="section-title">林间互动</text>
+		<view class="elf-meter-row">
+			<view class="elf-meter">
+				<text class="elf-meter-label">信任之光</text>
+				<view class="elf-meter-track">
+					<view class="elf-meter-fill trust" :style="{ width: elfState.trust + '%' }"></view>
+				</view>
+				<text class="elf-meter-value"><AnimNumber :value="Number(elfState.trust) || 0" /> / 100</text>
+			</view>
+			<view class="elf-meter">
+				<text class="elf-meter-label">林间静谧</text>
+				<view class="elf-meter-track" :class="{ warn: elfState.disturbance >= 60 }">
+					<view class="elf-meter-fill quiet" :style="{ width: elfQuietPercent + '%' }"></view>
+				</view>
+				<text class="elf-meter-value">{{ elfQuietText }}</text>
 			</view>
 		</view>
 
-		<view class="section abyss-section" v-if="isCollected && creature.interactionType === 'abyss'">
-			<text class="section-title">{{ creature.id === 'jormungandr' ? '档案' : '状态' }}</text>
-			<view class="abyss-card" :class="{ frozen: (creature.missing || creature.abyssFrozen) || (creature.id === 'jormungandr' && jormungandrState.frozen) }">
-				<view class="abyss-mist" v-if="!((creature.missing || creature.abyssFrozen) || (creature.id === 'jormungandr' && jormungandrState.frozen))"></view>
-				<view class="abyss-header">
-					<text class="abyss-stage">{{ creature.id === 'jormungandr' ? (jormungandrState.frozen ? '失踪' : jormungandrState.contactStatus) : (creature.missing ? '沉入外海' : creature.abyssStage) }}</text>
-					<text v-if="creature.id === 'jormungandr'" class="abyss-status" :class="{ missing: jormungandrState.frozen }">
-						{{ sanityLoadText }}
+		<view class="elf-receding-card" v-if="elfState.receding">
+			<text class="elf-receding-title">微光回避中</text>
+			<text class="elf-receding-desc">它们退入了林间深处。再连续静候 {{ elfQuietNeedLeft }} 次，微光会重新出现。</text>
+		</view>
+
+		<view class="elf-final-card" v-if="elfState.trust >= 100 && !elfState.receding">
+			<text class="elf-final-title">✦ 亚尔夫之友</text>
+			<text class="elf-final-desc">冷光成为你与林地之间的纽带。这段关系没有终点，也不需要终点。</text>
+		</view>
+
+		<view class="interaction-actions">
+			<view
+				v-for="action in getSpiritActions()"
+				:key="action.key"
+				class="interaction-button spirit"
+				:class="'elf-tone-' + (action.tone || 'low')"
+				@click="handleSpiritInteraction(action)"
+			>
+				<view class="light-particle" v-if="playInteractionAnimation"></view>
+				<text class="interaction-label">{{ action.label }}</text>
+				<text class="elf-action-hint" v-if="action.key === 'wait' && elfState.receding">静候 {{ elfState.recedingQuietCount }} / {{ elfQuietNeedTotal }}</text>
+			</view>
+		</view>
+
+		<view class="elf-message-list" v-if="elfMessages.length">
+			<view class="elf-message" v-for="(msg, index) in elfMessages.slice(0, 3)" :key="msg.time + '-' + index">
+				<text class="elf-message-text">{{ msg.text }}</text>
+			</view>
+		</view>
+
+		<view class="event-list" v-if="getElfEventCards().length">
+			<view class="event-card" v-for="event in getElfEventCards()" :key="event.id">
+				<text class="event-name">{{ event.name }}</text>
+				<text class="event-desc">{{ event.description }}</text>
+			</view>
+		</view>
+	</view>
+
+		<!-- ============ 耶梦加得：按 abyss-lab 原型整体布局 ============ -->
+		<view class="jorm-stage-section" v-if="isCollected && creature.id === 'jormungandr'">
+			<!-- 概念 A：观测舞台（状态可视化到场景） -->
+			<view class="obs-stage" :class="{ unstable: stageUnstable, frozen: jormungandrState.frozen }">
+				<view class="stage-badge">
+					<view class="rec-dot"></view>
+					<text class="rec-text">REC</text>
+					<text class="stage-cam">观测画面 · 米德加德外海</text>
+				</view>
+				<view class="stage-wave sw1"></view>
+				<view class="stage-wave sw2"></view>
+				<view class="stage-wave sw3"></view>
+				<view class="stage-mist sm1" :style="{ opacity: stageMistOpacity }"></view>
+				<view class="stage-mist sm2" :style="{ opacity: stageMistOpacity * 0.8 }"></view>
+				<view class="stage-arc" :style="stageArcStyle"></view>
+				<view v-if="stageEyeVisible" class="stage-eye" :style="{ left: stageEyeLeft }"></view>
+				<view v-for="r in stageRipples" :key="r.id" class="stage-ripple" :class="r.tone"></view>
+				<view v-if="jormungandrState.frozen" class="signal-lost">
+					<text class="lost-title">信号丢失</text>
+					<text class="lost-sub">— 记录停留在它消失的那一刻 —</text>
+				</view>
+			</view>
+
+			<!-- 概念 B：状态面板（三仪表 + 等级语言） -->
+			<view class="jorm-panel">
+				<view class="panel-header">
+					<text class="contact-status" :class="{ hostile: jormungandrState.hostility >= 6, missing: jormungandrState.frozen }">
+						{{ jormungandrState.frozen ? '失踪' : jormungandrState.contactStatus }}
 					</text>
-					<text v-else-if="creature.missing" class="abyss-status" :class="{ missing: creature.missing }">
+					<text class="sanity-word" :class="sanityLevelKey">{{ sanityLoadText }}</text>
+				</view>
+
+				<view class="gauge-row">
+					<text class="gauge-label">观测深度</text>
+					<view class="gauge-track">
+						<view class="gauge-fill obs" :style="{ width: observationPercent + '%' }"></view>
+					</view>
+					<text class="gauge-value">{{ jormungandrState.frozen ? '冻结' : Math.round(observationPercent) + '%' }}</text>
+				</view>
+
+				<view class="gauge-row">
+					<text class="gauge-label">心智负荷</text>
+					<view class="gauge-track">
+						<view class="gauge-fill san" :class="sanityLevelKey" :style="{ width: Math.min(100, jormungandrState.sanityLoad * 10) + '%' }"></view>
+					</view>
+					<text class="gauge-value">{{ jormungandrState.frozen ? '冻结' : jormungandrState.sanityLoad }}</text>
+				</view>
+
+				<view class="gauge-row">
+					<text class="gauge-label">居民态度</text>
+					<view class="gauge-track">
+						<view class="gauge-fill hos" :style="{ width: Math.min(100, jormungandrState.hostility * 10) + '%' }"></view>
+					</view>
+					<text class="gauge-value">{{ jormungandrState.frozen ? '冻结' : hostilityText }}</text>
+				</view>
+
+				<text class="jorm-desc">{{ getJormungandrDescription() }}</text>
+			</view>
+
+			<!-- 事件记录：解锁即永久展示（不依赖冻结状态） -->
+			<view class="event-list" v-if="jormungandrState.unlockedEvents.length > 0">
+				<view
+					v-for="eventId in jormungandrState.unlockedEvents"
+					:key="eventId"
+					class="event-card"
+				>
+					<text class="event-name">{{ getJormungandrEventInfo(eventId)?.name }}</text>
+					<text class="event-desc">{{ getJormungandrEventInfo(eventId)?.description }}</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 其他深渊生物：保持原有档案结构 -->
+		<view class="section abyss-section" v-if="isCollected && creature.interactionType === 'abyss' && creature.id !== 'jormungandr'">
+			<text class="section-title">状态</text>
+			<view class="abyss-card" :class="{ frozen: creature.missing || creature.abyssFrozen }">
+				<view class="abyss-mist" v-if="!(creature.missing || creature.abyssFrozen)"></view>
+				<view class="abyss-header">
+					<text class="abyss-stage">{{ creature.missing ? '沉入外海' : creature.abyssStage }}</text>
+					<text v-if="creature.missing" class="abyss-status" :class="{ missing: creature.missing }">
 						{{ creature.mood }}
 					</text>
 				</view>
-				<view class="abyss-progress-group" v-if="creature.id !== 'jormungandr'">
+				<view class="abyss-progress-group">
 					<view class="abyss-progress-item">
 						<text class="abyss-progress-label">观测进度</text>
 						<view class="abyss-track">
@@ -210,62 +344,67 @@
 						</text>
 					</view>
 				</view>
-				<view class="abyss-progress-group" v-else>
-					<view class="abyss-progress-item">
-						<text class="abyss-progress-label">观测深度</text>
-						<view class="abyss-track">
-							<view class="abyss-fill awareness" :style="{ width: observationPercent + '%' }" :class="{ frozen: jormungandrState.frozen }"></view>
-						</view>
-						<text class="abyss-progress-value" :class="{ frozen: jormungandrState.frozen }">
-							{{ jormungandrState.frozen ? '冻结' : Math.round(observationPercent) + '%' }}
-						</text>
-					</view>
-					<view class="abyss-progress-item">
-						<text class="abyss-progress-label">心智负荷</text>
-						<view class="abyss-track">
-							<view class="abyss-fill risk" :style="{ width: Math.min(100, jormungandrState.sanityLoad * 10) + '%' }" :class="{ frozen: jormungandrState.frozen }"></view>
-						</view>
-						<text class="abyss-progress-value" :class="{ frozen: jormungandrState.frozen }">
-							{{ jormungandrState.frozen ? '冻结' : jormungandrState.sanityLoad + ' (' + sanityLoadText + ')' }}
-						</text>
-					</view>
-				</view>
-				<text class="abyss-desc">{{ creature.id === 'jormungandr' ? getJormungandrDescription() : getAbyssDescription() }}</text>
+				<text class="abyss-desc">{{ getAbyssDescription() }}</text>
 			</view>
 		</view>
 
-		<view class="section" v-if="isCollected && creature.interactionType === 'abyss' && !((creature.missing || creature.abyssFrozen) || (creature.id === 'jormungandr' && jormungandrState.frozen))">
+		<!-- 耶梦加得：原型互动矩阵 + 终端日志 -->
+		<view class="jorm-actions-section" v-if="isCollected && creature.id === 'jormungandr' && !jormungandrState.frozen">
+			<!-- 概念 C：互动矩阵（风险语言 + 解锁门禁） -->
+			<view class="action-grid">
+				<view
+					v-for="action in jormungandrActions"
+					:key="action.key"
+					class="action-btn"
+					:class="[action.risk, { locked: action.unlock > Number(jormungandrState.observation || 0), shaking: shakeKey === action.key }]"
+					@click="handleJormungandrAction(action)"
+				>
+					<text class="action-name">{{ action.label }}</text>
+					<text class="action-risk" :class="{ safe: action.risk === 'safe' }" v-if="action.risk !== 'low'">
+						{{ action.risk === 'safe' ? '安全' : (action.risk === 'extreme' ? '极高' : (action.risk === 'high' ? '高' : '中')) }}
+					</text>
+					<text class="action-lock" v-if="action.unlock > Number(jormungandrState.observation || 0)">观测 {{ action.unlock }} 解锁</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 概念 D：观测日志（独立区块，失踪冻结后仍可查阅） -->
+		<view class="jorm-log-panel" v-if="isCollected && creature.id === 'jormungandr' && jormungandrMessages.length > 0">
+			<view class="log-list">
+				<view
+					v-for="(msg, index) in jormungandrMessages"
+					:key="msg.id"
+					class="log-item"
+					:class="{ danger: msg.danger, threshold: msg.threshold }"
+				>
+					<text class="log-time">{{ msg.time }}</text>
+					<text class="log-text">{{ index === 0 ? typingText : msg.text }}<text v-if="index === 0 && typing" class="type-cursor">▌</text></text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 其他深渊生物：保持原有互动结构 -->
+		<view class="section" v-if="isCollected && creature.interactionType === 'abyss' && creature.id !== 'jormungandr' && !(creature.missing || creature.abyssFrozen)">
 			<text class="section-title">互动</text>
 			<view class="interaction-actions abyss">
 				<view
-					v-for="action in (creature.id === 'jormungandr' ? jormungandrActions : getAbyssActions())"
+					v-for="action in getAbyssActions()"
 					:key="action.key"
 					class="interaction-button abyss"
 					:class="{
-						worship: action.key === 'worship' || action.key === 'worship',
+						worship: action.key === 'worship',
 						retreat: action.key === 'retreat',
 						touch: action.key === 'touch',
-						danger: (action.highRisk && creature.riskLevel >= 70) || action.risk === 'extreme'
+						danger: (action.highRisk && creature.riskLevel >= 70) || action.risk === 'extreme' || action.risk === 'high'
 					}"
-					@click="creature.id === 'jormungandr' ? handleJormungandrAction(action) : handleAbyssInteraction(action)"
+					@click="handleAbyssInteraction(action)"
 				>
-					<view class="light-particle" v-if="playAbyssAnimation"></view>
+					<view class="light-particle" v-if="playAbyssAnimation && abyssAnimKey === action.key"></view>
 					<text class="interaction-label">{{ action.label }}</text>
-					<text class="risk-hint" v-if="creature.id !== 'jormungandr' && action.highRisk && creature.riskLevel >= 70">继续靠近可能导致它沉入更深处</text>
+					<text class="risk-hint" v-if="action.highRisk && creature.riskLevel >= 70">继续靠近可能导致它沉入更深处</text>
 				</view>
 			</view>
 			<text v-if="interactionMessage" class="interaction-message">{{ interactionMessage }}</text>
-			<view class="message-list" v-if="creature.id === 'jormungandr' && jormungandrMessages.length > 0">
-				<view
-					v-for="msg in jormungandrMessages"
-					:key="msg.id"
-					class="message-item"
-					:class="{ danger: msg.danger }"
-				>
-					<text class="message-time">{{ msg.time }}</text>
-					<text class="message-text">{{ msg.text }}</text>
-				</view>
-			</view>
 		</view>
 
 		<view class="section" v-if="isCollected && creature.interactionType === 'abyss' && ((creature.missing || creature.abyssFrozen) || (creature.id === 'jormungandr' && jormungandrState.frozen))">
@@ -274,7 +413,7 @@
 				<view class="frozen-message">
 					<text class="frozen-text">{{ creature.id === 'jormungandr' ? '该档案已进入失踪状态。后续互动已冻结。' : (creature.missing ? '世界之蛇已沉入外海。海面再无回应。' : '观测记录已冻结。') }}</text>
 				</view>
-				<text class="frozen-hint" v-if="creature.id === 'jormungandr' && jormungandrMessages.length > 0">{{ jormungandrMessages[jormungandrMessages.length - 1]?.text || '你的记录停留在它消失的那一刻。' }}</text>
+				<text class="frozen-hint" v-if="creature.id === 'jormungandr' && jormungandrMessages.length > 0">{{ jormungandrMessages[0]?.text || '你的记录停留在它消失的那一刻。' }}</text>
 				<text class="frozen-hint" v-else-if="creature.missing">{{ interactionMessage || '你的记录停留在它消失的那一刻。' }}</text>
 				<view class="frozen-actions" v-if="creature.id !== 'jormungandr'">
 					<view class="frozen-btn" @click="viewAbyssRecord">
@@ -297,7 +436,7 @@
 			</view>
 		</view>
 
-		<view class="section" v-if="isCollected && creature.interactionType !== 'abyss' && creature.id !== 'jormungandr'">
+		<view class="section" v-if="isCollected && creature.interactionType !== 'abyss' && creature.id !== 'jormungandr' && !(creature.interactionType === 'spirit' && creature.spiritConfig)">
 			<text class="section-title">互动</text>
 			<view class="interaction-actions">
 				<view
@@ -312,6 +451,20 @@
 				</view>
 			</view>
 			<text v-if="interactionMessage" class="interaction-message">{{ interactionMessage }}</text>
+
+			<!-- 里程碑事件卡：解锁后常驻展示 -->
+			<view class="event-list" v-if="getUnlockedBondEvents().length">
+				<view class="event-card" v-for="event in getUnlockedBondEvents()" :key="event.id">
+					<text class="event-name">{{ event.name }}</text>
+					<text class="event-desc">{{ event.description }}</text>
+				</view>
+			</view>
+
+			<!-- 满级终卡 -->
+			<view class="elf-final-card" v-if="isCollected && isBondCreature() && bondProgress >= 100">
+				<text class="elf-final-title">✦ {{ creature.name }}的同行者</text>
+				<text class="elf-final-desc">{{ getGenericBondDescription() }}这段关系没有终点，也不需要终点。</text>
+			</view>
 		</view>
 
 		<view class="section" v-if="isCollected">
@@ -381,9 +534,52 @@
 
 		</view>
 
-		<view class="collect-btn" :class="{ collected: isCollected }" @click="isCollected ? removeCollect() : collect()">
+		<!-- 深渊系生物：解锁前隐藏收藏入口（防止绕过观测仪式），解锁后提供移除观测记录 -->
+		<view
+			v-if="creature.interactionType !== 'abyss' || isCollected"
+			class="collect-btn"
+			:class="{ collected: isCollected }"
+			@click="isCollected ? removeCollect() : collect()"
+		>
 			<text v-if="!isCollected">收藏到图鉴</text>
+			<text v-else-if="creature.interactionType === 'abyss'">移除观测记录 · 重开观测</text>
 			<text v-else>已收藏 · 移除记录</text>
+		</view>
+
+		<!-- 概念 E：全屏低语警告 -->
+		<view v-if="whisperVisible" class="whisper-layer" @click="whisperVisible = false">
+			<text class="whisper-text">你应该离开。</text>
+		</view>
+
+		<!-- 概念 F：事件揭晓层 -->
+		<view v-if="jormEventOverlay" class="jorm-event-layer" @click="jormEventOverlay = null">
+			<view class="jorm-event-body" :class="jormEventOverlay.tone" @click.stop>
+				<text class="jorm-event-kicker">{{ jormEventOverlay.tone === 'missing' ? 'ARCHIVE CLOSED' : 'EVENT UNLOCKED' }}</text>
+				<text class="jorm-event-title">{{ jormEventOverlay.name }}</text>
+				<text class="jorm-event-desc">{{ jormEventOverlay.description }}</text>
+				<view class="jorm-event-close" @click="jormEventOverlay = null">
+					<text>记录在案</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 解锁 / 收藏全屏庆祝层 -->
+		<view v-if="celebration.visible" class="celebration-mask" @click="closeCelebration">
+			<view class="celebration-body">
+				<view class="celebration-icon">
+					<text>{{ celebration.symbol }}</text>
+					<view
+						v-for="i in 10"
+						:key="i"
+						class="celebration-spark"
+						:style="{ transform: 'rotate(' + (i * 36) + 'deg)' }"
+					>
+						<view class="spark-dot"></view>
+					</view>
+				</view>
+				<text class="celebration-title">{{ celebration.title }}</text>
+				<text class="celebration-subtitle">{{ celebration.subtitle }}</text>
+			</view>
 		</view>
 
 		<view class="bottom-space"></view>
@@ -391,19 +587,54 @@
 </template>
 
 <script>
-import { norseCreatures } from '@/data/norseCreatures.js'
-import { realms, creatures } from '@/data/norse.js'
+import { db } from '@/db'
 import { getRavensClueProgress, saveRavensClueProgress, isRavensRevealed as checkRavensRevealed, getRavensClueCount as getClueCount, isRavensClueUnlocked as checkRavensClueUnlocked, resetRavensClues } from '@/utils/clueProgress.js'
+import NavBar from '@/components/NavBar.vue'
+import AnimNumber from '@/components/AnimNumber.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import PortraitImage from '@/components/PortraitImage.vue'
+import { state } from '@/state'
+import {
+	getBondStage as stageOf,
+	getBondProgress,
+	getStageDescription,
+	getStageEvents,
+	computeGain,
+	newlyUnlockedEvents,
+	getBondState,
+	saveBondState,
+	resetBondState
+} from '@/interactions/bond.js'
+
+// ===== 耶梦加得：消息随机池 / 风险映射 / 心智阈值提示（接入自 abyss-lab 原型） =====
+const JORM_MSG_POOL = {
+	distantView: ['你站在安全距离外观察。', '海平线上什么都没有。或者，什么都有。', '浪从很远的地方来，比想象中慢。'],
+	tideListen: ['潮声中似乎夹杂着某种节律。', '你数不清潮水的次数，数字总是对不上。', '潮声停了一瞬。你没有告诉任何人。'],
+	observe: ['你的笔记越来越密。', '你开始给每一道浪编号。', '纸上的线条开始像鳞片。'],
+	worship: ['远处，有人在看你。', '你献上的东西被潮水带走了。', '村里的人记住了你的脸。'],
+	retreat: ['你选择后退，危险有所降低。', '你离开海岸。海面在你身后合拢。'],
+	touch: ['你越过了安全距离。海面忽然安静得可怕。', '指尖触到的一瞬，潮声全部消失了。']
+}
+const JORM_RISK = { distantView: 'low', tideListen: 'medium', observe: 'high', retreat: 'safe', worship: 'high', touch: 'extreme' }
+const JORM_RISK_LABEL = { low: '', medium: '中', high: '高', safe: '安全', extreme: '极高' }
+const JORM_THRESHOLD_HINTS = {
+	4: '你开始分不清观察和幻觉的边界。',
+	7: '纸上的字迹在夜里似乎自己移动了。',
+	10: '你已经很久没有睡过一个完整的夜晚。'
+}
 
 export default {
+	components: { NavBar, AnimNumber, EmptyState, PortraitImage },
 	data() {
 			return {
 				creature: {},
+				notFound: false,
 				isCollected: false,
 				interactionMessage: '',
 				playUnlockAnimation: false,
 				playInteractionAnimation: false,
 				playAbyssAnimation: false,
+				abyssAnimKey: '',
 				playMissingAnimation: false,
 				playBadgeAnimation: false,
 				unlockedBadge: null,
@@ -413,6 +644,9 @@ export default {
 					{ id: 'warden', name: '见证者', unlocked: false }
 				],
 				showRevealAnimation: false,
+				// 解锁 / 收藏全屏庆祝
+				celebration: { visible: false, symbol: '', title: '', subtitle: '' },
+				celebrationTimer: null,
 				jormungandrState: {
 					observation: 0,
 					sanityLoad: 0,
@@ -422,10 +656,40 @@ export default {
 					frozen: false,
 					unlockedEvents: []
 				},
-				jormungandrMessages: []
+				jormungandrMessages: [],
+				// ===== 精灵"微光结契"状态（镜像耶梦加得状态机的善良生物版本）=====
+				elfState: {
+					trust: 0,               // 信任之光 0-100（即 bondExp）
+					disturbance: 0,         // 惊扰度 0-100（静谧条反向显示）
+					quietStreak: 0,         // 连续静候计数（共鸣门槛）
+					receding: false,        // 精灵回避中（可逆，仅静候可恢复）
+					recedingQuietCount: 0,  // 回避期间的静候计数
+					callCount: 0,           // 呼唤次数（触发回避）
+					goodGifts: 0,           // 安宁状态下的赠礼次数（回赠事件门槛）
+					returnedOnce: false,    // 曾经历"回避→回归"（守候者徽章）
+					unlockedEvents: [],     // 已触发事件
+					stats: { listen: 0, gift: 0, wait: 0, resonate: 0, guard: 0, call: 0 }
+				},
+				elfMessages: [],
+			// 普通生物通用羁绊状态（持久化于 state bond.<id>）
+			bondState: { unlockedEvents: [] },
+			// 舞台反馈 / 全屏层（接入自原型）
+			stageRipples: [],
+				shakeKey: '',
+				whisperVisible: false,
+				whisperTimer: null,
+				jormEventOverlay: null,
+				typing: false,
+				typingText: '',
+				typeTimer: null
 			}
 		},
 	computed: {
+		creatureAuraStyle() {
+			const c = this.creature && this.creature.color
+			if (!c) return ''
+			return `background: radial-gradient(circle at 50% 20%, ${c}2E 0%, transparent 62%)`
+		},
 		bondProgress() {
 			const exp = Number(this.creature.bondExp || 0)
 			const max = Number(this.creature.bondMax || 100)
@@ -451,6 +715,14 @@ export default {
 			if (load <= 9) return '执迷'
 			return '精神濒临崩溃'
 		},
+		// 心智分级（驱动仪表颜色与脉动）
+		sanityLevelKey() {
+			const load = Number(this.jormungandrState.sanityLoad || 0)
+			if (load >= 10) return 'lv4'
+			if (load >= 7) return 'lv3'
+			if (load >= 4) return 'lv2'
+			return 'lv1'
+		},
 		hostilityText() {
 			const hostility = this.jormungandrState.hostility
 			if (hostility <= 2) return '无人注意'
@@ -464,36 +736,70 @@ export default {
 		isJormungandr() {
 			return this.creature.id === 'jormungandr'
 		},
+		// ===== 精灵"微光结契"计算属性 =====
+		elfQuietPercent() {
+			return Math.max(0, 100 - Number(this.elfState.disturbance || 0))
+		},
+		elfQuietText() {
+			const d = Number(this.elfState.disturbance || 0)
+			if (d >= 80) return '噪声四起'
+			if (d >= 60) return '草木不安'
+			if (d >= 30) return '略有动静'
+			return '安宁'
+		},
+		elfQuietNeedTotal() {
+			const config = (this.creature && this.creature.spiritConfig) || null
+			return config ? config.receding.quietNeed : 3
+		},
+		elfQuietNeedLeft() {
+			return Math.max(0, this.elfQuietNeedTotal - Number(this.elfState.recedingQuietCount || 0))
+		},
 		jormungandrActions() {
-			const obs = Number(this.jormungandrState.observation || 0)
-			const actions = [
-				{ key: 'distantView', label: '远观', risk: 'low' },
-				{ key: 'tideListen', label: '听潮', risk: 'medium' }
+			// 全量返回，锁定态由模板呈现（玩家可见成长路径）
+			return [
+				{ key: 'distantView', label: '远观', risk: 'low', unlock: 0 },
+				{ key: 'tideListen', label: '听潮', risk: 'medium', unlock: 0 },
+				{ key: 'observe', label: '观察', risk: 'high', unlock: 5 },
+				{ key: 'retreat', label: '退后', risk: 'safe', unlock: 5 },
+				{ key: 'worship', label: '祭拜', risk: 'high', unlock: 10 },
+				{ key: 'touch', label: '触碰', risk: 'extreme', unlock: 20 }
 			]
-			if (obs >= 5) {
-				actions.push({ key: 'observe', label: '观察', risk: 'high' })
+		},
+		// ===== 观测舞台映射（接入自原型概念 A） =====
+		stageArcStyle() {
+			const obs = Number(this.jormungandrState.observation || 0)
+			const t = Math.min(1, obs / 12)
+			return {
+				opacity: (0.15 + t * 0.85).toFixed(2),
+				transform: `translateY(${(60 - obs * 2)}rpx) scaleX(${(1 + obs * 0.006).toFixed(3)})`
 			}
-			if (obs >= 5) {
-				actions.push({ key: 'retreat', label: '退后', risk: 'safe' })
-			}
-			if (obs >= 10) {
-				actions.push({ key: 'worship', label: '祭拜', risk: 'high' })
-			}
-			if (obs >= 20) {
-				actions.push({ key: 'touch', label: '触碰', risk: 'extreme' })
-			}
-			return actions
+		},
+		stageEyeVisible() {
+			return Number(this.jormungandrState.observation || 0) >= 25 && !this.jormungandrState.frozen
+		},
+		stageEyeLeft() {
+			const obs = Number(this.jormungandrState.observation || 0)
+			return `${34 + Math.min(20, obs * 0.3)}%`
+		},
+		stageMistOpacity() {
+			return (0.25 + Math.min(1, Number(this.jormungandrState.sanityLoad || 0) * 0.09)).toFixed(2)
+		},
+		stageUnstable() {
+			return Number(this.jormungandrState.sanityLoad || 0) >= 7 && !this.jormungandrState.frozen
 		}
 	},
 	onLoad(options) {
 		const creatureId = options.id
-		let found = norseCreatures.find(c => c.id === creatureId)
-		if (!found) {
-			found = creatures.find(c => c.id === creatureId)
+		let found = creatureId ? db.findById('creatures', creatureId) : null
+		// 无 id → 默认首只生物；带无效 id → 缺省态「内容不存在」（数据仍兜底，避免空对象）
+		if (creatureId && !found) {
+			this.notFound = true
 		}
 		if (!found) {
-			found = norseCreatures[0]
+			found = db.findAll('creatures')[0]
 		}
+		// 种子解锁态：collect / doRemoveCollect 据此切换未知视图
+		this.seedCollected = found.collected === true
 		this.creature = {
 			...found,
 			bondLevel: found.bondLevel || 1,
@@ -516,10 +822,30 @@ export default {
 		if (this.creature.id === 'jormungandr') {
 			this.loadJormungandrState()
 		}
+		if (this.creature.interactionType === 'spirit') {
+			this.loadElfState()
+		}
+		if (this.isBondCreature()) {
+			this.loadBondState()
+		}
+	},
+	beforeUnmount() {
+		if (this.typeTimer) clearInterval(this.typeTimer)
+		if (this.whisperTimer) clearTimeout(this.whisperTimer)
 	},
 	methods: {
+		// 缺省态操作：返回上一页，无栈时回图鉴
+		onEmptyAction(event) {
+			if (event !== 'back') return
+			const pages = getCurrentPages()
+			if (pages.length > 1) {
+				uni.navigateBack()
+			} else {
+				uni.switchTab({ url: '/pages/codex/codex-index' })
+			}
+		},
 		checkCollected() {
-			const collected = uni.getStorageSync('collectedCreatures') || []
+			const collected = state.get('progress.collectedCreatures', [])
 			this.isCollected = collected.includes(this.creature.id)
 		},
 		getDangerClass(level) {
@@ -546,16 +872,55 @@ export default {
 			return '陌生观察'
 		},
 		getRealmName(realmId) {
-			const realm = realms.find(r => r.id === realmId)
+			const realm = db.findById('realms', realmId)
 			return realm?.name || realmId
 		},
-		increaseBond(amount, message) {
+		increaseBond(action, message) {
 			if (!this.creature) return
-			const current = Number(this.creature.bondExp || 0)
+			const prev = Number(this.creature.bondExp || 0)
 			const max = Number(this.creature.bondMax || 100)
-			const next = Math.min(current + amount, max)
+			// 喜好 / 禁忌联动：命中词条调整增量
+			const { amount, note } = computeGain(action, this.creature)
+			const next = Math.min(prev + amount, max)
 			this.creature.bondExp = next
-			this.interactionMessage = message
+			this.playInteractionAnimation = true
+			setTimeout(() => { this.playInteractionAnimation = false }, 600)
+			this.interactionMessage = note ? message + ' ' + note : message
+
+			// 互动计数
+			if (action && action.key) {
+				const stats = Object.assign({}, this.creature.interactionStats || {})
+				stats[action.key] = (stats[action.key] || 0) + 1
+				this.creature.interactionStats = stats
+			}
+			this.updateBondStage()
+
+			// 里程碑事件：跨过阈值即解锁并全屏揭晓
+			let unlockedNow = []
+			if (this.isBondCreature()) {
+				const events = getStageEvents(this.creature, this.getInteractionType(this.creature))
+				unlockedNow = newlyUnlockedEvents(events, prev, next)
+				if (unlockedNow.length) {
+					const unlockedIds = [...(this.bondState.unlockedEvents || []), ...unlockedNow.map(e => e.id)]
+					this.saveCreatureBondState({ unlockedEvents: unlockedIds })
+					const first = unlockedNow[0]
+					this.jormEventOverlay = { name: first.name, description: first.description, tone: 'gold' }
+				} else {
+					this.saveCreatureBondState()
+				}
+				// 满级庆祝
+				if (next >= max && prev < max) {
+					this.showCelebration({
+						symbol: this.creature.name ? this.creature.name[0] : '★',
+						title: '羁绊达成 · 同行',
+						subtitle: this.creature.name + ' 已将你视作同行者'
+					})
+				}
+			} else if (this.creature.interactionType === 'spirit' && !this.creature.spiritConfig) {
+				// 无配置的 spirit 生物：同样持久化（此前刷新即丢）
+				this.saveCreatureBondState()
+			}
+			return { amount, note, unlockedNow }
 		},
 		getInteractionType(creature) {
 			if (!creature) return 'beast'
@@ -618,57 +983,103 @@ export default {
 			switch (type) {
 				case 'beast':
 					return [
-						{ key: 'feed', label: '投喂', bond: 10, message: '它接受了食物，警惕稍稍降低。' },
-						{ key: 'comfort', label: '安抚', bond: 8, message: '它短暂放松下来，但仍保持距离。' },
+						{ key: 'feed', label: '投喂', bond: 10, tags: ['肉食', '血食', '谷物'], message: '它接受了食物，警惕稍稍降低。' },
+						{ key: 'comfort', label: '安抚', bond: 8, tags: ['安抚', '守夜'], message: '它短暂放松下来，但仍保持距离。' },
 						{ key: 'observe', label: '观察', bond: 5, message: '你记录下它的行动轨迹。' }
 					]
 				case 'danger':
 					return [
-						{ key: 'keepDistance', label: '保持距离', bond: 3, message: '你没有贸然靠近，这反而让它减少了敌意。' },
-						{ key: 'offerTribute', label: '献上贡品', bond: 7, message: '贡品被收下，但它仍没有完全信任你。' },
+						{ key: 'keepDistance', label: '保持距离', bond: 3, tags: ['自由', '边界'], message: '你没有贸然靠近，这反而让它减少了敌意。' },
+						{ key: 'offerTribute', label: '献上贡品', bond: 7, tags: ['黄金', '蜜酒'], message: '贡品被收下，但它仍没有完全信任你。' },
 						{ key: 'findWeakness', label: '观察弱点', bond: 5, message: '你发现它的力量与某段命运紧密相连。' }
 					]
 				case 'divine':
 					return [
-						{ key: 'greet', label: '致意', bond: 5, message: '你的礼节被看见了。' },
-						{ key: 'consult', label: '询问神谕', bond: 8, message: '对方给出了一句含义模糊的提示。' },
-						{ key: 'ally', label: '结盟', bond: 10, message: '这不是承诺，但对方认可了你的立场。' }
+						{ key: 'greet', label: '致意', bond: 5, tags: ['礼节', '誓言'], message: '你的礼节被看见了。' },
+						{ key: 'consult', label: '询问神谕', bond: 8, tags: ['智慧', '见闻'], message: '对方给出了一句含义模糊的提示。' },
+						{ key: 'ally', label: '结盟', bond: 10, tags: ['英勇', '誓言'], message: '这不是承诺，但对方认可了你的立场。' }
 					]
 				case 'craftsman':
 					return [
-						{ key: 'commission', label: '委托', bond: 8, message: '工匠记下了你的需求，但报酬必须公平。' },
-						{ key: 'trade', label: '交易', bond: 6, message: '一次清晰的交换比空话更有效。' },
-						{ key: 'collaborate', label: '协作', bond: 10, message: '共同完成的小任务提升了信任。' }
+						{ key: 'commission', label: '委托', bond: 8, tags: ['锻造', '公平交易'], message: '工匠记下了你的需求，但报酬必须公平。' },
+						{ key: 'trade', label: '交易', bond: 6, tags: ['黄金', '公平交易'], message: '一次清晰的交换比空话更有效。' },
+						{ key: 'collaborate', label: '协作', bond: 10, tags: ['锻造', '协作'], message: '共同完成的小任务提升了信任。' }
 					]
 				case 'spirit':
 					return this.getSpiritActions()
 				case 'underworld':
 					return [
-						{ key: 'greet', label: '致意', bond: 5, message: '你以合适的礼节靠近死亡边界。' },
-						{ key: 'keepPromise', label: '守约', bond: 10, message: '遵守规则比勇敢更重要。' },
-						{ key: 'listenDead', label: '聆听亡语', bond: 7, message: '你听见了来自寒雾深处的低语。' }
+						{ key: 'greet', label: '致意', bond: 5, tags: ['礼节', '寂静'], message: '你以合适的礼节靠近死亡边界。' },
+						{ key: 'keepPromise', label: '守约', bond: 10, tags: ['誓言', '忠诚'], message: '遵守规则比勇敢更重要。' },
+						{ key: 'listenDead', label: '聆听亡语', bond: 7, tags: ['密语', '黑暗'], message: '你听见了来自寒雾深处的低语。' }
 					]
 				case 'person':
 				default:
 					return [
-						{ key: 'talk', label: '交谈', bond: 5, message: '你们交换了少量信息，关系略有推进。' },
+						{ key: 'talk', label: '交谈', bond: 5, tags: ['故事', '见闻'], message: '你们交换了少量信息，关系略有推进。' },
 						{ key: 'collaborate', label: '协作', bond: 8, message: '一次谨慎的合作建立了初步信任。' },
-						{ key: 'gift', label: '赠礼', bond: 6, message: '礼物被接受，但对方仍在观察你的意图。' }
+						{ key: 'gift', label: '赠礼', bond: 6, tags: ['蜂蜜酒', '谷物', '黄金'], message: '礼物被接受，但对方仍在观察你的意图。' }
 					]
 			}
 		},
 		handleInteraction(action) {
 			if (!action) return
-			console.log('[互动] action:', action.key, 'creature.interactionType:', this.creature.interactionType, 'creature.id:', this.creature.id)
 			if (this.creature.interactionType === 'spirit') {
-				console.log('[互动] 进入精灵互动分支')
 				this.handleSpiritInteraction(action)
 				return
 			}
-			console.log('[互动] 进入普通互动分支')
-			const amount = action.bond || 5
 			const message = action.message || '关系略有变化。'
-			this.increaseBond(amount, message)
+			this.increaseBond(action, message)
+		},
+		// ===== 普通生物通用羁绊（引擎：src/interactions/bond.js） =====
+		// 适用范围：非深渊观测、非带配置精灵系统的生物
+		isBondCreature() {
+			const c = this.creature
+			if (!c || !c.id) return false
+			if (c.interactionType === 'abyss' || c.id === 'jormungandr') return false
+			if (c.interactionType === 'spirit' && c.spiritConfig) return false
+			return true
+		},
+		loadBondState() {
+			const saved = getBondState(this.creature.id)
+			this.bondState = saved
+			// 恢复羁绊进度（不低于种子初始值）
+			this.creature.bondExp = Math.max(Number(this.creature.bondExp || 0), Number(saved.bondExp || 0))
+			this.creature.interactionStats = Object.assign({}, this.creature.interactionStats, saved.interactionStats || {})
+			this.updateBondStage()
+		},
+		saveCreatureBondState(extra) {
+			const next = saveBondState(this.creature.id, Object.assign({
+				bondExp: Number(this.creature.bondExp || 0),
+				interactionStats: this.creature.interactionStats || {},
+				unlockedEvents: this.bondState.unlockedEvents || []
+			}, extra || {}))
+			this.bondState = next
+		},
+		updateBondStage() {
+			const stage = stageOf(this.creature.bondExp)
+			this.creature.bondLevel = stage.level
+			this.creature.bondStage = stage.name
+		},
+		getUnlockedBondEvents() {
+			if (!this.isBondCreature()) return []
+			const events = getStageEvents(this.creature, this.getInteractionType(this.creature))
+			const unlocked = this.bondState.unlockedEvents || []
+			return events.filter(event => unlocked.includes(event.id))
+		},
+		getBondStageInfo() {
+			if (this.creature.interactionType === 'spirit' && this.creature.spiritConfig) {
+				return { level: this.creature.bondLevel, name: this.creature.bondStage || '未发现踪迹' }
+			}
+			const stage = stageOf(this.creature.bondExp)
+			return { level: stage.level, name: stage.name }
+		},
+		getGenericBondDescription() {
+			if (this.creature.interactionType === 'spirit') {
+				return this.getBondStageDescription()
+			}
+			const stage = stageOf(this.creature.bondExp)
+			return getStageDescription(this.getInteractionType(this.creature), stage.name)
 		},
 		getBondIntroText() {
 			const type = this.getInteractionType(this.creature)
@@ -698,56 +1109,173 @@ export default {
 					return `与${this.creature.name}的关系仍在试探中。一次交谈或协作，可能比鲁莽靠近更有效。`
 			}
 		},
+		// ===== 解锁 / 收藏全屏庆祝 =====
+		showCelebration({ symbol, title, subtitle }) {
+			this.haptic()
+			this.celebration = { visible: true, symbol, title, subtitle }
+			if (this.celebrationTimer) clearTimeout(this.celebrationTimer)
+			this.celebrationTimer = setTimeout(() => {
+				this.celebration.visible = false
+			}, 2400)
+		},
+		closeCelebration() {
+			if (this.celebrationTimer) clearTimeout(this.celebrationTimer)
+			this.celebration.visible = false
+		},
+		// 震动反馈：H5 用 Vibration API，其余端用 uni.vibrateShort
+		haptic() {
+			// #ifdef H5
+			if (typeof navigator !== 'undefined' && navigator.vibrate) {
+				navigator.vibrate(20)
+			}
+			// #endif
+			// #ifndef H5
+			try { uni.vibrateShort({}) } catch (e) { /* 部分平台不支持，忽略 */ }
+			// #endif
+		},
 		collect() {
 			if (this.isCollected) return
-			let collected = uni.getStorageSync('collectedCreatures') || []
+			const collected = state.get('progress.collectedCreatures', [])
 			collected.push(this.creature.id)
-			uni.setStorageSync('collectedCreatures', collected)
+			state.set('progress.collectedCreatures', collected)
 			this.isCollected = true
-			uni.showToast({ title: '收藏成功！', icon: 'success' })
+			// 种子未解锁（collected: false）的生物：收藏后立即脱离"未知存在"视图
+			if (this.creature.collected === false) {
+				this.creature.collected = true
+			}
+			this.showCelebration({
+				symbol: this.creature.name ? this.creature.name[0] : '★',
+				title: '已收入图鉴',
+				subtitle: this.creature.name + ' 的记录被保留'
+			})
 		},
 		removeCollect() {
-			if (!this.isCollected) return
-			let collected = uni.getStorageSync('collectedCreatures') || []
-			collected = collected.filter(id => id !== this.creature.id)
-			uni.setStorageSync('collectedCreatures', collected)
-			this.isCollected = false
-			if (this.creature.id === 'jormungandr') {
-				this.resetJormungandrState()
+		if (!this.isCollected) return
+		// 有羁绊/惊扰进度时二次确认，防止误触清空
+		if (this.creature.interactionType === 'spirit' && this.getSpiritConfig()) {
+			const s = this.elfState
+			const hasProgress = s.trust > 0 || s.unlockedEvents.length > 0 || (this.elfMessages && this.elfMessages.length > 0)
+			if (hasProgress) {
+				uni.showModal({
+					title: '告别这片林地',
+					content: '将清空信任之光、惊扰记录、事件叙事与全部徽章，从初见微光重新开始。确定吗？',
+					confirmText: '告别',
+					cancelText: '留下',
+					success: (res) => {
+						if (res.confirm) this.doRemoveCollect()
+					}
+				})
+				return
 			}
-			uni.showToast({ title: '已移除记录', icon: 'none' })
+		}
+		// 普通生物：有羁绊进度时同样确认
+		if (this.isBondCreature()) {
+			const exp = Number(this.creature.bondExp || 0)
+			const hasProgress = exp > 0 || (this.bondState.unlockedEvents || []).length > 0
+			if (hasProgress) {
+				uni.showModal({
+					title: '移除羁绊记录',
+					content: '将清空当前羁绊进度与已解锁的里程碑事件，从初识重新开始。确定吗？',
+					confirmText: '移除',
+					cancelText: '保留',
+					success: (res) => {
+						if (res.confirm) this.doRemoveCollect()
+					}
+				})
+				return
+			}
+		}
+		if (this.creature.id === 'jormungandr') {
+				const s = this.jormungandrState
+				const hasProgress = Number(s.observation || 0) > 0 || s.unlockedEvents.length > 0 || s.frozen || (this.jormungandrMessages && this.jormungandrMessages.length > 0)
+				if (hasProgress) {
+					uni.showModal({
+						title: '移除观测记录',
+						content: '将清空全部观测进度、事件记录与档案叙事，从头开始观测。确定吗？',
+						confirmText: '移除',
+						cancelText: '保留',
+						success: (res) => {
+							if (res.confirm) this.doRemoveCollect()
+						}
+					})
+					return
+				}
+			}
+			this.doRemoveCollect()
 		},
+		doRemoveCollect() {
+		let collected = state.get('progress.collectedCreatures', [])
+		collected = collected.filter(id => id !== this.creature.id)
+		state.set('progress.collectedCreatures', collected)
+		this.isCollected = false
+		// 回到种子的解锁状态（种子 collected:false 的生物移除后回到未知视图）
+		this.creature.collected = this.seedCollected === true
+	if (this.creature.id === 'jormungandr') {
+		this.resetJormungandrState()
+	}
+	if (this.creature.interactionType === 'spirit' && this.getSpiritConfig()) {
+		this.resetElfState()
+	}
+	if (this.isBondCreature()) {
+		resetBondState(this.creature.id)
+		this.bondState = { unlockedEvents: [] }
+	}
+		uni.showToast({ title: '已移除记录', icon: 'none' })
+	},
 		resetJormungandrState() {
-			this.jormungandrState = {
-				observation: 0,
-				sanityLoad: 0,
-				hostility: 0,
-				contactStatus: '高危观测中',
-				recentActions: [],
-				frozen: false,
-				unlockedEvents: []
-			}
-			this.jormungandrMessages = []
-			uni.removeStorageSync('jormungandr_high_risk_state')
+		this.jormungandrState = {
+			observation: 0,
+			sanityLoad: 0,
+			hostility: 0,
+			contactStatus: '高危观测中',
+			recentActions: [],
+			frozen: false,
+			unlockedEvents: []
+		}
+		this.jormungandrMessages = []
+		this.stageRipples = []
+		this.jormEventOverlay = null
+		this.whisperVisible = false
+		if (this.typeTimer) clearInterval(this.typeTimer)
+		this.typing = false
+		this.typingText = ''
+		state.remove('bond.jormungandr')
+	},
+	// ===== 精灵"微光结契"：配置驱动的动作列表 =====
+	getSpiritConfig() {
+			return (this.creature && this.creature.spiritConfig) || null
 		},
 		getSpiritActions() {
-			const exp = Number(this.creature.bondExp || 0)
-			const actions = [
-				{ key: 'wait', label: '静候', bond: 5, message: '你没有打扰它们。微光在树影间停留得更久了一些。' },
-				{ key: 'listen', label: '聆听', bond: 6, message: '你听见风穿过枝叶，像某种尚未成形的语言。' },
-				{ key: 'gift', label: '赠礼', bond: 8, message: '你放下一枚洁净的小物，它被光轻轻覆盖。' }
-			]
-			if (exp >= 25) {
-				actions.push({ key: 'resonate', label: '共鸣', bond: 10, message: '你顺着光的节奏放慢呼吸，短暂感到某种温和的回应。' })
+			const config = this.getSpiritConfig()
+			if (!config) {
+				// 无配置的 spirit 生物保持旧行为
+				const exp = Number(this.creature.bondExp || 0)
+				const actions = [
+					{ key: 'wait', label: '静候', bond: 5, message: '你没有打扰它们。微光在树影间停留得更久了一些。' },
+					{ key: 'listen', label: '聆听', bond: 6, message: '你听见风穿过枝叶，像某种尚未成形的语言。' },
+					{ key: 'gift', label: '赠礼', bond: 8, message: '你放下一枚洁净的小物，它被光轻轻覆盖。' }
+				]
+				if (exp >= 25) actions.push({ key: 'resonate', label: '共鸣', bond: 10, message: '你顺着光的节奏放慢呼吸，短暂感到某种温和的回应。' })
+				if (exp >= 50) actions.push({ key: 'guard', label: '守护', bond: 12, message: '你清理了被黑雾侵蚀的树根。微光在你身边停留了很久。' })
+				return actions
 			}
-			if (exp >= 50) {
-				actions.push({ key: 'guard', label: '守护', bond: 12, message: '你清理了被黑雾侵蚀的树根。微光在你身边停留了很久。' })
-			}
-			return actions
+			const trust = Number(this.elfState.trust || 0)
+			return config.actions.filter(action => {
+				// 回避期间只保留静候
+				if (this.elfState.receding) return action.key === 'wait'
+				if (trust < action.unlock) return false
+				if (action.requireQuietStreak && this.elfState.quietStreak < action.requireQuietStreak) return false
+				return true
+			})
 		},
 		getSpiritBondStage() {
 			const exp = Number(this.creature && this.creature.bondExp || 0)
 			if (!this.creature || !this.creature.collected) return '未发现踪迹'
+			const config = this.getSpiritConfig()
+			if (config) {
+				const matched = config.stages.filter(s => exp >= s.min)
+				return matched.length ? matched[matched.length - 1].stage : config.stageInitial.stage
+			}
 			if (exp >= 100) return '亚尔夫之友'
 			if (exp >= 75) return '光之共鸣'
 			if (exp >= 50) return '林间同行'
@@ -769,6 +1297,8 @@ export default {
 		},
 		isCreatureUnknown(creature) {
 			if (!creature) return true
+			// 已收藏（state 记录）即视为已知；否则按种子解锁态判断
+			if (this.isCollected) return false
 			return creature.collected === false || creature.unlocked === false
 		},
 		getClueProfile(creature) {
@@ -836,10 +1366,24 @@ export default {
 			})
 		},
 		getVisibleBadges() {
-			if (!this.creature) return []
-			if (this.isHighRiskCreature(this.creature)) return []
-			const badges = this.creature.badges || []
-			if (!this.isBondMaxed()) {
+		if (!this.creature) return []
+		if (this.isHighRiskCreature(this.creature)) return []
+		const badges = this.creature.badges || []
+		// 微光结契：徽章随互动事件逐个显现（灾厄生物不产出徽章）
+		if (this.creature.interactionType === 'spirit' && this.creature.spiritConfig) {
+			const unlocked = badges.filter(item => item.unlocked)
+			if (unlocked.length) return unlocked
+			return [
+				{
+					id: 'unknown',
+					name: '未知徽章',
+					desc: '继续建立羁绊，徽章将在合适的时刻显现。',
+					unlocked: false,
+					hidden: true
+				}
+			]
+		}
+		if (!this.isBondMaxed()) {
 				return [
 					{
 						id: 'unknown',
@@ -858,6 +1402,15 @@ export default {
 			if (!this.creature.collected) {
 				this.creature.bondStage = '未发现踪迹'
 				this.creature.mood = '疏离'
+				return
+			}
+			const config = this.getSpiritConfig()
+			if (config) {
+				const matched = config.stages.filter(s => exp >= s.min)
+				const target = matched.length ? matched[matched.length - 1] : config.stageInitial
+				this.creature.bondLevel = Math.min(5, matched.length + 1)
+				this.creature.bondStage = target.stage
+				this.creature.mood = this.elfState.receding ? '回避' : target.mood
 				return
 			}
 			if (exp >= 100) {
@@ -893,6 +1446,12 @@ export default {
 				return '你尚未真正见过它们。只有在亚尔夫海姆的薄雾与冷光之间，才可能发现光明精灵的踪迹。'
 			}
 			const exp = Number(this.creature.bondExp || 0)
+			const config = this.getSpiritConfig()
+			if (config) {
+				if (this.elfState.receding) return '微光此刻不在你能看见的地方。继续静候——它们记得每一个安静的访客。'
+				const matched = config.stages.filter(s => exp >= s.min)
+				return (matched.length ? matched[matched.length - 1].desc : config.stageInitial.desc)
+			}
 			if (exp >= 100) {
 				return '光明精灵不会宣誓效忠，也不会许下永恒陪伴。但当你再次走入亚尔夫海姆，微光会为你让出道路。'
 			}
@@ -908,64 +1467,221 @@ export default {
 			return '你在树影间看见一束短暂的冷光。它没有靠近，也没有逃离。'
 		},
 		unlockCreature() {
-			this.creature.collected = true
-			this.creature.bondLevel = 1
-			this.creature.bondExp = 5
-			this.creature.bondMax = 100
-			this.creature.bondStage = '初见微光'
-			this.creature.mood = '警觉'
+		this.creature.collected = true
+		this.creature.bondLevel = 1
+		this.creature.bondExp = 5
+		this.creature.bondMax = 100
+		this.creature.bondStage = '初见微光'
+		this.creature.mood = '警觉'
+		if (this.getSpiritConfig()) {
+			// 微光结契：初始信任与状态持久化
+			this.elfState.trust = 5
+			this.saveElfState()
+		}
 			this.interactionMessage = '你在树影间看见一束短暂的冷光。它没有靠近，也没有逃离。'
 			this.playUnlockAnimation = true
 			this.isCollected = true
-			const collected = uni.getStorageSync('collectedCreatures') || []
+			this.showCelebration({
+				symbol: this.creature.name[0],
+				title: '图鉴收录',
+				subtitle: this.creature.name + ' · ' + this.creature.type
+			})
+			const collected = state.get('progress.collectedCreatures', [])
 			if (!collected.includes(this.creature.id)) {
 				collected.push(this.creature.id)
-				uni.setStorageSync('collectedCreatures', collected)
+				state.set('progress.collectedCreatures', collected)
 			}
 		},
-		handleSpiritInteraction(action) {
+		// ===== 精灵"微光结契"：交互引擎 =====
+	handleSpiritInteraction(action) {
 			if (!action || !this.creature) return
-			const current = Number(this.creature.bondExp || 0)
-			const max = Number(this.creature.bondMax || 100)
-			const next = Math.min(current + action.bond, max)
-			this.creature.bondExp = next
-			if (!this.creature.interactionStats) {
-				this.creature.interactionStats = { listen: 0, gift: 0, wait: 0, resonate: 0, guard: 0 }
+			const config = this.getSpiritConfig()
+			if (!config) {
+				// 无配置的 spirit 生物保持旧行为（纯加羁绊）
+				const current = Number(this.creature.bondExp || 0)
+				const max = Number(this.creature.bondMax || 100)
+				this.creature.bondExp = Math.min(current + (action.bond || action.trust || 5), max)
+				this.updateSpiritMoodAndStage()
+				this.interactionMessage = action.message
+				this.playInteractionAnimation = true
+				return
 			}
-			if (this.creature.interactionStats[action.key] !== undefined) {
-				this.creature.interactionStats[action.key] += 1
+			// 高打扰动作需要确认（镜像耶梦加得"触碰"确认弹窗）
+			if (action.confirm) {
+				uni.showModal({
+					title: action.confirm.title,
+					content: action.confirm.content,
+					confirmText: action.confirm.confirmText,
+					cancelText: action.confirm.cancelText,
+					success: (res) => {
+						if (res.confirm) this.executeElfAction(action)
+						else this.addElfMessage('你选择了沉默。')
+					}
+				})
+				return
 			}
+			this.executeElfAction(action)
+		},
+		executeElfAction(action) {
+			const config = this.getSpiritConfig()
+			const state = this.elfState
+
+			// 计数与连续静候（节奏机制：连做会失去"静候节奏"）
+			if (state.stats[action.key] !== undefined) state.stats[action.key] += 1
+			state.quietStreak = action.key === 'wait' ? state.quietStreak + 1 : 0
+
+			// 赠礼的"好礼"判定：林间安宁时的赠礼才被真正记住
+			const goodGift = action.key === 'gift' && state.disturbance < 50
+			if (goodGift) state.goodGifts += 1
+
+			// 数值应用（trust 即 bondExp，clamp 0-100）
+			let trustDelta = Number(action.trust || 0)
+			if (action.key === 'gift' && !goodGift) trustDelta = Math.ceil(trustDelta / 2)
+			state.trust = Math.max(0, Math.min(100, state.trust + trustDelta))
+			state.disturbance = Math.max(0, Math.min(100, state.disturbance + Number(action.disturb || 0)))
+			if (action.key === 'call') state.callCount += 1
+
+			// 回避期间的静候恢复（可逆修复，镜像冻结的反面）
+			if (state.receding && action.key === 'wait') {
+				state.recedingQuietCount += 1
+				if (state.recedingQuietCount >= config.receding.quietNeed) {
+					state.receding = false
+					state.recedingQuietCount = 0
+					state.returnedOnce = true
+					this.addElfMessage(config.receding.returnMessage)
+					this.tryUnlockElfBadge('elf-watcher')
+				}
+			}
+
+			// 同步羁绊显示
+			this.creature.bondExp = state.trust
+			this.creature.interactionStats = state.stats
 			this.updateSpiritMoodAndStage()
-			this.interactionMessage = action.message
+
+			// 反馈消息
+			const message = (action.key === 'gift' && !goodGift && action.messageDisturbed)
+				? action.messageDisturbed
+				: action.message
+			this.addElfMessage(message)
+			this.interactionMessage = message
 			this.playInteractionAnimation = true
-			if (next >= max) {
-				this.unlockSpiritBadge()
+
+			this.checkElfEvents()
+			this.tryUnlockElfBadges()
+			this.saveElfState()
+		},
+		checkElfEvents() {
+			const config = this.getSpiritConfig()
+			const state = this.elfState
+			if (state.receding) return
+
+			// 事件：铁器的噪声（回避，可逆——善良生物没有冻结结局）
+			// 呼唤计数在进入回避时重置：回归后需重新积累两次呼唤才会再次触发
+			if (state.disturbance >= 80 || state.callCount >= 2) {
+				state.receding = true
+				state.recedingQuietCount = 0
+				state.quietStreak = 0
+				state.callCount = 0
+				state.trust = Math.max(0, state.trust - config.receding.trustPenalty)
+				this.creature.bondExp = state.trust
+				if (!state.unlockedEvents.includes('ironNoise')) {
+					state.unlockedEvents.push('ironNoise')
+				}
+				this.addElfMessage(config.receding.enterMessage)
+				this.updateSpiritMoodAndStage()
+				return
+			}
+
+			// 事件：林间的回赠（正向——耶梦加得体系没有的"双向时刻"）
+			if (
+				!state.unlockedEvents.includes('returnGift') &&
+				state.trust >= 50 &&
+				state.goodGifts >= config.badgeRules.goodGift
+			) {
+				state.unlockedEvents.push('returnGift')
+				this.addElfMessage('一片带着微光的叶子落在你手边。')
+				this.showCelebration({ symbol: '✦', title: '林间的回赠', subtitle: '它第一次主动走向你' })
+				this.tryUnlockElfBadge('elf-giver')
+			}
+
+			// 一次性温和提示（镜像"你应该离开。"）
+			if (state.disturbance >= 60 && !state.unlockedEvents.includes('gaze')) {
+				state.unlockedEvents.push('gaze')
+				this.addElfMessage(config.events.gaze.message)
 			}
 		},
-		unlockSpiritBadge() {
-			if (this.unlockedBadge) return
-			const stats = this.creature.interactionStats || {}
-			const keys = Object.keys(stats)
-			if (!keys.length) return
-			let topKey = keys[0]
-			keys.forEach(key => {
-				if (Number(stats[key] || 0) > Number(stats[topKey] || 0)) {
-					topKey = key
-				}
-			})
-			const total = keys.reduce((sum, key) => sum + Number(stats[key] || 0), 0)
-			const topCount = Number(stats[topKey] || 0)
-			let badgeType = topKey
-			if (total > 0 && topCount / total < 0.35) {
-				badgeType = 'balanced'
+		getElfEventCards() {
+			const config = this.getSpiritConfig()
+			if (!config) return []
+			return this.elfState.unlockedEvents
+				.filter(id => id !== 'gaze')
+				.map(id => ({ id, ...(config.events[id] || {}) }))
+		},
+		// ===== 徽章：羁绊的证明（仅善良生物产出；灾厄生物零徽章）=====
+		tryUnlockElfBadges() {
+			const rules = this.getSpiritConfig().badgeRules
+			const stats = this.elfState.stats
+			if (stats.listen >= rules.listen) this.tryUnlockElfBadge('elf-listener')
+			if (stats.resonate >= rules.resonate) this.tryUnlockElfBadge('elf-resonance')
+			if (stats.guard >= rules.guard) this.tryUnlockElfBadge('elf-warden')
+			if (this.elfState.trust >= rules.friendTrust) this.tryUnlockElfBadge('elf-friend')
+		},
+		tryUnlockElfBadge(badgeId) {
+			const badges = (this.creature && this.creature.badges) || []
+			const target = badges.find(item => item.id === badgeId)
+			if (!target || target.unlocked) return
+			target.unlocked = true
+			this.unlockedBadge = target
+			this.addElfMessage('获得徽章：' + target.name)
+			this.playBadgeAnimation = true
+			this.saveElfState()
+		},
+		addElfMessage(text) {
+			this.elfMessages.unshift({ text, time: Date.now() })
+			if (this.elfMessages.length > 6) this.elfMessages.pop()
+		},
+		saveElfState() {
+		const config = this.getSpiritConfig()
+		if (!config) return
+		const badges = {}
+		;((this.creature && this.creature.badges) || []).forEach(b => { badges[b.id] = !!b.unlocked })
+		state.set('bond.elfSpirit', { ...this.elfState, badges })
+	},
+	loadElfState() {
+		const config = this.getSpiritConfig()
+		if (!config) return
+		const defaults = {
+			trust: 0, disturbance: 0, quietStreak: 0, receding: false, recedingQuietCount: 0,
+			callCount: 0, goodGifts: 0, returnedOnce: false, unlockedEvents: [],
+			stats: { listen: 0, gift: 0, wait: 0, resonate: 0, guard: 0, call: 0 }
+		}
+		const saved = state.get('bond.elfSpirit')
+			this.elfState = {
+				...defaults,
+				...saved,
+				stats: { ...defaults.stats, ...((saved && saved.stats) || {}) }
 			}
-			const badges = this.creature.badges || []
-			const target = badges.find(item => item.type === badgeType)
-			if (target) {
-				target.unlocked = true
-				this.unlockedBadge = target
-				this.interactionMessage = `获得徽章：${target.name}`
-				this.playBadgeAnimation = true
+			if (saved && saved.badges && this.creature && this.creature.badges) {
+				this.creature.badges.forEach(b => { if (saved.badges[b.id]) b.unlocked = true })
+			}
+			// trust 同步羁绊显示（修复旧版刷新即丢进度的问题）
+			if (this.isCollected) {
+				this.creature.bondExp = Math.max(Number(this.creature.bondExp || 0), this.elfState.trust)
+				this.creature.interactionStats = this.elfState.stats
+				this.updateSpiritMoodAndStage()
+			}
+		},
+		resetElfState() {
+		const config = this.getSpiritConfig()
+		if (config) state.remove('bond.elfSpirit')
+			this.elfState = {
+				trust: 0, disturbance: 0, quietStreak: 0, receding: false, recedingQuietCount: 0,
+				callCount: 0, goodGifts: 0, returnedOnce: false, unlockedEvents: [],
+				stats: { listen: 0, gift: 0, wait: 0, resonate: 0, guard: 0, call: 0 }
+			}
+			this.elfMessages = []
+			if (this.creature && this.creature.badges) {
+				this.creature.badges.forEach(b => { b.unlocked = false })
 			}
 		},
 		unlockJormungandr() {
@@ -978,10 +1694,15 @@ export default {
 			this.interactionMessage = '你看见远海上有一道不合常理的弧线。它不像浪，也不像岛。它在缓慢移动。'
 			this.playUnlockAnimation = true
 			this.isCollected = true
-			const collected = uni.getStorageSync('collectedCreatures') || []
+			this.showCelebration({
+				symbol: this.creature.name[0],
+				title: '图鉴收录',
+				subtitle: this.creature.name + ' · 高危观测开始'
+			})
+			const collected = state.get('progress.collectedCreatures', [])
 			if (!collected.includes(this.creature.id)) {
 				collected.push(this.creature.id)
-				uni.setStorageSync('collectedCreatures', collected)
+				state.set('progress.collectedCreatures', collected)
 			}
 		},
 		getAbyssStage() {
@@ -1114,11 +1835,11 @@ export default {
 			const worshipCount = Number(stats.worship || 0)
 			const retreatCount = Number(stats.retreat || 0)
 			let badgeType = 'complete'
-			if (touchCount >= Math.max(distantViewCount, tideListenCount, observeCount, worshipCount, retreatCount)) {
+			if (touchCount >= Math.max(distantViewCount, tideListenCount, recordCount, worshipCount, retreatCount)) {
 				badgeType = 'risk'
-			} else if (distantViewCount + tideListenCount + observeCount >= worshipCount + retreatCount) {
+			} else if (distantViewCount + tideListenCount + recordCount >= worshipCount + retreatCount) {
 				badgeType = 'cautious'
-			} else if (worshipCount + retreatCount > distantViewCount + tideListenCount + observeCount) {
+			} else if (worshipCount + retreatCount > distantViewCount + tideListenCount + recordCount) {
 				badgeType = 'reverent'
 			}
 			this.unlockAbyssBadgeByType(badgeType)
@@ -1134,6 +1855,11 @@ export default {
 			this.unlockedBadge = target
 			this.interactionMessage = `获得徽章：${target.name}`
 			this.playBadgeAnimation = true
+			this.showCelebration({
+				symbol: '✦',
+				title: '徽章解锁',
+				subtitle: target.name
+			})
 		},
 		isAbyssMissing() {
 			return this.creature && (this.creature.missing || this.creature.abyssFrozen)
@@ -1165,41 +1891,45 @@ export default {
 			}
 			return badges.filter(item => item.unlocked)
 		},
-		goBack() {
-			const pages = getCurrentPages()
-			if (pages.length <= 1) {
-				uni.switchTab({
-					url: '/pages/index/index'
-				})
-			} else {
-				uni.navigateBack()
-			}
-		},
 		loadJormungandrState() {
-			const saved = uni.getStorageSync('jormungandr_high_risk_state')
-			if (saved) {
-				this.jormungandrState = {
-					observation: 0,
-					sanityLoad: 0,
-					hostility: 0,
-					contactStatus: '高危观测中',
-					recentActions: [],
-					frozen: false,
-					unlockedEvents: [],
-					...saved
-				}
+		const saved = state.get('bond.jormungandr')
+		if (saved) {
+			this.jormungandrState = {
+				observation: 0,
+				sanityLoad: 0,
+				hostility: 0,
+				contactStatus: '高危观测中',
+				recentActions: [],
+				frozen: false,
+				unlockedEvents: [],
+				...saved
 			}
-		},
-		saveJormungandrState() {
-			uni.setStorageSync('jormungandr_high_risk_state', this.jormungandrState)
-		},
+			// 恢复事件日志（保留最近 3 条）
+			if (Array.isArray(saved.messages)) {
+				this.jormungandrMessages = saved.messages.slice(-3)
+			}
+		}
+	},
+	saveJormungandrState() {
+		// 消息日志一并持久化，重进页面不丢叙事
+		state.set('bond.jormungandr', {
+			...this.jormungandrState,
+			messages: this.jormungandrMessages
+		})
+	},
 		handleJormungandrAction(action) {
-			if (this.jormungandrState.frozen) {
-				this.addJormungandrMessage('该档案已进入失踪状态。后续互动已冻结。')
-				return
-			}
+		if (this.jormungandrState.frozen) {
+			this.addJormungandrMessage('该档案已进入失踪状态。后续互动已冻结。')
+			return
+		}
 
-			if (action.key === 'touch') {
+		// 门禁：观测深度不足时给叙事提示（而非隐藏按钮）
+		if (action.unlock && Number(this.jormungandrState.observation || 0) < action.unlock) {
+			this.addJormungandrMessage('观测深度不足，你还不认识眼前的海。')
+			return
+		}
+
+		if (action.key === 'touch') {
 				uni.showModal({
 					title: '确认',
 					content: '你确定要靠近海面吗？有些边界一旦越过，就不再由你决定返回。',
@@ -1210,6 +1940,7 @@ export default {
 							this.executeJormungandrAction('touch')
 						} else {
 							this.addJormungandrMessage('你选择了后退。')
+							this.saveJormungandrState()
 						}
 					}
 				})
@@ -1219,55 +1950,72 @@ export default {
 			this.executeJormungandrAction(action.key)
 		},
 		executeJormungandrAction(actionKey) {
-			const state = this.jormungandrState
+		const state = this.jormungandrState
+		const prevSanity = Number(state.sanityLoad || 0)
 
-			state.recentActions.push(actionKey)
-			if (state.recentActions.length > 6) {
-				state.recentActions.shift()
+		state.recentActions.push(actionKey)
+		if (state.recentActions.length > 6) {
+			state.recentActions.shift()
+		}
+
+		const pool = JORM_MSG_POOL[actionKey] || []
+		const message = pool[Math.floor(Math.random() * pool.length)] || '……'
+
+		switch (actionKey) {
+			case 'distantView':
+				state.observation += 1
+				break
+			case 'tideListen':
+				state.observation += 1
+				state.sanityLoad += 1
+				break
+			case 'observe':
+				state.observation += 2
+				state.sanityLoad += 2
+				break
+			case 'worship':
+				state.observation += 1
+				state.sanityLoad += 2
+				state.hostility += 3
+				break
+			case 'retreat':
+				state.sanityLoad = Math.max(0, state.sanityLoad - 2)
+				state.hostility = Math.max(0, state.hostility - 1)
+				break
+			case 'touch':
+				state.observation += 3
+				state.sanityLoad += 4
+				state.hostility += 2
+				break
+		}
+		this.addJormungandrMessage(message, JORM_RISK[actionKey] === 'extreme' || JORM_RISK[actionKey] === 'high')
+
+		// 概念 C：差异化反馈——高危按钮震动 + 舞台涟漪（高危红 / 安全蓝绿）
+		const risk = JORM_RISK[actionKey]
+		if (risk === 'high' || risk === 'extreme') {
+			this.shakeKey = actionKey
+			setTimeout(() => { this.shakeKey = '' }, 500)
+		}
+		this.spawnStageRipple(risk === 'safe' ? 'calm' : 'deep')
+
+		this.playAbyssAnimation = true
+		this.abyssAnimKey = actionKey
+		setTimeout(() => {
+			this.playAbyssAnimation = false
+			this.abyssAnimKey = ''
+		}, 500)
+
+		// 概念 D：心智阈值跨越提示
+		const nextSanity = Number(state.sanityLoad || 0)
+		;[4, 7, 10].forEach(th => {
+			if (prevSanity < th && nextSanity >= th) {
+				this.addJormungandrMessage(JORM_THRESHOLD_HINTS[th], false, true)
 			}
+		})
 
-			switch (actionKey) {
-				case 'distantView':
-					state.observation += 1
-					this.addJormungandrMessage('你站在安全距离外观察。')
-					break
-				case 'tideListen':
-					state.observation += 1
-					state.sanityLoad += 1
-					this.addJormungandrMessage('潮声中似乎夹杂着某种节律。')
-					break
-				case 'observe':
-					state.observation += 2
-					state.sanityLoad += 2
-					this.addJormungandrMessage('你的笔记越来越密。')
-					break
-				case 'worship':
-					state.observation += 1
-					state.sanityLoad += 2
-					state.hostility += 3
-					this.addJormungandrMessage('远处，有人在看你。')
-					break
-				case 'retreat':
-					state.sanityLoad = Math.max(0, state.sanityLoad - 2)
-					state.hostility = Math.max(0, state.hostility - 1)
-					this.addJormungandrMessage('你选择后退，危险有所降低。')
-					break
-				case 'touch':
-					state.observation += 3
-					state.sanityLoad += 4
-					state.hostility += 2
-					this.addJormungandrMessage('你越过了安全距离。海面忽然安静得可怕。')
-					break
-			}
-
-			this.playAbyssAnimation = true
-			setTimeout(() => {
-				this.playAbyssAnimation = false
-			}, 500)
-
-			this.checkJormungandrEvents()
-			this.saveJormungandrState()
-		},
+		this.checkJormungandrEvents()
+		this.saveJormungandrState()
+	},
 		checkJormungandrEvents() {
 			const state = this.jormungandrState
 			if (state.frozen) return
@@ -1278,36 +2026,80 @@ export default {
 			const observeCount = recent6Actions.filter(a => a === 'observe').length
 
 			if (!state.unlockedEvents.includes('tide-record') && observeCount >= 4 && state.sanityLoad >= 9) {
-				state.unlockedEvents.push('tide-record')
-				state.contactStatus = '失踪'
-				state.frozen = true
-				this.addJormungandrMessage('你的记录越来越密。潮汐、梦境、鱼群死亡的方向、夜里传来的低鸣……每一项都被你写进档案。起初，你还能分辨哪些是观察，哪些是幻觉。后来，纸上的线条开始像鳞片，海图上的弧线开始像一段身体。某天清晨，你没有再回到家人与同伴身边。人们只在海岸边找到被盐水浸透的笔记。')
-				return
-			}
+			state.unlockedEvents.push('tide-record')
+			state.contactStatus = '失踪'
+			state.frozen = true
+			this.addJormungandrMessage('你的记录越来越密。潮汐、梦境、鱼群死亡的方向、夜里传来的低鸣……每一项都被你写进档案。起初，你还能分辨哪些是观察，哪些是幻觉。后来，纸上的线条开始像鳞片，海图上的弧线开始像一段身体。某天清晨，你没有再回到家人与同伴身边。人们只在海岸边找到被盐水浸透的笔记。')
+			// 概念 F：失踪结局全屏揭晓
+			this.showJormEventOverlay('tide-record')
+			return
+		}
 
-			if (!state.unlockedEvents.includes('whisperer') && (worshipCount >= 3 || state.hostility >= 8)) {
-				state.unlockedEvents.push('whisperer')
-				state.hostility += 2
-				state.contactStatus = '被居民敌视'
-				this.addJormungandrMessage('你开始频繁地向海献上牲畜、盐与黑色绳结。起初只是几只羊，后来连村里的人也注意到了异常。他们看见你在潮水边跪下，口中喃喃念着听不懂的词。有人说你在祈求保护，也有人说你在喂养某个不该被喂养的东西。从那天起，居民不再愿意靠近你。')
-			}
+		if (!state.unlockedEvents.includes('whisperer') && (worshipCount >= 3 || state.hostility >= 8)) {
+			state.unlockedEvents.push('whisperer')
+			state.hostility += 2
+			state.contactStatus = '被居民敌视'
+			this.addJormungandrMessage('你开始频繁地向海献上牲畜、盐与黑色绳结。起初只是几只羊，后来连村里的人也注意到了异常。他们看见你在潮水边跪下，口中喃喃念着听不懂的词。有人说你在祈求保护，也有人说你在喂养某个不该被喂养的东西。从那天起，居民不再愿意靠近你。')
+			// 概念 F：低语者事件全屏揭晓
+			this.showJormEventOverlay('whisperer')
+		}
 
-			if (state.sanityLoad >= 7 && state.sanityLoad < 10 && !state.unlockedEvents.includes('warning')) {
-				state.unlockedEvents.push('warning')
-				this.addJormungandrMessage('你应该离开。')
+		if (state.sanityLoad >= 7 && state.sanityLoad < 10 && !state.unlockedEvents.includes('warning')) {
+			state.unlockedEvents.push('warning')
+			this.addJormungandrMessage('你应该离开。')
+			// 概念 E：全屏低语警告
+			this.showJormWhisper()
+		}
+	},
+	// ===== 概念 E：全屏低语 =====
+	showJormWhisper() {
+		this.whisperVisible = true
+		if (this.whisperTimer) clearTimeout(this.whisperTimer)
+		this.whisperTimer = setTimeout(() => { this.whisperVisible = false }, 3200)
+	},
+	// ===== 概念 F：事件揭晓层 =====
+	showJormEventOverlay(eventId) {
+		const info = this.getJormungandrEventInfo(eventId)
+		if (!info) return
+		this.jormEventOverlay = {
+			name: info.name,
+			description: info.description,
+			tone: eventId === 'tide-record' ? 'missing' : 'hostile'
+		}
+	},
+	spawnStageRipple(tone) {
+		const id = Date.now() + Math.random()
+		this.stageRipples.push({ id, tone })
+		if (this.stageRipples.length > 3) this.stageRipples.shift()
+		setTimeout(() => {
+			this.stageRipples = this.stageRipples.filter(r => r.id !== id)
+		}, 1400)
+	},
+		addJormungandrMessage(message, danger, threshold) {
+		// 最新在前（配合打字机：只对第一条逐字呈现）
+		this.jormungandrMessages.unshift({
+			id: Date.now() + Math.random(),
+			text: message,
+			time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+			danger: !!danger || message === '你应该离开。',
+			threshold: !!threshold
+		})
+		if (this.jormungandrMessages.length > 6) {
+			this.jormungandrMessages.pop()
+		}
+		// 概念 D：打字机
+		if (this.typeTimer) clearInterval(this.typeTimer)
+		this.typing = true
+		this.typingText = ''
+		let i = 0
+		this.typeTimer = setInterval(() => {
+			this.typingText = message.slice(0, ++i)
+			if (i >= message.length) {
+				clearInterval(this.typeTimer)
+				this.typing = false
 			}
-		},
-		addJormungandrMessage(message) {
-			this.jormungandrMessages.push({
-				id: Date.now(),
-				text: message,
-				time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-				danger: message === '你应该离开。'
-			})
-			if (this.jormungandrMessages.length > 3) {
-				this.jormungandrMessages.shift()
-			}
-		},
+		}, 24)
+	},
 		getJormungandrEventInfo(eventId) {
 			const events = {
 				'whisperer': {
@@ -1332,38 +2124,10 @@ export default {
 <style scoped>
 .container {
 	min-height: 100vh;
-	background: #0B1118;
+	background: var(--bg-outer);
 	padding: 24rpx;
-	padding-top: 100rpx;
 	padding-bottom: 160rpx;
 	box-sizing: border-box;
-}
-
-.back-btn-wrap {
-	position: fixed;
-	top: 40rpx;
-	left: 24rpx;
-	z-index: 100;
-}
-
-.back-btn {
-	width: 72rpx;
-	height: 72rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background: rgba(11, 17, 24, 0.85);
-	border: 1px solid #27384A;
-	border-radius: 50%;
-	color: #C6A15B;
-	font-size: 48rpx;
-	font-weight: 300;
-	transition: transform 0.15s ease, border-color 0.15s ease;
-}
-
-.back-btn:active {
-	transform: scale(0.9);
-	border-color: #C6A15B;
 }
 
 .container-inner {
@@ -1383,8 +2147,8 @@ export default {
 	flex-direction: column;
 	align-items: center;
 	padding: 40rpx 0;
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 20rpx;
 	margin-bottom: 32rpx;
 }
@@ -1410,7 +2174,7 @@ export default {
 }
 
 .revealed-name {
-	color: #C6A15B;
+	color: var(--accent);
 }
 
 .ravens-clue-detail {
@@ -1418,8 +2182,8 @@ export default {
 }
 
 .clue-card {
-	background: rgba(11,17,24,0.58);
-	border: 1rpx solid rgba(39,56,74,0.72);
+	background: rgba(var(--bg-inset-rgb),0.58);
+	border: 1rpx solid rgba(var(--border-rgb),0.72);
 	border-radius: 16rpx;
 	padding: 18rpx;
 	margin-top: 14rpx;
@@ -1432,7 +2196,7 @@ export default {
 
 .clue-title {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 26rpx;
 	font-weight: 700;
 }
@@ -1440,13 +2204,13 @@ export default {
 .clue-text {
 	display: block;
 	margin-top: 8rpx;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 22rpx;
 	line-height: 1.5;
 }
 
 .clue-text.locked {
-	color: #66727F;
+	color: var(--text-muted);
 	font-style: italic;
 }
 
@@ -1461,7 +2225,7 @@ export default {
 }
 
 .reset-clue-text {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 22rpx;
 }
 
@@ -1470,8 +2234,8 @@ export default {
 }
 
 .creature-icon.unknown {
-	background: rgba(102, 114, 127, 0.2);
-	border: 1rpx dashed #27384A;
+	background: rgba(var(--muted-rgb), 0.2);
+	border: 1rpx dashed var(--border-soft);
 }
 
 .unknown-actions {
@@ -1484,18 +2248,18 @@ export default {
 .secondary-button {
 	flex: 1;
 	padding: 24rpx;
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 12rpx;
 	text-align: center;
 }
 
 .secondary-button:active {
-	background: rgba(39, 56, 74, 0.5);
+	background: rgba(var(--border-rgb), 0.5);
 }
 
 .secondary-btn-text {
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 28rpx;
 }
 
@@ -1503,19 +2267,19 @@ export default {
 	flex: 1;
 	padding: 24rpx;
 	background: transparent;
-	border: 1rpx solid #27384A;
+	border: 1rpx solid var(--border-soft);
 	border-radius: 12rpx;
 	text-align: center;
 }
 
 .ghost-btn-text {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 28rpx;
 }
 
 .clue-desc {
 	display: block;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 26rpx;
 	line-height: 1.7;
 	margin-bottom: 24rpx;
@@ -1530,7 +2294,7 @@ export default {
 	justify-content: space-between;
 	align-items: flex-start;
 	padding: 16rpx 0;
-	border-bottom: 1rpx solid rgba(39, 56, 74, 0.5);
+	border-bottom: 1rpx solid rgba(var(--border-rgb), 0.5);
 }
 
 .clue-row:last-child {
@@ -1538,7 +2302,7 @@ export default {
 }
 
 .clue-label {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 24rpx;
 	flex-shrink: 0;
 }
@@ -1566,7 +2330,7 @@ export default {
 }
 
 .hint-text {
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 26rpx;
 }
 
@@ -1575,8 +2339,8 @@ export default {
 	flex-direction: column;
 	align-items: center;
 	padding: 40rpx 0;
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 20rpx;
 	margin-bottom: 32rpx;
 }
@@ -1597,24 +2361,24 @@ export default {
 }
 
 .creature-icon.high {
-	background: linear-gradient(135deg, #C6A15B 0%, #7A6030 100%);
+	background: linear-gradient(135deg, var(--accent) 0%, #7A6030 100%);
 }
 
 .creature-icon text {
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 64rpx;
 	font-weight: 700;
 }
 
 .name {
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 48rpx;
 	font-weight: 700;
 	margin-bottom: 8rpx;
 }
 
 .original-name {
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 32rpx;
 	margin-bottom: 16rpx;
 }
@@ -1625,10 +2389,10 @@ export default {
 }
 
 .type-tag {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 24rpx;
 	padding: 6rpx 16rpx;
-	background: #111A24;
+	background: var(--bg-elevated);
 	border-radius: 8rpx;
 }
 
@@ -1644,8 +2408,8 @@ export default {
 }
 
 .danger-tag.high {
-	background: rgba(198, 161, 91, 0.2);
-	color: #C6A15B;
+	background: rgba(var(--accent-rgb), 0.2);
+	color: var(--accent);
 }
 
 .danger-tag.medium {
@@ -1664,15 +2428,15 @@ export default {
 
 .section-title {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 32rpx;
 	font-weight: 600;
 	margin-bottom: 16rpx;
 }
 
 .bond-card {
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 18rpx;
 	padding: 24rpx;
 }
@@ -1685,13 +2449,13 @@ export default {
 }
 
 .bond-level {
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 28rpx;
 	font-weight: 700;
 }
 
 .bond-title {
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 26rpx;
 }
 
@@ -1701,7 +2465,7 @@ export default {
 
 .bond-track {
 	height: 8rpx;
-	background: #27384A;
+	background: var(--border-soft);
 	border-radius: 4rpx;
 	overflow: hidden;
 	margin-bottom: 8rpx;
@@ -1709,12 +2473,12 @@ export default {
 
 .bond-fill {
 	height: 100%;
-	background: linear-gradient(90deg, #C6A15B, #D8C27A);
+	background: linear-gradient(90deg, var(--accent), var(--accent-strong));
 	border-radius: 4rpx;
 }
 
 .bond-exp {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 22rpx;
 }
 
@@ -1725,7 +2489,7 @@ export default {
 }
 
 .bond-mood-label {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 24rpx;
 }
 
@@ -1738,7 +2502,7 @@ export default {
 
 .bond-desc {
 	display: block;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 24rpx;
 	line-height: 1.6;
 	margin-top: 12rpx;
@@ -1757,8 +2521,8 @@ export default {
 .interaction-button {
 	flex: 1;
 	padding: 20rpx 0;
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 12rpx;
 	text-align: center;
 	transition: all 0.2s ease;
@@ -1769,16 +2533,16 @@ export default {
 }
 
 .interaction-button.beast {
-	border-color: #27384A;
+	border-color: var(--border-soft);
 }
 
 .interaction-button.beast:active {
-	border-color: #C6A15B;
-	background: rgba(198, 161, 91, 0.1);
+	border-color: var(--accent);
+	background: rgba(var(--accent-rgb), 0.1);
 }
 
 .interaction-button.person {
-	border-color: #27384A;
+	border-color: var(--border-soft);
 }
 
 .interaction-button.person:active {
@@ -1787,12 +2551,12 @@ export default {
 }
 
 .interaction-button.divine {
-	border-color: rgba(198, 161, 91, 0.3);
+	border-color: rgba(var(--accent-rgb), 0.3);
 }
 
 .interaction-button.divine:active {
-	border-color: #C6A15B;
-	background: rgba(198, 161, 91, 0.15);
+	border-color: var(--accent);
+	background: rgba(var(--accent-rgb), 0.15);
 }
 
 .interaction-button.craftsman {
@@ -1811,6 +2575,171 @@ export default {
 .interaction-button.spirit:active {
 	border-color: #8FB6D9;
 	background: rgba(143, 182, 217, 0.1);
+}
+
+/* ===== 精灵"微光结契"互动区（金/绿基调，与高危红系区分） ===== */
+.elf-section .interaction-button.spirit {
+	position: relative;
+}
+
+.interaction-button.spirit.elf-tone-safe {
+	border-color: rgba(124, 140, 116, 0.5);
+}
+
+.interaction-button.spirit.elf-tone-safe:active {
+	border-color: #7C8C74;
+	background: rgba(124, 140, 116, 0.12);
+}
+
+.interaction-button.spirit.elf-tone-gold {
+	border-color: rgba(var(--accent-strong-rgb), 0.5);
+}
+
+.interaction-button.spirit.elf-tone-gold:active {
+	border-color: var(--accent-strong);
+	background: rgba(var(--accent-strong-rgb), 0.12);
+}
+
+.interaction-button.spirit.elf-tone-extreme {
+	border-color: rgba(185, 74, 72, 0.55);
+}
+
+.interaction-button.spirit.elf-tone-extreme:active {
+	border-color: #B94A48;
+	background: rgba(185, 74, 72, 0.12);
+}
+
+.elf-action-hint {
+	display: block;
+	margin-top: 6rpx;
+	font-size: 18rpx;
+	color: #7C8C74;
+	line-height: 1.4;
+}
+
+.elf-meter-row {
+	display: flex;
+	flex-direction: column;
+	gap: 18rpx;
+	margin-bottom: 24rpx;
+}
+
+.elf-meter {
+	display: flex;
+	align-items: center;
+	gap: 16rpx;
+}
+
+.elf-meter-label {
+	width: 132rpx;
+	flex-shrink: 0;
+	font-size: 24rpx;
+	color: var(--text-secondary);
+	letter-spacing: 2rpx;
+}
+
+.elf-meter-track {
+	flex: 1;
+	height: 10rpx;
+	border-radius: 6rpx;
+	background: var(--bg-inset);
+	border: 1rpx solid var(--border-soft);
+	overflow: hidden;
+}
+
+.elf-meter-track.warn {
+	border-color: rgba(185, 74, 72, 0.4);
+}
+
+.elf-meter-fill {
+	height: 100%;
+	border-radius: 6rpx;
+	transition: width 0.35s ease;
+}
+
+.elf-meter-fill.trust {
+	background: linear-gradient(90deg, #8A6F45, var(--accent-strong));
+}
+
+.elf-meter-fill.quiet {
+	background: linear-gradient(90deg, #4A5C4A, #7C8C74);
+}
+
+.elf-meter-value {
+	width: 110rpx;
+	flex-shrink: 0;
+	font-size: 22rpx;
+	color: var(--text-muted);
+	text-align: right;
+}
+
+.elf-receding-card {
+	background: rgba(var(--elevated-rgb), 0.9);
+	border: 1rpx solid rgba(143, 182, 217, 0.35);
+	border-radius: 16rpx;
+	padding: 24rpx 28rpx;
+	margin-bottom: 20rpx;
+}
+
+.elf-receding-title {
+	display: block;
+	font-size: 28rpx;
+	font-weight: 600;
+	color: #8FB6D9;
+	letter-spacing: 4rpx;
+	margin-bottom: 10rpx;
+}
+
+.elf-receding-desc {
+	display: block;
+	font-size: 24rpx;
+	color: var(--text-secondary);
+	line-height: 1.7;
+}
+
+.elf-final-card {
+	background: rgba(var(--accent-strong-rgb), 0.08);
+	border: 1rpx solid rgba(var(--accent-strong-rgb), 0.4);
+	border-radius: 16rpx;
+	padding: 28rpx;
+	margin-bottom: 20rpx;
+	text-align: center;
+}
+
+.elf-final-title {
+	display: block;
+	font-size: 32rpx;
+	font-weight: 700;
+	color: var(--accent-strong);
+	letter-spacing: 6rpx;
+	margin-bottom: 12rpx;
+}
+
+.elf-final-desc {
+	display: block;
+	font-size: 24rpx;
+	color: #C8D0D8;
+	line-height: 1.7;
+}
+
+.elf-message-list {
+	margin-top: 20rpx;
+	display: flex;
+	flex-direction: column;
+	gap: 12rpx;
+}
+
+.elf-message {
+	background: rgba(var(--elevated-rgb), 0.75);
+	border: 1rpx solid rgba(124, 140, 116, 0.28);
+	border-radius: 12rpx;
+	padding: 16rpx 20rpx;
+}
+
+.elf-message-text {
+	font-size: 24rpx;
+	color: #C8D0D8;
+	line-height: 1.6;
 }
 
 .abyss-layer {
@@ -1857,21 +2786,21 @@ export default {
 }
 
 .interaction-button.abyss.worship {
-	border-color: rgba(198, 161, 91, 0.5);
+	border-color: rgba(var(--accent-rgb), 0.5);
 }
 
 .interaction-button.abyss.worship:active {
-	border-color: rgba(198, 161, 91, 0.8);
-	background: rgba(198, 161, 91, 0.1);
+	border-color: rgba(var(--accent-rgb), 0.8);
+	background: rgba(var(--accent-rgb), 0.1);
 }
 
 .interaction-button.abyss.retreat {
-	border-color: rgba(102, 114, 127, 0.5);
+	border-color: rgba(var(--muted-rgb), 0.5);
 }
 
 .interaction-button.abyss.retreat:active {
-	border-color: rgba(102, 114, 127, 0.8);
-	background: rgba(102, 114, 127, 0.1);
+	border-color: rgba(var(--muted-rgb), 0.8);
+	background: rgba(var(--muted-rgb), 0.1);
 }
 
 .interaction-button.abyss.touch {
@@ -1892,7 +2821,7 @@ export default {
 
 .frozen-card {
 	background: #0E1721;
-	border: 1rpx dashed #27384A;
+	border: 1rpx dashed var(--border-soft);
 	border-radius: 18rpx;
 	padding: 32rpx;
 	text-align: center;
@@ -1903,18 +2832,18 @@ export default {
 }
 
 .frozen-text {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 28rpx;
 	line-height: 1.6;
 }
 
 .frozen-hint {
 	display: block;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 24rpx;
 	margin-bottom: 20rpx;
 	padding: 12rpx;
-	background: rgba(39, 56, 74, 0.3);
+	background: rgba(var(--border-rgb), 0.3);
 	border-radius: 8rpx;
 }
 
@@ -1927,13 +2856,13 @@ export default {
 
 .frozen-btn {
 	padding: 16rpx 32rpx;
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 10rpx;
 }
 
 .frozen-btn:active {
-	background: rgba(39, 56, 74, 0.5);
+	background: rgba(var(--border-rgb), 0.5);
 }
 
 .frozen-btn.tide {
@@ -1941,7 +2870,7 @@ export default {
 }
 
 .frozen-btn-text {
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 26rpx;
 }
 
@@ -1951,7 +2880,7 @@ export default {
 
 .abyss-card {
 	background: #0E1721;
-	border: 1rpx solid #27384A;
+	border: 1rpx solid var(--border-soft);
 	border-radius: 18rpx;
 	padding: 28rpx;
 	position: relative;
@@ -1998,7 +2927,7 @@ export default {
 }
 
 .abyss-stage {
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 32rpx;
 	font-weight: 700;
 }
@@ -2022,14 +2951,14 @@ export default {
 
 .abyss-progress-label {
 	display: block;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 22rpx;
 	margin-bottom: 6rpx;
 }
 
 .abyss-track {
 	height: 8rpx;
-	background: rgba(39, 56, 74, 0.8);
+	background: rgba(var(--border-rgb), 0.8);
 	border-radius: 4rpx;
 	overflow: hidden;
 	margin-bottom: 4rpx;
@@ -2045,17 +2974,22 @@ export default {
 }
 
 .abyss-fill.risk {
-	background: linear-gradient(90deg, #C6A15B, #B94A48);
+	background: linear-gradient(90deg, var(--accent), #B94A48);
+}
+
+/* 居民敌视：暗金，与心智负荷的红色区分 */
+.abyss-fill.hostility {
+	background: linear-gradient(90deg, #8B7030, var(--accent));
 }
 
 .abyss-progress-value {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 20rpx;
 }
 
 .abyss-desc {
 	display: block;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 24rpx;
 	line-height: 1.6;
 }
@@ -2079,7 +3013,7 @@ export default {
 }
 
 .interaction-label {
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 28rpx;
 	font-weight: 600;
 }
@@ -2105,7 +3039,7 @@ export default {
 
 .interaction-message {
 	display: block;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 26rpx;
 	font-style: italic;
 	text-align: center;
@@ -2123,7 +3057,7 @@ export default {
 
 .pref-label {
 	display: block;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 22rpx;
 	margin-bottom: 12rpx;
 }
@@ -2151,8 +3085,8 @@ export default {
 }
 
 .archive-card {
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 18rpx;
 	padding: 24rpx;
 }
@@ -2167,14 +3101,14 @@ export default {
 
 .archive-label {
 	display: block;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 22rpx;
 	margin-bottom: 6rpx;
 }
 
 .archive-value {
 	display: block;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 26rpx;
 	line-height: 1.6;
 }
@@ -2187,14 +3121,14 @@ export default {
 
 .relation-card {
 	padding: 16rpx 20rpx;
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 12rpx;
 }
 
 .relation-name {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 26rpx;
 	margin-bottom: 4rpx;
 }
@@ -2203,7 +3137,7 @@ export default {
 	font-size: 22rpx;
 }
 
-.relation-type.blood { color: #C6A15B; }
+.relation-type.blood { color: var(--accent); }
 .relation-type.conflict { color: #B94A48; }
 .relation-type.fate { color: #7C8C74; }
 
@@ -2216,8 +3150,8 @@ export default {
 .badge-card {
 	width: 48%;
 	padding: 20rpx;
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 14rpx;
 	opacity: 0.5;
 }
@@ -2225,18 +3159,18 @@ export default {
 .badge-card.hidden {
 	opacity: 0.62;
 	border-style: dashed;
-	background: rgba(23, 34, 48, 0.55);
+	background: rgba(var(--elevated-rgb), 0.55);
 }
 
 .badge-card.unlocked {
 	opacity: 1;
-	border-color: rgba(198, 161, 91, 0.65);
-	background: rgba(198, 161, 91, 0.10);
+	border-color: rgba(var(--accent-rgb), 0.65);
+	background: rgba(var(--accent-rgb), 0.10);
 }
 
 .badge-icon {
 	display: block;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 42rpx;
 	text-align: center;
 	margin-bottom: 8rpx;
@@ -2244,7 +3178,7 @@ export default {
 
 .badge-name {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 26rpx;
 	font-weight: 700;
 	margin-bottom: 4rpx;
@@ -2252,7 +3186,7 @@ export default {
 
 .badge-desc {
 	display: block;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 22rpx;
 	line-height: 1.6;
 	margin-bottom: 6rpx;
@@ -2260,11 +3194,11 @@ export default {
 
 .badge-status {
 	font-size: 20rpx;
-	color: #66727F;
+	color: var(--text-muted);
 }
 
 .badge-card.unlocked .badge-status {
-	color: #C6A15B;
+	color: var(--accent);
 }
 
 @keyframes mistDrift {
@@ -2368,15 +3302,15 @@ export default {
 }
 
 .unlock-card {
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 18rpx;
 	padding: 32rpx;
 }
 
 .unlock-text {
 	display: block;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 28rpx;
 	line-height: 1.6;
 	margin-bottom: 24rpx;
@@ -2388,14 +3322,14 @@ export default {
 
 .task-label {
 	display: block;
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 26rpx;
 	margin-bottom: 12rpx;
 }
 
 .task-item {
 	display: block;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 24rpx;
 	margin-bottom: 8rpx;
 }
@@ -2421,7 +3355,7 @@ export default {
 .collect-btn {
 	width: 100%;
 	height: 96rpx;
-	background: linear-gradient(135deg, #D8C27A 0%, #C6A15B 55%, #8A6F45 100%);
+	background: linear-gradient(135deg, var(--accent-strong) 0%, var(--accent) 55%, #8A6F45 100%);
 	border-radius: 48rpx;
 	display: flex;
 	align-items: center;
@@ -2436,18 +3370,18 @@ export default {
 }
 
 .collect-btn text {
-	color: #0B1118;
+	color: var(--bg-outer);
 	font-size: 32rpx;
 	font-weight: 700;
 }
 
 .collect-btn.collected {
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 }
 
 .collect-btn.collected text {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 28rpx;
 }
 
@@ -2462,7 +3396,7 @@ export default {
 }
 
 .event-card {
-	background: #172230;
+	background: var(--bg-card);
 	border: 1rpx solid rgba(185, 74, 72, 0.3);
 	border-radius: 14rpx;
 	padding: 20rpx;
@@ -2470,7 +3404,7 @@ export default {
 
 .event-name {
 	display: block;
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 28rpx;
 	font-weight: 700;
 	margin-bottom: 8rpx;
@@ -2478,7 +3412,7 @@ export default {
 
 .event-desc {
 	display: block;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 24rpx;
 	line-height: 1.6;
 }
@@ -2494,7 +3428,7 @@ export default {
 	flex-direction: column;
 	gap: 4rpx;
 	padding: 12rpx 16rpx;
-	background: rgba(39, 56, 74, 0.3);
+	background: rgba(var(--border-rgb), 0.3);
 	border-radius: 8rpx;
 }
 
@@ -2504,7 +3438,7 @@ export default {
 }
 
 .message-time {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 20rpx;
 }
 
@@ -2513,12 +3447,703 @@ export default {
 }
 
 .message-text {
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 24rpx;
 	line-height: 1.5;
 }
 
 .message-item.danger .message-text {
+        color: #D47573;
+}
+
+/* ===== 解锁 / 收藏全屏庆祝层 ===== */
+.celebration-mask {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(var(--bg-outer-rgb), 0.82);
+	z-index: 1200;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	animation: celebrationMaskIn 0.3s ease-out both;
+}
+
+.celebration-body {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 60rpx 80rpx;
+}
+
+.celebration-icon {
+	position: relative;
+	width: 160rpx;
+	height: 160rpx;
+	border-radius: 50%;
+	background: radial-gradient(circle, rgba(var(--accent-rgb),0.3), rgba(var(--accent-rgb),0.05));
+	border: 2rpx solid rgba(var(--accent-rgb),0.55);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: 36rpx;
+	box-shadow: 0 0 70rpx rgba(var(--accent-rgb),0.35);
+	animation: celebrationPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.celebration-icon text {
+	font-size: 64rpx;
+	color: var(--accent);
+	font-weight: 700;
+}
+
+.celebration-title {
+	font-size: 40rpx;
+	font-weight: 800;
+	color: var(--text-primary);
+	letter-spacing: 6rpx;
+	margin-bottom: 14rpx;
+	animation: celebrationRise 0.45s 0.12s ease-out both;
+}
+
+.celebration-subtitle {
+	font-size: 24rpx;
+	color: var(--text-secondary);
+	animation: celebrationRise 0.45s 0.2s ease-out both;
+}
+
+/* 粒子迸发：wrapper 旋转指向方向，dot 沿半径飞出 */
+.celebration-spark {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 0;
+	height: 0;
+}
+
+.spark-dot {
+	width: 10rpx;
+	height: 10rpx;
+	margin-left: -5rpx;
+	border-radius: 50%;
+	background: var(--accent);
+	box-shadow: 0 0 12rpx rgba(var(--accent-rgb),0.8);
+	animation: sparkFly 0.75s ease-out both;
+}
+
+@keyframes celebrationMaskIn {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+@keyframes celebrationPop {
+	0% { transform: scale(0.2); opacity: 0; }
+	60% { transform: scale(1.12); opacity: 1; }
+	100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes celebrationRise {
+	from { opacity: 0; transform: translateY(20rpx); }
+	to { opacity: 1; transform: none; }
+}
+
+@keyframes sparkFly {
+	from { transform: translateY(-50rpx) scale(1); opacity: 1; }
+	to { transform: translateY(-180rpx) scale(0.3); opacity: 0; }
+}
+
+/* ===================== 概念 A：观测舞台（接入自 abyss-lab 原型） ===================== */
+.obs-stage {
+	position: relative;
+	height: 480rpx;
+	margin-bottom: 20rpx;
+	border: 1rpx solid var(--border-soft);
+	border-radius: 20rpx;
+	overflow: hidden;
+	background: linear-gradient(180deg, #0D1622 0%, #10202E 55%, #0C1A26 100%);
+}
+
+.obs-stage.unstable {
+	animation: stageUnstable 5s ease-in-out infinite;
+}
+
+.obs-stage.frozen {
+	filter: grayscale(0.7) brightness(0.6);
+}
+
+@keyframes stageUnstable {
+	0%, 100% { transform: translateX(0) skewX(0deg); }
+	23% { transform: translateX(-3rpx) skewX(0.15deg); }
+	47% { transform: translateX(2rpx) skewX(-0.1deg); }
+	71% { transform: translateX(-2rpx) skewX(0.08deg); }
+}
+
+.stage-badge {
+	position: absolute;
+	top: 20rpx;
+	left: 24rpx;
+	z-index: 5;
+	display: flex;
+	align-items: center;
+	gap: 10rpx;
+}
+
+.rec-dot {
+	width: 14rpx;
+	height: 14rpx;
+	border-radius: 50%;
+	background: #B94A48;
+	animation: recBlink 1.6s ease-in-out infinite;
+}
+
+@keyframes recBlink {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.2; }
+}
+
+.rec-text {
+	font-size: 20rpx;
 	color: #D47573;
+	font-family: 'SF Mono', Menlo, Consolas, monospace;
+	letter-spacing: 2rpx;
+}
+
+.stage-cam {
+	font-size: 18rpx;
+	color: var(--text-muted);
+}
+
+.stage-wave {
+	position: absolute;
+	bottom: -70rpx;
+	width: 220%;
+	height: 160rpx;
+	border-radius: 42% 58% 0 0 / 90% 100% 0 0;
+}
+
+.stage-wave.sw1 {
+	left: -60%;
+	background: linear-gradient(180deg, rgba(111, 143, 166, 0.32), rgba(111, 143, 166, 0.04));
+	animation: stageWaveSlide 13s linear infinite;
+}
+
+.stage-wave.sw2 {
+	left: -30%;
+	bottom: -50rpx;
+	background: linear-gradient(180deg, rgba(90, 122, 154, 0.4), rgba(90, 122, 154, 0.05));
+	animation: stageWaveSlide 9s linear infinite reverse;
+}
+
+.stage-wave.sw3 {
+	left: -50%;
+	bottom: -36rpx;
+	background: linear-gradient(180deg, rgba(64, 92, 120, 0.55), rgba(var(--bg-outer-rgb), 0.6));
+	animation: stageWaveSlide 7s linear infinite;
+}
+
+@keyframes stageWaveSlide {
+	from { transform: translateX(0); }
+	to { transform: translateX(-48%); }
+}
+
+.stage-mist {
+	position: absolute;
+	width: 130%;
+	height: 220rpx;
+	border-radius: 50%;
+	filter: blur(30rpx);
+	background: radial-gradient(ellipse, rgba(143, 182, 217, 0.22), transparent 70%);
+	transition: opacity 0.8s ease;
+	pointer-events: none;
+}
+
+.stage-mist.sm1 {
+	bottom: 60rpx;
+	left: -30%;
+	animation: stageMistDrift 11s ease-in-out infinite;
+}
+
+.stage-mist.sm2 {
+	bottom: 130rpx;
+	left: 0;
+	animation: stageMistDrift 15s ease-in-out infinite reverse;
+}
+
+@keyframes stageMistDrift {
+	0%, 100% { transform: translateX(0); }
+	50% { transform: translateX(90rpx); }
+}
+
+.stage-arc {
+	position: absolute;
+	left: -40%;
+	bottom: 40rpx;
+	width: 180%;
+	height: 320rpx;
+	border: 3rpx solid rgba(143, 182, 217, 0.75);
+	border-bottom: none;
+	border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+	box-shadow: 0 -6rpx 40rpx rgba(143, 182, 217, 0.18);
+	transition: opacity 0.9s ease, transform 0.9s ease;
+	pointer-events: none;
+}
+
+.stage-eye {
+	position: absolute;
+	top: 38%;
+	width: 16rpx;
+	height: 16rpx;
+	border-radius: 50%;
+	background: var(--accent);
+	box-shadow: 0 0 30rpx 10rpx rgba(var(--accent-rgb), 0.5);
+	animation: stageEyePulse 2.6s ease-in-out infinite;
+	transition: left 1.2s ease;
+}
+
+@keyframes stageEyePulse {
+	0%, 100% { opacity: 0.65; transform: scale(1); }
+	50% { opacity: 1; transform: scale(1.25); }
+}
+
+.stage-ripple {
+	position: absolute;
+	left: 50%;
+	bottom: 70rpx;
+	width: 60rpx;
+	height: 20rpx;
+	border: 2rpx solid rgba(143, 182, 217, 0.7);
+	border-radius: 50%;
+	transform: translateX(-50%);
+	animation: stageRippleSpread 1.4s ease-out forwards;
+	pointer-events: none;
+}
+
+.stage-ripple.calm {
+	border-color: rgba(124, 140, 116, 0.8);
+}
+
+.stage-ripple.deep {
+	border-color: rgba(185, 74, 72, 0.75);
+}
+
+@keyframes stageRippleSpread {
+	from { transform: translateX(-50%) scale(1); opacity: 0.9; }
+	to { transform: translateX(-50%) scale(6); opacity: 0; }
+}
+
+.signal-lost {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	z-index: 6;
+	background: rgba(var(--bg-outer-rgb), 0.45);
+}
+
+.lost-title {
+	font-size: 44rpx;
+	color: var(--text-muted);
+	letter-spacing: 10rpx;
+	font-family: 'SF Mono', Menlo, Consolas, monospace;
+}
+
+.lost-sub {
+	margin-top: 16rpx;
+	font-size: 22rpx;
+	color: #4A5A6A;
+}
+
+/* ===================== 概念 B：耶梦加得状态面板（原型 panel） ===================== */
+.jorm-stage-section {
+	margin-bottom: 8rpx;
+}
+
+.jorm-panel {
+	margin-top: 20rpx;
+	padding: 28rpx;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
+	border-radius: 20rpx;
+}
+
+.panel-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 24rpx;
+}
+
+.contact-status {
+	font-size: 26rpx;
+	color: var(--accent);
+	font-weight: 600;
+	letter-spacing: 2rpx;
+}
+
+.contact-status.hostile {
+	color: #B94A48;
+}
+
+.contact-status.missing {
+	color: var(--text-muted);
+}
+
+.sanity-word {
+	font-size: 22rpx;
+	color: var(--text-muted);
+}
+
+.sanity-word.lv2 {
+	color: var(--accent);
+}
+
+.sanity-word.lv3 {
+	color: #D47573;
+}
+
+.sanity-word.lv4 {
+	color: #B94A48;
+	animation: sanityPulse 1.4s ease-in-out infinite;
+}
+
+.gauge-row {
+	display: flex;
+	align-items: center;
+	gap: 20rpx;
+	margin-bottom: 20rpx;
+}
+
+.gauge-row:last-of-type {
+	margin-bottom: 0;
+}
+
+.gauge-label {
+	width: 130rpx;
+	font-size: 22rpx;
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.gauge-track {
+	flex: 1;
+	height: 10rpx;
+	background: rgba(var(--border-rgb), 0.8);
+	border-radius: 5rpx;
+	overflow: hidden;
+}
+
+.gauge-fill {
+	height: 100%;
+	border-radius: 5rpx;
+	transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gauge-fill.obs {
+	background: linear-gradient(90deg, #6F8FA6, #8FB6D9);
+}
+
+.gauge-fill.san {
+	background: linear-gradient(90deg, var(--text-muted), var(--accent));
+}
+
+.gauge-fill.san.lv2 {
+	background: linear-gradient(90deg, var(--accent), #D4884A);
+}
+
+.gauge-fill.san.lv3 {
+	background: linear-gradient(90deg, #D4884A, #B94A48);
+}
+
+.gauge-fill.san.lv4 {
+	background: linear-gradient(90deg, #B94A48, #7A2A2A);
+	animation: sanityPulse 1.4s ease-in-out infinite;
+}
+
+.gauge-fill.hos {
+	background: linear-gradient(90deg, #8B7030, var(--accent));
+}
+
+.gauge-value {
+	width: 130rpx;
+	text-align: right;
+	font-size: 22rpx;
+	color: var(--text-secondary);
+	font-family: 'SF Mono', Menlo, Consolas, monospace;
+	flex-shrink: 0;
+}
+
+.jorm-desc {
+	display: block;
+	margin-top: 24rpx;
+	font-size: 24rpx;
+	color: var(--text-secondary);
+	line-height: 1.7;
+}
+
+@keyframes sanityPulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.45; }
+}
+
+/* ===================== 概念 C：耶梦加得互动矩阵（原型 action-grid） ===================== */
+.jorm-actions-section {
+	margin: 20rpx 0;
+}
+
+.action-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 18rpx;
+}
+
+.action-btn {
+	position: relative;
+	width: calc(33.333% - 12rpx);
+	box-sizing: border-box;
+	padding: 22rpx 0 16rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8rpx;
+	background: #0F1822;
+	border: 1rpx solid var(--border-soft);
+	border-radius: 16rpx;
+	transition: transform 0.15s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.action-btn:active {
+	transform: scale(0.95);
+}
+
+.action-btn.medium {
+	border-color: rgba(var(--accent-rgb), 0.4);
+}
+
+.action-btn.high {
+	border-color: rgba(185, 74, 72, 0.5);
+}
+
+.action-btn.extreme {
+	border-color: rgba(185, 74, 72, 0.85);
+	animation: extremeBreath 2s ease-in-out infinite;
+}
+
+.action-btn.safe {
+	border-color: rgba(124, 140, 116, 0.55);
+}
+
+.action-btn.locked {
+	opacity: 0.38;
+}
+
+.action-btn.shaking {
+	animation: jormBtnShake 0.5s ease-out;
+}
+
+@keyframes extremeBreath {
+	0%, 100% { box-shadow: 0 0 24rpx rgba(185, 74, 72, 0.18); }
+	50% { box-shadow: 0 0 40rpx rgba(185, 74, 72, 0.4); }
+}
+
+@keyframes jormBtnShake {
+	0%, 100% { transform: translateX(0); }
+	20% { transform: translateX(-8rpx); }
+	40% { transform: translateX(7rpx); }
+	60% { transform: translateX(-5rpx); }
+	80% { transform: translateX(3rpx); }
+}
+
+.action-name {
+	font-size: 28rpx;
+	color: var(--text-primary);
+}
+
+.action-risk {
+	font-size: 18rpx;
+	color: #B94A48;
+	letter-spacing: 2rpx;
+}
+
+.action-risk.safe {
+	color: #7C8C74;
+}
+
+.action-lock {
+	font-size: 18rpx;
+	color: var(--text-muted);
+}
+
+/* ===================== 概念 D：耶梦加得观测日志（原型 log-panel） ===================== */
+.jorm-log-panel {
+	margin-top: 20rpx;
+	padding: 28rpx;
+	background: #0D1520;
+	border: 1rpx solid var(--border-soft);
+	border-radius: 20rpx;
+}
+
+.log-list {
+	display: flex;
+	flex-direction: column;
+	gap: 18rpx;
+}
+
+.log-item {
+	display: flex;
+	gap: 16rpx;
+	padding-left: 18rpx;
+	border-left: 2rpx solid var(--border-soft);
+	animation: logIn 0.35s ease-out both;
+}
+
+@keyframes logIn {
+	from { opacity: 0; transform: translateY(12rpx); }
+	to { opacity: 1; transform: none; }
+}
+
+.log-time {
+	font-size: 20rpx;
+	color: #4A5A6A;
+	flex-shrink: 0;
+	padding-top: 4rpx;
+	font-family: 'SF Mono', Menlo, Consolas, monospace;
+}
+
+.log-text {
+	flex: 1;
+	font-size: 24rpx;
+	color: var(--text-secondary);
+	line-height: 1.6;
+	font-family: 'SF Mono', Menlo, Consolas, monospace;
+}
+
+.log-item.danger .log-text {
+	color: #D47573;
+}
+
+.log-item.danger {
+	border-left-color: rgba(185, 74, 72, 0.6);
+}
+
+.log-item.threshold .log-text {
+	color: var(--accent);
+	font-style: italic;
+}
+
+.type-cursor {
+	color: #8FB6D9;
+	animation: recBlink 0.9s steps(1) infinite;
+}
+
+/* ===================== 概念 E / F：全屏低语与事件揭晓 ===================== */
+.whisper-layer {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 1300;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(7, 10, 15, 0.88);
+}
+
+.whisper-text {
+	font-size: 52rpx;
+	color: #B94A48;
+	letter-spacing: 16rpx;
+	font-weight: 300;
+	animation: whisperDrift 3.2s ease-in-out both;
+}
+
+@keyframes whisperDrift {
+	0% { opacity: 0; letter-spacing: 40rpx; }
+	25% { opacity: 1; letter-spacing: 16rpx; }
+	80% { opacity: 1; }
+	100% { opacity: 0; }
+}
+
+.jorm-event-layer {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 1400;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(7, 10, 15, 0.9);
+}
+
+.jorm-event-body {
+	width: 78%;
+	padding: 56rpx 48rpx;
+	background: #101A26;
+	border: 1rpx solid var(--border-soft);
+	border-radius: 24rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	animation: jormEventRise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes jormEventRise {
+	from { opacity: 0; transform: translateY(40rpx) scale(0.96); }
+	to { opacity: 1; transform: none; }
+}
+
+.jorm-event-kicker {
+	font-size: 18rpx;
+	color: var(--text-muted);
+	letter-spacing: 6rpx;
+	font-family: 'SF Mono', Menlo, Consolas, monospace;
+	margin-bottom: 20rpx;
+}
+
+.jorm-event-title {
+	font-size: 44rpx;
+	font-weight: 800;
+	color: var(--accent);
+	letter-spacing: 6rpx;
+	margin-bottom: 28rpx;
+}
+
+.jorm-event-body.hostile .jorm-event-title {
+	color: #D47573;
+}
+
+.jorm-event-body.missing .jorm-event-title {
+	color: var(--text-muted);
+}
+
+.jorm-event-desc {
+	font-size: 26rpx;
+	color: var(--text-secondary);
+	line-height: 1.8;
+	text-align: justify;
+	margin-bottom: 40rpx;
+}
+
+.jorm-event-close {
+	padding: 18rpx 64rpx;
+	border: 1rpx solid var(--accent);
+	border-radius: 999rpx;
+	color: var(--accent);
+	font-size: 26rpx;
+	letter-spacing: 4rpx;
+}
+
+.jorm-event-close:active {
+	transform: scale(0.96);
+	opacity: 0.8;
 }
 </style>

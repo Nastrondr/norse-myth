@@ -1,14 +1,17 @@
 <template>
-	<view class="story-detail-page">
-		<view class="nav-bar">
-			<text class="back-btn" @click="goBack">‹</text>
-			<text class="nav-title">故事详情</text>
-			<view class="nav-placeholder"></view>
-		</view>
+	<view class="story-detail-page page-enter-deep">
+		<NavBar title="故事详情" />
 
-		<scroll-view class="content-scroll" scroll-y>
+		<EmptyState
+			v-if="notFound"
+			type="notfound"
+			size="page"
+			:actions="[{ label: '返回故事', variant: 'primary', event: 'back' }]"
+			@action="onEmptyAction"
+		/>
+		<scroll-view v-else class="content-scroll" scroll-y @scroll="onHeroScroll">
 			<view class="story-content">
-				<view class="story-hero">
+				<view class="story-hero" :style="heroStyle">
 					<text class="story-title">{{ story.title }}</text>
 					<text class="story-original">{{ storyOriginalTitle }}</text>
 					<view class="story-meta-row">
@@ -35,6 +38,7 @@
 								<text class="phase-index">{{ formatIndex(index + 1) }}</text>
 								<text class="phase-title">{{ phase.title }}</text>
 							</view>
+							<view class="rune-divider" v-if="index > 0">ᛝ ✦ ᛝ</view>
 							<view class="phase-list">
 								<view
 									v-for="item in phase.items"
@@ -101,13 +105,19 @@
 </template>
 
 <script>
-import { stories } from '@/data/norse.js'
+import { db } from '@/db'
 import { unlockRavensClue, getRavensClueCount } from '@/utils/clueProgress.js'
+import NavBar from '@/components/NavBar.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import heroParallax from '@/mixins/heroParallax.js'
 
 export default {
+	components: { NavBar, EmptyState },
+	mixins: [heroParallax],
 	data() {
 		return {
 			story: {},
+			notFound: false,
 			storyCharacters: [],
 			storyPhases: []
 		}
@@ -177,7 +187,13 @@ export default {
 	},
 	onLoad(options) {
 		const storyId = options.id
-		this.story = stories.find(s => s.id === storyId) || stories[0]
+		const found = storyId ? db.findById('stories', storyId) : null
+		// 无 id → 默认首篇故事；带无效 id → 缺省态「内容不存在」
+		if (storyId && !found) {
+			this.notFound = true
+			return
+		}
+		this.story = found || db.findAll('stories')[0]
 		this.initCharacters()
 		this.initPhases()
 		if (this.isOdinRelatedStory(this.story)) {
@@ -187,8 +203,15 @@ export default {
 		}
 	},
 	methods: {
-		goBack() {
-			uni.navigateBack()
+		// 缺省态操作：返回上一页，无栈时回故事列表
+		onEmptyAction(event) {
+			if (event !== 'back') return
+			const pages = getCurrentPages()
+			if (pages.length > 1) {
+				uni.navigateBack()
+			} else {
+				uni.switchTab({ url: '/pages/stories/story-list' })
+			}
 		},
 		isOdinRelatedStory(story) {
 			if (!story) return false
@@ -293,55 +316,27 @@ export default {
 </script>
 
 <style scoped>
+/* 卷轴展开转场：纵向舒展 + 由虚入实 */
+@keyframes scrollUnroll {
+  from { opacity: 0; transform: scaleY(0.96); filter: blur(6px); }
+  to { opacity: 1; transform: scaleY(1); filter: blur(0); }
+}
+
+.story-detail-page.page-enter-deep {
+  animation: scrollUnroll 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  transform-origin: 50% 0;
+}
+
 .story-detail-page {
 	min-height: 100vh;
-	background: #0B1118;
-	color: #F2F4F6;
+	background: var(--bg-outer);
+	color: var(--text-primary);
 	padding-bottom: 160rpx;
 	box-sizing: border-box;
 }
 
-.nav-bar {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	height: 88rpx;
-	padding: 0 24rpx;
-	background: #111A24;
-	flex-shrink: 0;
-}
-
-.back-btn {
-	color: #F2F4F6;
-	font-size: 48rpx;
-	font-weight: 300;
-	width: 88rpx;
-	height: 88rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	transition: transform 0.15s ease, opacity 0.15s ease;
-}
-
-.back-btn:active {
-	transform: scale(0.85);
-	opacity: 0.8;
-}
-
-.nav-title {
-	color: #F2F4F6;
-	font-size: 32rpx;
-	font-weight: 600;
-	flex: 1;
-	text-align: center;
-}
-
-.nav-placeholder {
-	width: 80rpx;
-}
-
 .content-scroll {
-	height: calc(100vh - 88rpx);
+	height: calc(100vh - 88rpx - env(safe-area-inset-top));
 }
 
 .story-content {
@@ -350,8 +345,8 @@ export default {
 }
 
 .story-hero {
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 24rpx;
 	padding: 32rpx;
 	margin-bottom: 24rpx;
@@ -359,16 +354,17 @@ export default {
 
 .story-title {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 44rpx;
 	font-weight: 800;
 	line-height: 1.2;
+	text-shadow: 0 2rpx 16rpx rgba(var(--accent-rgb), 0.4);
 }
 
 .story-original {
 	display: block;
 	margin-top: 8rpx;
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 26rpx;
 }
 
@@ -382,8 +378,8 @@ export default {
 .story-chip {
 	padding: 6rpx 14rpx;
 	border-radius: 999rpx;
-	background: rgba(198, 161, 91, 0.14);
-	color: #C6A15B;
+	background: rgba(var(--accent-rgb), 0.14);
+	color: var(--accent);
 	font-size: 22rpx;
 }
 
@@ -391,23 +387,25 @@ export default {
 	padding: 6rpx 14rpx;
 	border-radius: 999rpx;
 	background: rgba(143, 182, 217, 0.10);
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 22rpx;
 }
 
 .story-lead {
 	display: block;
 	margin-top: 22rpx;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 28rpx;
-	line-height: 1.7;
+	line-height: 1.9;
+	letter-spacing: 1.5rpx;
+	font-family: 'Songti SC', 'STSong', 'Noto Serif SC', 'Source Han Serif SC', Georgia, serif;
 	white-space: normal;
 	word-break: break-word;
 }
 
 .section-card {
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 22rpx;
 	padding: 28rpx;
 	margin-bottom: 24rpx;
@@ -415,7 +413,7 @@ export default {
 
 .section-title {
 	display: block;
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 30rpx;
 	font-weight: 800;
 	margin-bottom: 16rpx;
@@ -423,11 +421,25 @@ export default {
 
 .section-text {
 	display: block;
-	color: #A8B3BD;
-	font-size: 27rpx;
-	line-height: 1.8;
+	color: var(--text-secondary);
+	font-size: 28rpx;
+	line-height: 2;
+	letter-spacing: 1.5rpx;
+	font-family: 'Songti SC', 'STSong', 'Noto Serif SC', 'Source Han Serif SC', Georgia, serif;
 	white-space: normal;
 	word-break: break-word;
+}
+
+/* 首字下沉：手抄本式开篇，金色衬线大字 */
+.phase-card:first-child .phase-item:first-child .phase-text::first-letter {
+	float: left;
+	font-family: 'Songti SC', 'STSong', 'Noto Serif SC', Georgia, serif;
+	font-size: 84rpx;
+	line-height: 1.05;
+	padding: 6rpx 14rpx 0 0;
+	color: var(--accent);
+	font-weight: 700;
+	text-shadow: 0 2rpx 14rpx rgba(var(--accent-rgb), 0.35);
 }
 
 .character-scroll {
@@ -444,8 +456,8 @@ export default {
 	display: inline-flex;
 	padding: 8rpx 16rpx;
 	border-radius: 999rpx;
-	background: rgba(198, 161, 91, 0.14);
-	color: #C6A15B;
+	background: rgba(var(--accent-rgb), 0.14);
+	color: var(--accent);
 	font-size: 22rpx;
 }
 
@@ -456,8 +468,8 @@ export default {
 }
 
 .phase-card {
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 22rpx;
 	padding: 26rpx;
 	margin-bottom: 20rpx;
@@ -471,13 +483,13 @@ export default {
 }
 
 .phase-index {
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 24rpx;
 	font-weight: 800;
 }
 
 .phase-title {
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 30rpx;
 	font-weight: 800;
 }
@@ -497,16 +509,18 @@ export default {
 	width: 10rpx;
 	height: 10rpx;
 	border-radius: 50%;
-	background: #C6A15B;
+	background: var(--accent);
 	margin-top: 16rpx;
 	flex-shrink: 0;
 }
 
 .phase-text {
 	flex: 1;
-	color: #A8B3BD;
-	font-size: 27rpx;
-	line-height: 1.7;
+	color: var(--text-secondary);
+	font-size: 28rpx;
+	line-height: 2;
+	letter-spacing: 1.5rpx;
+	font-family: 'Songti SC', 'STSong', 'Noto Serif SC', 'Source Han Serif SC', Georgia, serif;
 	white-space: normal;
 	word-break: break-word;
 }
@@ -521,7 +535,7 @@ export default {
 
 .related-label {
 	display: block;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 22rpx;
 	margin-bottom: 12rpx;
 }
@@ -539,8 +553,8 @@ export default {
 }
 
 .god-tag {
-	background: rgba(198, 161, 91, 0.14);
-	color: #C6A15B;
+	background: rgba(var(--accent-rgb), 0.14);
+	color: var(--accent);
 }
 
 .creature-tag {

@@ -1,12 +1,18 @@
 <template>
-	<view class="container">
-		<view class="back-btn-wrap">
-			<text class="back-btn" @click="goBack">‹</text>
-		</view>
-		<view class="header" :style="{ background: headerGradient }">
+	<view class="container page-enter-deep">
+		<NavBar title="神祇详情" />
+		<EmptyState
+			v-if="notFound"
+			type="notfound"
+			size="page"
+			:actions="[{ label: '返回图鉴', variant: 'primary', event: 'back' }]"
+			@action="onEmptyAction"
+		/>
+		<template v-else>
+		<view class="header" :style="{ background: headerGradient, transform: heroStyle.transform, opacity: heroStyle.opacity }">
 			<view class="avatar-large" :class="getFactionClass(god.faction)">
-				<text class="avatar-text">{{ god.name[0] }}</text>
-			</view>
+			<PortraitImage :src="god.portrait" :name="god.name" :text-size="48" />
+		</view>
 			<text class="god-name">{{ god.name }}</text>
 			<text class="god-original">{{ god.originalName }}</text>
 			<text class="god-title">{{ god.title }}</text>
@@ -69,9 +75,15 @@
 			<view class="relation-group" v-if="god.relationships.parents && god.relationships.parents.length">
 				<text class="relation-type">血缘关系</text>
 				<view class="relation-cards">
-					<view class="relation-card" v-for="parent in god.relationships.parents" :key="parent" @click="goToRelated(parent)">
+					<view
+						class="relation-card"
+						:class="{ pending: !hasGodArchive(parent) }"
+						v-for="parent in god.relationships.parents"
+						:key="parent"
+						@click="goToRelated(parent)"
+					>
 						<text class="relation-name">{{ parent }}</text>
-						<text class="relation-label">父母</text>
+						<text class="relation-label">{{ relationLabel(parent, '父母') }}</text>
 					</view>
 				</view>
 			</view>
@@ -79,9 +91,15 @@
 			<view class="relation-group" v-if="god.relationships.children && god.relationships.children.length">
 				<text class="relation-type">子女</text>
 				<view class="relation-cards">
-					<view class="relation-card" v-for="child in god.relationships.children" :key="child" @click="goToRelated(child)">
+					<view
+						class="relation-card"
+						:class="{ pending: !hasGodArchive(child) }"
+						v-for="child in god.relationships.children"
+						:key="child"
+						@click="goToRelated(child)"
+					>
 						<text class="relation-name">{{ child }}</text>
-						<text class="relation-label">子女</text>
+						<text class="relation-label">{{ relationLabel(child, '子女') }}</text>
 					</view>
 				</view>
 			</view>
@@ -89,9 +107,15 @@
 			<view class="relation-group" v-if="god.relationships.spouse && god.relationships.spouse.length">
 				<text class="relation-type">亲密关系</text>
 				<view class="relation-cards">
-					<view class="relation-card" v-for="spouse in god.relationships.spouse" :key="spouse" @click="goToRelated(spouse)">
+					<view
+						class="relation-card"
+						:class="{ pending: !hasGodArchive(spouse) }"
+						v-for="spouse in god.relationships.spouse"
+						:key="spouse"
+						@click="goToRelated(spouse)"
+					>
 						<text class="relation-name">{{ spouse }}</text>
-						<text class="relation-label">配偶</text>
+						<text class="relation-label">{{ relationLabel(spouse, '配偶') }}</text>
 					</view>
 				</view>
 			</view>
@@ -99,9 +123,15 @@
 			<view class="relation-group" v-if="god.relationships.allies && god.relationships.allies.length">
 				<text class="relation-type">盟友</text>
 				<view class="relation-cards">
-					<view class="relation-card" v-for="ally in god.relationships.allies" :key="ally" @click="goToRelated(ally)">
+					<view
+						class="relation-card"
+						:class="{ pending: !hasGodArchive(ally) }"
+						v-for="ally in god.relationships.allies"
+						:key="ally"
+						@click="goToRelated(ally)"
+					>
 						<text class="relation-name">{{ ally }}</text>
-						<text class="relation-label">盟友</text>
+						<text class="relation-label">{{ relationLabel(ally, '盟友') }}</text>
 					</view>
 				</view>
 			</view>
@@ -109,9 +139,15 @@
 			<view class="relation-group" v-if="god.relationships.rivals && god.relationships.rivals.length">
 				<text class="relation-type">竞争关系</text>
 				<view class="relation-cards">
-					<view class="relation-card rival" v-for="rival in god.relationships.rivals" :key="rival" @click="goToRelated(rival)">
+					<view
+						class="relation-card rival"
+						:class="{ pending: !hasGodArchive(rival) }"
+						v-for="rival in god.relationships.rivals"
+						:key="rival"
+						@click="goToRelated(rival)"
+					>
 						<text class="relation-name">{{ rival }}</text>
-						<text class="relation-label">竞争者</text>
+						<text class="relation-label">{{ relationLabel(rival, '竞争者') }}</text>
 					</view>
 				</view>
 			</view>
@@ -119,9 +155,15 @@
 			<view class="relation-group" v-if="god.relationships.enemies && god.relationships.enemies.length">
 				<text class="relation-type">冲突关系</text>
 				<view class="relation-cards">
-					<view class="relation-card enemy" v-for="enemy in god.relationships.enemies" :key="enemy" @click="goToRelated(enemy)">
+					<view
+						class="relation-card enemy"
+						:class="{ pending: !hasGodArchive(enemy) }"
+						v-for="enemy in god.relationships.enemies"
+						:key="enemy"
+						@click="goToRelated(enemy)"
+					>
 						<text class="relation-name">{{ enemy }}</text>
-						<text class="relation-label">敌对者</text>
+						<text class="relation-label">{{ relationLabel(enemy, '敌对者') }}</text>
 					</view>
 				</view>
 			</view>
@@ -136,18 +178,25 @@
 				</view>
 			</view>
 		</view>
+		</template>
 	</view>
 </template>
 
 <script>
-import { gods } from '@/data/norse.js'
-import { stories } from '@/data/norse.js'
+import { db } from '@/db'
 import { unlockRavensClue, getRavensClueCount } from '@/utils/clueProgress.js'
+import NavBar from '@/components/NavBar.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import PortraitImage from '@/components/PortraitImage.vue'
+import heroParallax from '@/mixins/heroParallax.js'
 
 export default {
+	components: { NavBar, EmptyState, PortraitImage },
+	mixins: [heroParallax],
 	data() {
 		return {
-			god: {}
+			god: {},
+			notFound: false
 		}
 	},
 	computed: {
@@ -163,7 +212,7 @@ export default {
 			} else if (faction.includes('阿萨')) {
 				color = '#C6A15B'
 			}
-			return `linear-gradient(135deg, ${color}22 0%, #0B1118 100%)`
+			return `linear-gradient(135deg, ${color}22 0%, var(--bg-outer) 100%)`
 		},
 		radarPoints() {
 			if (!this.god.attributes) return []
@@ -208,17 +257,37 @@ export default {
 		},
 		relatedStories() {
 			if (!this.god.stories) return []
-			return this.god.stories.map(id => stories.find(s => s.id === id)).filter(Boolean)
+			return this.god.stories.map(id => db.findById('stories', id)).filter(Boolean)
 		}
 	},
 	onLoad(options) {
 		const godId = options.id || 'odin'
-		this.god = gods.find(g => g.id === godId) || gods[0]
+		const found = db.findById('gods', godId)
+		// 无 id → 默认奥丁；带无效 id → 缺省态「内容不存在」
+		if (!found) {
+			this.notFound = true
+			return
+		}
+		this.god = found
 		if (this.god.id === 'odin') {
 			if (getRavensClueCount() < 3) {
 				unlockRavensClue('relation')
 			}
 		}
+	},
+	// 缺省态操作：返回上一页，无栈时回图鉴
+	onEmptyAction(event) {
+		if (event !== 'back') return
+		const pages = getCurrentPages()
+		if (pages.length > 1) {
+			uni.navigateBack()
+		} else {
+			uni.switchTab({ url: '/pages/codex/codex-index' })
+		}
+	},
+	// 头部视差：hero 随滚动缓慢下移并淡出
+	onPageScroll(e) {
+		this.updateHeroParallax(e.scrollTop)
 	},
 	methods: {
 		getFactionClass(faction) {
@@ -231,18 +300,23 @@ export default {
 		},
 		goToRelated(name) {
 			const relatedId = name.toLowerCase()
-			const god = gods.find(g => g.id === relatedId || g.name === name)
+			const god = db.findById('gods', relatedId) || db.findOne('gods', { name })
 			if (god) {
 				uni.navigateTo({ url: `/pages/gods/god-detail?id=${god.id}` })
-			} else {
-				uni.showToast({ title: '信息待补充', icon: 'none' })
 			}
+			// 无档案的关联实体：卡片呈 pending 态（置灰 + 「档案整理中」），点击不再弹 toast
+		},
+		// 该关联实体是否已有神祇档案
+		hasGodArchive(name) {
+			const relatedId = name.toLowerCase()
+			return !!(db.findById('gods', relatedId) || db.findOne('gods', { name }))
+		},
+		// 未收录档案的关联实体，在关系标签后追加提示
+		relationLabel(name, label) {
+			return this.hasGodArchive(name) ? label : label + ' · 档案整理中'
 		},
 		goToStory(id) {
 			uni.navigateTo({ url: `/pages/stories/story-detail?id=${id}` })
-		},
-		goBack() {
-			uni.navigateBack()
 		}
 	}
 }
@@ -251,51 +325,29 @@ export default {
 <style scoped>
 .container {
 	min-height: 100vh;
-	background: #0B1118;
-}
-
-.back-btn-wrap {
-	position: fixed;
-	top: 40rpx;
-	left: 24rpx;
-	z-index: 100;
-}
-
-.back-btn {
-	width: 72rpx;
-	height: 72rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background: rgba(11, 17, 24, 0.85);
-	border: 1px solid #27384A;
-	border-radius: 50%;
-	color: #C6A15B;
-	font-size: 48rpx;
-	font-weight: 300;
-	transition: transform 0.15s ease, border-color 0.15s ease;
-}
-
-.back-btn:active {
-	transform: scale(0.9);
-	border-color: #C6A15B;
+	background: var(--bg-outer);
 }
 
 .header {
-	padding: 60rpx 32rpx 40rpx;
+	padding: 24rpx 32rpx 40rpx;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 }
 
+/* 头像显影入场：墨水在羊皮纸上浮现 */
+@keyframes avatarDevelop {
+  from { filter: blur(10px) brightness(0.55); transform: scale(0.96); opacity: 0; }
+  60% { filter: blur(3px) brightness(0.85); opacity: 1; }
+  to { filter: blur(0) brightness(1); transform: scale(1); opacity: 1; }
+}
+
 .avatar-large {
+  animation: avatarDevelop 0.8s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 	width: 120rpx;
 	height: 120rpx;
 	background: linear-gradient(135deg, #C6A15B, #8B7030);
 	border-radius: 50%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
 	margin-bottom: 20rpx;
 }
 
@@ -304,27 +356,21 @@ export default {
 .avatar-large.giant { background: linear-gradient(135deg, #8B4A4A, #5A2A2A); }
 .avatar-large.hel { background: linear-gradient(135deg, #66727F, #3A4450); }
 
-.avatar-text {
-	color: #F2F4F6;
-	font-size: 48rpx;
-	font-weight: bold;
-}
-
 .god-name {
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 44rpx;
 	font-weight: bold;
 	margin-bottom: 8rpx;
 }
 
 .god-original {
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 28rpx;
 	margin-bottom: 8rpx;
 }
 
 .god-title {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 24rpx;
 	margin-bottom: 16rpx;
 }
@@ -345,7 +391,7 @@ export default {
 }
 
 .section-title {
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 28rpx;
 	font-weight: bold;
 	display: block;
@@ -353,14 +399,14 @@ export default {
 }
 
 .description {
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 28rpx;
 	line-height: 1.8;
 }
 
 .info-grid {
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 16rpx;
 	padding: 24rpx;
 }
@@ -372,14 +418,14 @@ export default {
 .info-item:last-child { margin-bottom: 0; }
 
 .info-label {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 22rpx;
 	display: block;
 	margin-bottom: 4rpx;
 }
 
 .info-value {
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 26rpx;
 }
 
@@ -410,7 +456,7 @@ export default {
 	height: 80%;
 	top: 10%;
 	left: 10%;
-	border: 1rpx solid #27384A;
+	border: 1rpx solid var(--border-soft);
 	border-radius: 50%;
 	opacity: 0.5;
 }
@@ -426,8 +472,8 @@ export default {
 	height: 80%;
 	top: 10%;
 	left: 10%;
-	background: linear-gradient(135deg, #C6A15B88, #D8C27A44);
-	border: 2rpx solid #C6A15B;
+	background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.53), rgba(var(--accent-strong-rgb), 0.27));
+	border: 2rpx solid var(--accent);
 	border-radius: 50%;
 }
 
@@ -448,18 +494,18 @@ export default {
 
 .radar-label {
 	font-size: 20rpx;
-	color: #66727F;
+	color: var(--text-muted);
 }
 
 .radar-value {
 	font-size: 24rpx;
 	font-weight: 600;
-	color: #C6A15B;
+	color: var(--accent);
 }
 
 .attributes {
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 16rpx;
 	padding: 24rpx;
 }
@@ -474,14 +520,14 @@ export default {
 
 .attr-label {
 	width: 100rpx;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 22rpx;
 }
 
 .attr-bar {
 	flex: 1;
 	height: 8rpx;
-	background: #27384A;
+	background: var(--border-soft);
 	border-radius: 4rpx;
 	margin: 0 16rpx;
 	overflow: hidden;
@@ -496,7 +542,7 @@ export default {
 .attr-value {
 	width: 50rpx;
 	text-align: right;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 22rpx;
 }
 
@@ -518,8 +564,8 @@ export default {
 }
 
 .relation-card {
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 12rpx;
 	padding: 16rpx 20rpx;
 	display: flex;
@@ -530,11 +576,21 @@ export default {
 
 .relation-card:active {
 	transform: scale(0.95);
-	border-color: rgba(198,161,91,0.55);
+	border-color: rgba(var(--accent-rgb), 0.55);
+}
+
+/* 档案未收录的关联实体：置灰、去点击反馈，标签提示「档案整理中」 */
+.relation-card.pending {
+	opacity: 0.55;
+}
+
+.relation-card.pending:active {
+	transform: none;
+	border-color: var(--border-soft);
 }
 
 .relation-card.rival {
-	border-color: rgba(198, 161, 91, 0.3);
+	border-color: rgba(var(--accent-rgb), 0.3);
 }
 
 .relation-card.enemy {
@@ -542,13 +598,13 @@ export default {
 }
 
 .relation-name {
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 22rpx;
 	font-weight: bold;
 }
 
 .relation-label {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 18rpx;
 	margin-top: 4rpx;
 }
@@ -560,8 +616,8 @@ export default {
 }
 
 .story-card {
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 16rpx;
 	padding: 24rpx;
 	transition: transform 0.15s ease, border-color 0.15s ease;
@@ -569,11 +625,11 @@ export default {
 
 .story-card:active {
 	transform: scale(0.98);
-	border-color: rgba(198,161,91,0.55);
+	border-color: rgba(var(--accent-rgb), 0.55);
 }
 
 .story-title {
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 28rpx;
 	font-weight: bold;
 	display: block;
@@ -581,7 +637,7 @@ export default {
 }
 
 .story-category {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 22rpx;
 }
 </style>
