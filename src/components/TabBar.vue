@@ -16,7 +16,7 @@
 </template>
 
 <script>
-import { Home, Crown, BookOpen, PawPrint, Gamepad2 } from 'lucide-vue-next'
+import { Home, Library, BookOpen, Gamepad2 } from 'lucide-vue-next'
 
 export default {
   name: 'TabBar',
@@ -31,9 +31,8 @@ export default {
     return {
       tabs: [
         { id: 'home', label: '首页', icon: Home, path: '/pages/index/index' },
-        { id: 'gods', label: '神祇', icon: Crown, path: '/pages/gods/god-list' },
+        { id: 'codex', label: '图鉴', icon: Library, path: '/pages/codex/codex-index' },
         { id: 'stories', label: '故事', icon: BookOpen, path: '/pages/stories/story-list' },
-        { id: 'bestiary', label: '图鉴', icon: PawPrint, path: '/pages/bestiary/bestiary-list' },
         { id: 'profile', label: '档案', icon: Gamepad2, path: '/pages/profile/profile' }
       ]
     }
@@ -55,8 +54,8 @@ export default {
   left: 0;
   right: 0;
   height: 110rpx;
-  background: #0F1822;
-  border-top: 1rpx solid #1E2B3A;
+  background: var(--bg-elevated);
+  border-top: 1rpx solid var(--border-faint);
   display: flex;
   align-items: center;
   justify-content: space-around;
@@ -72,7 +71,7 @@ export default {
   justify-content: center;
   gap: 4rpx;
   height: 100%;
-  color: #66727F;
+  color: var(--text-muted);
   transition: color 0.2s ease, transform 0.15s ease;
 }
 
@@ -81,7 +80,7 @@ export default {
 }
 
 .tab-item.active {
-  color: #C6A15B;
+  color: var(--accent);
 }
 
 .tab-icon-box {

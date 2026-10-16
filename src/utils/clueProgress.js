@@ -1,14 +1,11 @@
-const STORAGE_KEY = 'ravens_clue_progress'
+import { state } from '@/state'
 
 export function getRavensClueProgress() {
-  const saved = uni.getStorageSync(STORAGE_KEY)
-  return saved && typeof saved === 'object'
-    ? saved
-    : { clueIds: [], revealed: false }
+  return state.get('progress.ravens', { clueIds: [], revealed: false })
 }
 
 export function saveRavensClueProgress(progress) {
-  uni.setStorageSync(STORAGE_KEY, progress)
+  state.set('progress.ravens', progress)
 }
 
 export function unlockRavensClue(clueId) {
@@ -49,5 +46,5 @@ export function isRavensClueUnlocked(clueId) {
 }
 
 export function resetRavensClues() {
-  uni.removeStorageSync(STORAGE_KEY)
+  state.remove('progress.ravens')
 }

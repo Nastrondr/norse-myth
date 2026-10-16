@@ -1,12 +1,6 @@
 <template>
-  <view class="quiz-page">
-    <view class="quiz-nav">
-      <view class="nav-back" @click="goBack">
-        <text>‹</text>
-      </view>
-      <text class="nav-title">谣言之书</text>
-      <view class="nav-placeholder"></view>
-    </view>
+  <view class="quiz-page page-enter-deep">
+    <NavBar title="谣言之书" />
 
     <view class="quiz-content">
       <view v-if="quizState === 'intro'" class="intro-panel">
@@ -25,7 +19,7 @@
           </view>
         </view>
 
-        <view class="primary-btn" @click="startRumorQuiz">
+        <view class="primary-btn btn-shine" @click="startRumorQuiz">
           <text>开始辨闻</text>
         </view>
 
@@ -74,10 +68,20 @@
           </view>
         </view>
 
-        <view class="rumor-scroll-card">
+        <view
+          class="rumor-scroll-card"
+          @touchstart="onPaperTouchStart"
+          @touchmove="onPaperTouchMove"
+          @touchend="onPaperTouchEnd"
+          @touchcancel="onPaperTouchEnd"
+        >
           <view class="scroll-rod top"></view>
 
-          <view class="scroll-paper">
+          <view
+            class="scroll-paper"
+            :class="{ dragging: swipe.dragging }"
+            :style="{ transform: 'translateX(' + paperDrag + 'px)' }"
+          >
             <view class="rumor-image-placeholder">
               <text class="placeholder-symbol">{{ getCurrentRumorImageSymbol() }}</text>
             </view>
@@ -170,7 +174,7 @@
         </view>
 
         <view class="ghost-btn" @click="goBack">
-          <text>返回趣味互动</text>
+          <text>返回首页</text>
         </view>
       </view>
     </view>
@@ -178,7 +182,11 @@
 </template>
 
 <script>
+import NavBar from '@/components/NavBar.vue'
+import { state } from '@/state'
+
 export default {
+  components: { NavBar },
   data() {
     return {
       quizState: 'intro',
@@ -186,10 +194,12 @@ export default {
       selectedAnswer: null,
       correctCount: 0,
       answeredIds: [],
-      customRumorStorageKey: 'norse_custom_rumors',
       customRumors: [],
       animationDirection: '',
       isAnimating: false,
+      // 卷轴跟手滑动状态
+      swipe: { startX: 0, startY: 0, dx: 0, axis: '', dragging: false },
+      paperDrag: 0,
       newRumor: {
         rumor: '',
         answer: false,
@@ -263,9 +273,7 @@ export default {
     goBack() {
       const pages = getCurrentPages()
       if (pages.length <= 1) {
-        uni.switchTab({
-          url: '/pages/index/index'
-        })
+        uni.switchTab({ url: '/pages/index/index' })
       } else {
         uni.navigateBack()
       }
@@ -295,6 +303,45 @@ export default {
       }
 
       this.quizState = 'reveal'
+    },
+    // ===== 卷轴跟手滑动翻页 =====
+    onPaperTouchStart(e) {
+      if (this.quizState !== 'question' || this.isAnimating) return
+      const t = e.touches && e.touches[0]
+      if (!t) return
+      this.swipe = { startX: t.clientX, startY: t.clientY, dx: 0, axis: '', dragging: true }
+    },
+    onPaperTouchMove(e) {
+      if (!this.swipe.dragging) return
+      const t = e.touches && e.touches[0]
+      if (!t) return
+      const dx = t.clientX - this.swipe.startX
+      const dy = t.clientY - this.swipe.startY
+      // 轴锁定：纵向滑动交给页面滚动
+      if (!this.swipe.axis) {
+        if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return
+        this.swipe.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
+      }
+      if (this.swipe.axis !== 'x') return
+      this.swipe.dx = dx
+      const total = this.getAllRumorQuestions().length
+      // 已在首页/末页时加大阻尼，提示边界
+      const atEdge = (dx > 0 && this.currentRumorIndex <= 0) || (dx < 0 && this.currentRumorIndex >= total - 1)
+      this.paperDrag = dx * (atEdge ? 0.15 : 0.55)
+    },
+    onPaperTouchEnd() {
+      if (!this.swipe.dragging) return
+      const dx = this.swipe.dx
+      this.swipe.dragging = false
+      this.paperDrag = 0 // 松手弹回
+      const threshold = 70
+      if (this.swipe.axis === 'x' && Math.abs(dx) > threshold && !this.isAnimating) {
+        if (dx < 0) {
+          this.goNextRumor()
+        } else {
+          this.goPrevRumor()
+        }
+      }
     },
     goPrevRumor() {
       const total = this.getAllRumorQuestions().length
@@ -335,7 +382,7 @@ export default {
       } else if (this.currentRumorIndex >= total - 1) {
         this.quizState = 'summary'
         // 写入完成记录，供档案页「谣言之书」状态与徽章解锁使用
-        uni.setStorageSync('norse_rumor_book_completion', {
+        state.set('game.rumorBook', {
           accuracy: total ? Math.round(this.correctCount / total * 100) : 0,
           correctCount: this.correctCount,
           total,
@@ -381,11 +428,11 @@ export default {
       return 'MY'
     },
     loadCustomRumors() {
-      const saved = uni.getStorageSync(this.customRumorStorageKey)
+      const saved = state.get('game.customRumors')
       this.customRumors = Array.isArray(saved) ? saved : []
     },
     saveCustomRumors() {
-      uni.setStorageSync(this.customRumorStorageKey, this.customRumors)
+      state.set('game.customRumors', this.customRumors)
     },
     getAllRumorQuestions() {
       return [
@@ -443,7 +490,7 @@ export default {
     },
     clearCustomRumors() {
       this.customRumors = []
-      uni.removeStorageSync(this.customRumorStorageKey)
+      state.remove('game.customRumors')
       uni.showToast({
         title: '已清空自定义传闻',
         icon: 'none'
@@ -456,52 +503,9 @@ export default {
 <style scoped>
 .quiz-page {
   min-height: 100vh;
-  background: #0B1118;
-  color: #F2F4F6;
+  background: var(--bg-outer);
+  color: var(--text-primary);
   padding-bottom: 180rpx;
-}
-
-.quiz-nav {
-  height: 96rpx;
-  background: #111A24;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 32rpx;
-  box-sizing: border-box;
-  border-bottom: 1px solid #27384A;
-}
-
-.nav-back {
-  width: 88rpx;
-  height: 96rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #C6A15B;
-  transition: transform 0.15s ease, opacity 0.15s ease;
-}
-
-.nav-back text {
-  font-size: 52rpx;
-  font-weight: 300;
-  line-height: 1;
-}
-
-.nav-back:active {
-  transform: scale(0.85);
-  opacity: 0.8;
-}
-
-.nav-placeholder {
-  width: 88rpx;
-  height: 96rpx;
-}
-
-.nav-title {
-  color: #F2F4F6;
-  font-size: 30rpx;
-  font-weight: 700;
 }
 
 .intro-panel {
@@ -510,7 +514,7 @@ export default {
 
 .intro-title {
   display: block;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 42rpx;
   font-weight: 900;
   line-height: 1.3;
@@ -519,7 +523,7 @@ export default {
 .intro-desc {
   display: block;
   margin-top: 18rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 26rpx;
   line-height: 1.7;
 }
@@ -530,21 +534,21 @@ export default {
 
 .preview-label {
   display: block;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 20rpx;
   letter-spacing: 2rpx;
 }
 
 .preview-card {
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 20rpx;
   padding: 26rpx;
 }
 
 .preview-text {
   display: block;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 24rpx;
   line-height: 1.6;
 }
@@ -558,10 +562,10 @@ export default {
 .preview-option {
   flex: 1;
   padding: 16rpx;
-  background: rgba(11,17,24,0.64);
-  border: 1px solid #27384A;
+  background: rgba(var(--bg-inset-rgb),0.64);
+  border: 1px solid var(--border-soft);
   border-radius: 12rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 24rpx;
   text-align: center;
 }
@@ -570,8 +574,8 @@ export default {
   margin-top: 36rpx;
   height: 88rpx;
   border-radius: 999rpx;
-  background: linear-gradient(135deg, #D8C27A, #C6A15B);
-  color: #0B1118;
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  color: var(--bg-outer);
   font-size: 28rpx;
   font-weight: 800;
   display: flex;
@@ -590,21 +594,21 @@ export default {
 }
 
 .progress-text {
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 22rpx;
 }
 
 .progress-bar-bg {
   flex: 1;
   height: 6rpx;
-  background: #27384A;
+  background: var(--border-soft);
   border-radius: 3rpx;
   overflow: hidden;
 }
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #C6A15B, #D8C27A);
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
   border-radius: 3rpx;
 }
 
@@ -613,15 +617,15 @@ export default {
 }
 
 .rumor-card {
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 28rpx;
   padding: 34rpx;
   box-sizing: border-box;
 }
 
 .rumor-kicker {
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 22rpx;
   letter-spacing: 4rpx;
 }
@@ -629,7 +633,7 @@ export default {
 .rumor-title {
   display: block;
   margin-top: 18rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 40rpx;
   font-weight: 900;
   line-height: 1.3;
@@ -638,7 +642,7 @@ export default {
 .rumor-text {
   display: block;
   margin-top: 28rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 34rpx;
   line-height: 1.55;
   white-space: normal;
@@ -655,9 +659,9 @@ export default {
   flex: 1;
   height: 88rpx;
   border-radius: 18rpx;
-  background: rgba(11,17,24,0.64);
-  border: 1px solid #27384A;
-  color: #F2F4F6;
+  background: rgba(var(--bg-inset-rgb),0.64);
+  border: 1px solid var(--border-soft);
+  color: var(--text-primary);
   font-size: 28rpx;
   font-weight: 800;
   display: flex;
@@ -666,7 +670,7 @@ export default {
 }
 
 .answer-button:active {
-  border-color: rgba(198,161,91,0.65);
+  border-color: rgba(var(--accent-rgb),0.65);
 }
 
 .reveal-panel {
@@ -713,22 +717,22 @@ export default {
 }
 
 .result-text {
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 30rpx;
   font-weight: 800;
 }
 
 .fact-card {
   margin-top: 24rpx;
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 24rpx;
   padding: 30rpx;
 }
 
 .fact-title {
   display: block;
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 32rpx;
   font-weight: 800;
 }
@@ -736,7 +740,7 @@ export default {
 .fact-text {
   display: block;
   margin-top: 16rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 26rpx;
   line-height: 1.75;
   white-space: normal;
@@ -753,8 +757,8 @@ export default {
 .related-tag {
   padding: 8rpx 14rpx;
   border-radius: 999rpx;
-  background: rgba(198,161,91,0.14);
-  color: #C6A15B;
+  background: rgba(var(--accent-rgb),0.14);
+  color: var(--accent);
   font-size: 22rpx;
 }
 
@@ -762,8 +766,8 @@ export default {
   height: 88rpx;
   margin-top: 32rpx;
   border-radius: 999rpx;
-  background: linear-gradient(135deg, #D8C27A, #C6A15B);
-  color: #0B1118;
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  color: var(--bg-outer);
   font-size: 28rpx;
   font-weight: 800;
   display: flex;
@@ -778,7 +782,7 @@ export default {
 
 .summary-title {
   display: block;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 38rpx;
   font-weight: 900;
 }
@@ -786,28 +790,28 @@ export default {
 .summary-desc {
   display: block;
   margin-top: 14rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 26rpx;
 }
 
 .score-card {
   margin-top: 36rpx;
   padding: 30rpx;
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 24rpx;
 }
 
 .score-label {
   display: block;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 22rpx;
 }
 
 .score-value {
   display: block;
   margin-top: 14rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 52rpx;
   font-weight: 900;
 }
@@ -815,7 +819,7 @@ export default {
 .score-percent {
   display: block;
   margin-top: 6rpx;
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 34rpx;
   font-weight: 800;
 }
@@ -823,14 +827,14 @@ export default {
 .rank-card {
   margin-top: 22rpx;
   padding: 28rpx;
-  background: rgba(198,161,91,0.08);
-  border: 1px solid rgba(198,161,91,0.24);
+  background: rgba(var(--accent-rgb),0.08);
+  border: 1px solid rgba(var(--accent-rgb),0.24);
   border-radius: 22rpx;
 }
 
 .rank-title {
   display: block;
-  color: #D8C27A;
+  color: var(--accent-strong);
   font-size: 30rpx;
   font-weight: 800;
 }
@@ -838,7 +842,7 @@ export default {
 .rank-desc {
   display: block;
   margin-top: 10rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 24rpx;
   line-height: 1.6;
 }
@@ -847,13 +851,13 @@ export default {
   margin-top: 24rpx;
   padding: 20rpx;
   text-align: center;
-  border: 1px solid rgba(198,161,91,0.24);
+  border: 1px solid rgba(var(--accent-rgb),0.24);
   border-radius: 16rpx;
-  background: rgba(198,161,91,0.06);
+  background: rgba(var(--accent-rgb),0.06);
 }
 
 .loki-entry text {
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 24rpx;
 }
 
@@ -861,19 +865,19 @@ export default {
   margin-top: 20rpx;
   padding: 16rpx;
   text-align: center;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 22rpx;
 }
 
 .clear-btn {
   margin-left: 16rpx;
-  color: #66727F;
+  color: var(--text-muted);
   text-decoration: underline;
 }
 
 .submit-rumor-page {
   min-height: 100vh;
-  background: #0B1118;
+  background: var(--bg-outer);
   padding: 32rpx;
   padding-bottom: 180rpx;
   box-sizing: border-box;
@@ -882,7 +886,7 @@ export default {
 .rumor-desc {
   display: block;
   margin-top: 12rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 24rpx;
   line-height: 1.6;
 }
@@ -891,10 +895,10 @@ export default {
   width: 100%;
   margin-top: 20rpx;
   padding: 20rpx;
-  background: rgba(11,17,24,0.62);
-  border: 1px solid #27384A;
+  background: rgba(var(--bg-inset-rgb),0.62);
+  border: 1px solid var(--border-soft);
   border-radius: 16rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 26rpx;
   box-sizing: border-box;
 }
@@ -913,25 +917,25 @@ export default {
   flex: 1;
   height: 72rpx;
   border-radius: 16rpx;
-  border: 1px solid #27384A;
-  color: #A8B3BD;
+  border: 1px solid var(--border-soft);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .truth-option.active {
-  border-color: rgba(198,161,91,0.65);
-  color: #C6A15B;
-  background: rgba(198,161,91,0.12);
+  border-color: rgba(var(--accent-rgb),0.65);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb),0.12);
 }
 
 .source-tag {
   padding: 8rpx 14rpx;
   border-radius: 999rpx;
   background: transparent;
-  border: 1px solid rgba(198,161,91,0.42);
-  color: #C6A15B;
+  border: 1px solid rgba(var(--accent-rgb),0.42);
+  color: var(--accent);
   font-size: 20rpx;
 }
 
@@ -939,8 +943,8 @@ export default {
   margin-top: 20rpx;
   height: 72rpx;
   border-radius: 16rpx;
-  border: 1px solid #27384A;
-  color: #A8B3BD;
+  border: 1px solid var(--border-soft);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -954,7 +958,7 @@ export default {
 
 .archive-kicker {
   display: block;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 20rpx;
   letter-spacing: 4rpx;
 }
@@ -965,7 +969,7 @@ export default {
 
 .preview-kicker {
   display: block;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 20rpx;
   letter-spacing: 2rpx;
   margin-bottom: 16rpx;
@@ -979,10 +983,10 @@ export default {
 
 .preview-tag {
   padding: 8rpx 16rpx;
-  background: rgba(11,17,24,0.64);
-  border: 1px solid #27384A;
+  background: rgba(var(--bg-inset-rgb),0.64);
+  border: 1px solid var(--border-soft);
   border-radius: 8rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 22rpx;
 }
 
@@ -990,8 +994,8 @@ export default {
   height: 88rpx;
   margin-top: 36rpx;
   border-radius: 999rpx;
-  background: linear-gradient(135deg, #D8C27A, #C6A15B);
-  color: #0B1118;
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  color: var(--bg-outer);
   font-size: 28rpx;
   font-weight: 800;
   display: flex;
@@ -1009,19 +1013,19 @@ export default {
   margin-top: 24rpx;
   padding: 20rpx;
   text-align: center;
-  border: 1px solid rgba(198,161,91,0.24);
+  border: 1px solid rgba(var(--accent-rgb),0.24);
   border-radius: 16rpx;
-  background: rgba(198,161,91,0.06);
+  background: rgba(var(--accent-rgb),0.06);
   transition: transform 0.15s ease, background 0.15s ease;
 }
 
 .secondary-btn:active {
   transform: scale(0.98);
-  background: rgba(198,161,91,0.14);
+  background: rgba(var(--accent-rgb),0.14);
 }
 
 .secondary-btn text {
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 24rpx;
 }
 
@@ -1029,14 +1033,14 @@ export default {
   margin-top: 20rpx;
   padding: 16rpx;
   text-align: center;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 22rpx;
 }
 
 .clear-link {
   margin-left: 16rpx;
   padding: 8rpx 6rpx;
-  color: #66727F;
+  color: var(--text-muted);
   text-decoration: underline;
   transition: opacity 0.15s ease;
 }
@@ -1053,14 +1057,14 @@ export default {
 }
 
 .page-num {
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 22rpx;
 }
 
 .page-bar {
   flex: 1;
   height: 6rpx;
-  background: #27384A;
+  background: var(--border-soft);
   border-radius: 3rpx;
   margin-left: 20rpx;
   overflow: hidden;
@@ -1068,7 +1072,7 @@ export default {
 
 .page-bar-fill {
   height: 100%;
-  background: #C6A15B;
+  background: var(--accent);
   border-radius: 3rpx;
 }
 
@@ -1092,6 +1096,12 @@ export default {
     inset 0 0 34rpx rgba(88,54,24,0.22),
     0 18rpx 48rpx rgba(0,0,0,0.28);
   color: #2B1E12;
+  /* 松手后弹回原位 */
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.scroll-paper.dragging {
+  transition: none;
 }
 
 .scroll-rod {
@@ -1340,7 +1350,7 @@ export default {
 
 .modal-title {
   display: block;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 36rpx;
   font-weight: 900;
 }
@@ -1348,14 +1358,14 @@ export default {
 .modal-subtitle {
   display: block;
   margin-top: 12rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 24rpx;
 }
 
 .rumor-archive {
   margin-top: 28rpx;
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 24rpx;
   padding: 32rpx;
 }
@@ -1363,7 +1373,7 @@ export default {
 .rumor-subtitle {
   display: block;
   margin-top: 12rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 24rpx;
 }
 
@@ -1373,7 +1383,7 @@ export default {
 
 .judgment-label {
   display: block;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 22rpx;
   margin-bottom: 16rpx;
 }
@@ -1387,9 +1397,9 @@ export default {
   flex: 1;
   height: 88rpx;
   border-radius: 18rpx;
-  background: rgba(11,17,24,0.64);
-  border: 1px solid #27384A;
-  color: #F2F4F6;
+  background: rgba(var(--bg-inset-rgb),0.64);
+  border: 1px solid var(--border-soft);
+  color: var(--text-primary);
   font-size: 28rpx;
   font-weight: 800;
   display: flex;
@@ -1398,7 +1408,7 @@ export default {
 }
 
 .judgment-btn:active {
-  border-color: rgba(198,161,91,0.65);
+  border-color: rgba(var(--accent-rgb),0.65);
 }
 
 .stamp-result {
@@ -1430,22 +1440,22 @@ export default {
 
 .original-rumor {
   margin-top: 24rpx;
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 20rpx;
   padding: 28rpx;
 }
 
 .original-label {
   display: block;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 20rpx;
   margin-bottom: 12rpx;
 }
 
 .original-text {
   display: block;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 28rpx;
   line-height: 1.6;
 }
@@ -1453,7 +1463,7 @@ export default {
 .answer-review {
   margin-top: 20rpx;
   padding-top: 20rpx;
-  border-top: 1px solid rgba(39,56,74,0.5);
+  border-top: 1px solid rgba(var(--border-rgb),0.5);
 }
 
 .answer-row {
@@ -1463,7 +1473,7 @@ export default {
 }
 
 .answer-label {
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 22rpx;
 }
 
@@ -1479,15 +1489,15 @@ export default {
 
 .fact-archive {
   margin-top: 24rpx;
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 24rpx;
   padding: 30rpx;
 }
 
 .fact-kicker {
   display: block;
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 22rpx;
   letter-spacing: 2rpx;
   margin-bottom: 16rpx;
@@ -1503,22 +1513,22 @@ export default {
 .fact-tag {
   padding: 8rpx 14rpx;
   border-radius: 999rpx;
-  background: rgba(198,161,91,0.14);
-  color: #C6A15B;
+  background: rgba(var(--accent-rgb),0.14);
+  color: var(--accent);
   font-size: 22rpx;
 }
 
 .fact-tag.source {
   background: transparent;
-  border: 1px solid rgba(198,161,91,0.42);
+  border: 1px solid rgba(var(--accent-rgb),0.42);
 }
 
 .next-btn {
   height: 88rpx;
   margin-top: 32rpx;
   border-radius: 999rpx;
-  background: linear-gradient(135deg, #D8C27A, #C6A15B);
-  color: #0B1118;
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  color: var(--bg-outer);
   font-size: 28rpx;
   font-weight: 800;
   display: flex;
@@ -1535,8 +1545,8 @@ export default {
 .score-display {
   margin-top: 36rpx;
   padding: 32rpx;
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 24rpx;
   display: flex;
   align-items: center;
@@ -1550,34 +1560,34 @@ export default {
 }
 
 .score-num {
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 56rpx;
   font-weight: 900;
 }
 
 .score-divider {
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 36rpx;
   margin: 0 4rpx;
 }
 
 .score-total {
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 36rpx;
 }
 
 .rank-badge {
   margin-top: 24rpx;
   padding: 28rpx;
-  background: rgba(198,161,91,0.08);
-  border: 1px solid rgba(198,161,91,0.24);
+  background: rgba(var(--accent-rgb),0.08);
+  border: 1px solid rgba(var(--accent-rgb),0.24);
   border-radius: 22rpx;
 }
 
 .summary-closing {
   display: block;
   margin-top: 32rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 26rpx;
   line-height: 1.7;
 }
@@ -1586,8 +1596,8 @@ export default {
   margin-top: 20rpx;
   height: 72rpx;
   border-radius: 16rpx;
-  border: 1px solid #27384A;
-  color: #A8B3BD;
+  border: 1px solid var(--border-soft);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1596,8 +1606,8 @@ export default {
 
 .rumor-page {
   min-height: 100vh;
-  background: radial-gradient(circle at 50% 18%, rgba(198,161,91,0.08), transparent 34%), #0B1118;
-  color: #F2F4F6;
+  background: radial-gradient(circle at 50% 18%, rgba(var(--accent-rgb),0.08), transparent 34%), var(--bg-outer);
+  color: var(--text-primary);
   padding-bottom: 180rpx;
 }
 
@@ -1608,8 +1618,8 @@ export default {
 
 .archive-card {
   position: relative;
-  background: linear-gradient(180deg, rgba(23,34,48,0.98), rgba(14,23,33,0.98));
-  border: 1px solid #27384A;
+  background: linear-gradient(180deg, var(--bg-card), var(--bg-elevated));
+  border: 1px solid var(--border-soft);
   border-radius: 28rpx;
   padding: 34rpx;
   box-sizing: border-box;
@@ -1624,13 +1634,13 @@ export default {
   top: 28rpx;
   bottom: 28rpx;
   width: 4rpx;
-  background: rgba(198,161,91,0.55);
+  background: rgba(var(--accent-rgb),0.55);
   border-radius: 999rpx;
 }
 
 .archive-kicker {
   display: block;
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 20rpx;
   letter-spacing: 4rpx;
   font-weight: 700;
@@ -1639,7 +1649,7 @@ export default {
 .archive-title {
   display: block;
   margin-top: 16rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 44rpx;
   font-weight: 900;
   line-height: 1.25;
@@ -1648,7 +1658,7 @@ export default {
 .archive-desc {
   display: block;
   margin-top: 18rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 26rpx;
   line-height: 1.7;
   white-space: normal;
@@ -1658,21 +1668,21 @@ export default {
 .rumor-sample {
   margin-top: 32rpx;
   padding: 26rpx;
-  background: rgba(11,17,24,0.58);
-  border: 1px solid rgba(39,56,74,0.86);
+  background: rgba(var(--bg-inset-rgb),0.58);
+  border: 1px solid rgba(var(--border-rgb),0.86);
   border-radius: 20rpx;
 }
 
 .sample-label {
   display: block;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 22rpx;
 }
 
 .sample-text {
   display: block;
   margin-top: 12rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 30rpx;
   line-height: 1.5;
   font-weight: 700;
@@ -1686,7 +1696,7 @@ export default {
 }
 
 .progress-label {
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 24rpx;
   flex-shrink: 0;
 }
@@ -1694,21 +1704,21 @@ export default {
 .progress-track {
   flex: 1;
   height: 8rpx;
-  background: #172230;
+  background: var(--bg-card);
   border-radius: 999rpx;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #C6A15B, #D8C27A);
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
   border-radius: 999rpx;
 }
 
 .rumor-question-text {
   display: block;
   margin-top: 26rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 36rpx;
   line-height: 1.55;
   font-weight: 850;
@@ -1719,7 +1729,7 @@ export default {
 .judgement-title {
   display: block;
   margin: 34rpx 0 16rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 24rpx;
 }
 
@@ -1732,9 +1742,9 @@ export default {
   flex: 1;
   height: 88rpx;
   border-radius: 18rpx;
-  background: rgba(11,17,24,0.64);
-  border: 1px solid #27384A;
-  color: #F2F4F6;
+  background: rgba(var(--bg-inset-rgb),0.64);
+  border: 1px solid var(--border-soft);
+  color: var(--text-primary);
   font-size: 28rpx;
   font-weight: 800;
   display: flex;
@@ -1743,23 +1753,23 @@ export default {
 }
 
 .answer-button:active {
-  border-color: rgba(198,161,91,0.68);
-  box-shadow: 0 0 24rpx rgba(198,161,91,0.12);
+  border-color: rgba(var(--accent-rgb),0.68);
+  box-shadow: 0 0 24rpx rgba(var(--accent-rgb),0.12);
 }
 
 .answer-button.active {
-  border-color: #C6A15B;
-  background: rgba(198,161,91,0.12);
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb),0.12);
 }
 
 .rumor-input {
   width: 100%;
   margin-top: 20rpx;
   padding: 20rpx;
-  background: rgba(11,17,24,0.62);
-  border: 1px solid #27384A;
+  background: rgba(var(--bg-inset-rgb),0.62);
+  border: 1px solid var(--border-soft);
   border-radius: 16rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 26rpx;
   box-sizing: border-box;
 }
@@ -1772,8 +1782,8 @@ export default {
   margin-bottom: 24rpx;
   padding: 28rpx;
   border-radius: 24rpx;
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
 }
 
 .verdict-card.correct {
@@ -1802,15 +1812,15 @@ export default {
 
 .fact-card {
   margin-top: 24rpx;
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 24rpx;
   padding: 30rpx;
 }
 
 .fact-title {
   display: block;
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 30rpx;
   font-weight: 800;
 }
@@ -1818,7 +1828,7 @@ export default {
 .fact-subtitle {
   display: block;
   margin-top: 10rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 28rpx;
   font-weight: 700;
 }
@@ -1826,7 +1836,7 @@ export default {
 .fact-text {
   display: block;
   margin-top: 16rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 26rpx;
   line-height: 1.75;
   white-space: normal;
@@ -1843,8 +1853,8 @@ export default {
 .related-tag {
   padding: 8rpx 14rpx;
   border-radius: 999rpx;
-  background: rgba(198,161,91,0.14);
-  color: #C6A15B;
+  background: rgba(var(--accent-rgb),0.14);
+  color: var(--accent);
   font-size: 22rpx;
 }
 
@@ -1852,8 +1862,8 @@ export default {
   height: 88rpx;
   margin-top: 32rpx;
   border-radius: 999rpx;
-  background: linear-gradient(135deg, #D8C27A, #C6A15B);
-  color: #0B1118;
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  color: var(--bg-outer);
   font-size: 28rpx;
   font-weight: 800;
   display: flex;
@@ -1863,7 +1873,7 @@ export default {
 
 .secondary-link {
   margin-top: 24rpx;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 24rpx;
   text-align: center;
 }

@@ -1,6 +1,15 @@
 <template>
-	<scroll-view scroll-y class="container">
-		<view class="artifact-hero">
+	<scroll-view scroll-y class="container page-enter-deep" @scroll="onHeroScroll">
+		<NavBar title="法器详情" />
+		<EmptyState
+			v-if="notFound"
+			type="notfound"
+			size="page"
+			:actions="[{ label: '返回图鉴', variant: 'primary', event: 'back' }]"
+			@action="onEmptyAction"
+		/>
+		<template v-else>
+		<view class="artifact-hero" :style="heroStyle">
 			<view class="artifact-icon-box">
 				<text class="artifact-icon">{{ getArtifactIcon(artifact.type) }}</text>
 			</view>
@@ -98,20 +107,24 @@
 				</view>
 			</view>
 		</view>
-
-		<view class="back-btn-wrap">
-			<text class="back-btn" @click="goBack">‹</text>
-		</view>
+		</template>
 	</scroll-view>
 </template>
 
 <script>
-import { getArtifactById, getRarityLabel } from '@/data/norseArtifacts.js'
+import { getRarityLabel } from '@/data/norseArtifacts.js'
+import { db } from '@/db'
+import NavBar from '@/components/NavBar.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import heroParallax from '@/mixins/heroParallax.js'
 
 export default {
+	components: { NavBar, EmptyState },
+	mixins: [heroParallax],
 	data() {
 		return {
-			artifact: null
+			artifact: null,
+			notFound: false
 		}
 	},
 	computed: {
@@ -126,11 +139,25 @@ export default {
 		}
 	},
 	onLoad(options) {
-		if (options.id) {
-			this.artifact = getArtifactById(options.id)
+		const found = options.id ? db.findById('artifacts', options.id) : null
+		// 无 id → 默认首件法器；带无效 id → 缺省态「内容不存在」（原实现会白屏）
+		if (options.id && !found) {
+			this.notFound = true
+			return
 		}
+		this.artifact = found || db.findAll('artifacts')[0]
 	},
 	methods: {
+		// 缺省态操作：返回上一页，无栈时回图鉴
+		onEmptyAction(event) {
+			if (event !== 'back') return
+			const pages = getCurrentPages()
+			if (pages.length > 1) {
+				uni.navigateBack()
+			} else {
+				uni.switchTab({ url: '/pages/codex/codex-index' })
+			}
+		},
 		getRarityLabel(rarity) {
 			return getRarityLabel(rarity)
 		},
@@ -159,9 +186,6 @@ export default {
 			uni.navigateTo({
 				url: `/pages/bestiary/creature-detail?id=${id}`
 			})
-		},
-		goBack() {
-			uni.navigateBack()
 		}
 	}
 }
@@ -170,16 +194,16 @@ export default {
 <style scoped>
 .container {
 	min-height: 100vh;
-	background: #0B1118;
-	color: #F2F4F6;
+	background: var(--bg-outer);
+	color: var(--text-primary);
 	padding-bottom: 60rpx;
 }
 
 .artifact-hero {
-	padding: 120rpx 40rpx 60rpx;
+	padding: 48rpx 40rpx 60rpx;
 	background:
-		radial-gradient(circle at 50% 20%, rgba(198,161,91,0.12), transparent 50%),
-		#0B1118;
+		radial-gradient(circle at 50% 20%, rgba(var(--accent-rgb), 0.12), transparent 50%),
+		var(--bg-outer);
 	text-align: center;
 	position: relative;
 }
@@ -189,15 +213,15 @@ export default {
 	height: 140rpx;
 	margin: 0 auto 30rpx;
 	border-radius: 20rpx;
-	background: linear-gradient(135deg, rgba(198,161,91,0.24), rgba(198,161,91,0.08));
-	border: 2px solid rgba(198,161,91,0.36);
+	background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.24), rgba(var(--accent-rgb), 0.08));
+	border: 2px solid rgba(var(--accent-rgb), 0.36);
 	display: flex;
 	align-items: center;
 	justify-content: center;
 }
 
 .artifact-icon {
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 64rpx;
 	font-weight: 900;
 	font-style: italic;
@@ -205,7 +229,7 @@ export default {
 
 .artifact-name {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 48rpx;
 	font-weight: 900;
 	margin-bottom: 8rpx;
@@ -213,7 +237,7 @@ export default {
 
 .artifact-original {
 	display: block;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 26rpx;
 	margin-bottom: 20rpx;
 }
@@ -229,12 +253,12 @@ export default {
 .meta-type,
 .meta-owner,
 .meta-realm {
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 24rpx;
 }
 
 .meta-divider {
-	color: #66727F;
+	color: var(--text-muted);
 }
 
 .rarity-tag {
@@ -248,9 +272,9 @@ export default {
 }
 
 .rarity-tag.legendary {
-	background: rgba(216, 194, 122, 0.2);
-	color: #D8C27A;
-	border: 1px solid rgba(216, 194, 122, 0.4);
+	background: rgba(var(--accent-strong-rgb), 0.2);
+	color: var(--accent-strong);
+	border: 1px solid rgba(var(--accent-strong-rgb), 0.4);
 }
 
 .rarity-tag.epic {
@@ -268,21 +292,21 @@ export default {
 .section-card {
 	margin: 28rpx 32rpx;
 	padding: 28rpx;
-	background: #172230;
-	border: 1px solid #27384A;
+	background: var(--bg-card);
+	border: 1px solid var(--border-soft);
 	border-radius: 20rpx;
 }
 
 .section-title {
 	display: block;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 24rpx;
 	margin-bottom: 16rpx;
 	font-weight: 600;
 }
 
 .artifact-desc {
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 26rpx;
 	line-height: 1.7;
 }
@@ -295,13 +319,13 @@ export default {
 
 .ability-tag {
 	padding: 10rpx 18rpx;
-	background: rgba(198,161,91,0.12);
-	border: 1px solid rgba(198,161,91,0.28);
+	background: rgba(var(--accent-rgb), 0.12);
+	border: 1px solid rgba(var(--accent-rgb), 0.28);
 	border-radius: 12rpx;
 }
 
 .ability-tag text {
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 24rpx;
 	font-weight: 600;
 }
@@ -319,18 +343,18 @@ export default {
 }
 
 .owner-label {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 24rpx;
 }
 
 .owner-value {
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 24rpx;
 	font-weight: 600;
 }
 
 .owner-value.danger {
-	color: #C6A15B;
+	color: var(--accent);
 }
 
 .related-list {
@@ -341,18 +365,18 @@ export default {
 
 .related-card {
 	padding: 18rpx;
-	background: rgba(11,17,24,0.5);
+	background: rgba(var(--bg-inset-rgb), 0.5);
 	border-radius: 14rpx;
-	border: 1px solid #27384A;
+	border: 1px solid var(--border-soft);
 }
 
 .related-card:active {
-	border-color: #C6A15B;
+	border-color: var(--accent);
 }
 
 .related-name {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 26rpx;
 	font-weight: 700;
 	margin-bottom: 6rpx;
@@ -360,34 +384,7 @@ export default {
 
 .related-desc {
 	display: block;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 22rpx;
-}
-
-.back-btn-wrap {
-	position: fixed;
-	top: 40rpx;
-	left: 24rpx;
-	z-index: 100;
-}
-
-.back-btn {
-	width: 72rpx;
-	height: 72rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background: rgba(11, 17, 24, 0.85);
-	border: 1px solid #27384A;
-	border-radius: 50%;
-	color: #C6A15B;
-	font-size: 48rpx;
-	font-weight: 300;
-	transition: transform 0.15s ease, border-color 0.15s ease;
-}
-
-.back-btn:active {
-	transform: scale(0.9);
-	border-color: #C6A15B;
 }
 </style>

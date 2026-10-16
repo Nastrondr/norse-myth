@@ -1,9 +1,8 @@
 <template>
-  <view class="page">
+  <view class="page page-enter">
     <scroll-view class="scroll-view" scroll-y>
+      <PageHeader kicker="NINE REALMS" title="九界探索" subtitle="沿世界树的枝干，进入诸神、巨人与亡者的国度。" />
       <view class="hero-section">
-        <text class="hero-title">九界探索</text>
-        <text class="hero-desc">沿世界树的枝干，进入诸神、巨人与亡者的国度。</text>
         <view class="tree-card">
           <text class="tree-label">YGGDRASIL</text>
           <view class="tree-visual-center">
@@ -18,7 +17,7 @@
 
       <view class="progress-section">
         <view class="progress-simple">
-          <text class="progress-title">世界树探索 {{ worldTreeProgress.totalProgress }}%</text>
+          <view class="progress-title">世界树探索 <AnimNumber :value="worldTreeProgress.totalProgress" />%</view>
           <view class="progress-line">
             <view class="progress-line-fill" :style="{ width: worldTreeProgress.totalProgress + '%' }"></view>
           </view>
@@ -60,27 +59,37 @@
       </view>
 
       <view class="worlds-grid">
-        <view class="world-card" v-for="(world, index) in worlds" :key="index" @click="enterWorld(world)" :class="world.progress >= 50 ? 'high-progress' : ''">
-          <view v-if="world.progress > 0" class="world-status-dot" :style="{ opacity: world.progress / 100 + 0.3 }"></view>
-          <text class="world-name">{{ world.name }}</text>
-          <text class="world-name-en">{{ world.nameEn }}</text>
-          <text class="world-desc">{{ world.desc }}</text>
-          <view class="world-progress-bar">
-            <view class="world-progress-fill" :style="{ width: world.progress + '%' }"></view>
+        <view
+          class="world-card stagger-item"
+          v-for="(world, index) in visibleWorlds"
+          :key="world.id"
+          :style="[
+            { animationDelay: Math.min(index, 12) * 0.05 + 's' },
+            world.mapImage
+              ? { backgroundImage: 'linear-gradient(rgba(16,24,34,0.86), rgba(16,24,34,0.86)), url(' + world.mapImage + ')' }
+              : null
+          ]"
+          @click="enterWorld(world)"
+          :class="world.progress >= 50 ? 'high-progress' : ''"
+        >
+          <text class="world-rune">{{ world.rune }}</text>
+          <view class="world-card-head">
+            <text class="world-name">{{ world.name }}</text>
+            <text class="world-name-en">{{ world.nameEn }}</text>
           </view>
-          <text class="world-progress-text">{{ world.progress }}%</text>
+          <text class="world-desc">{{ world.desc }}</text>
+          <view class="world-progress-row">
+            <view class="world-progress-bar">
+              <view class="world-progress-fill" :style="{ width: world.progress + '%' }"></view>
+            </view>
+            <text class="world-progress-text">{{ world.progress }}%</text>
+          </view>
         </view>
       </view>
 
-      <view class="section">
-        <text class="section-title">今日神谕</text>
-      </view>
-
-      <view class="oracle-card">
-        <view class="oracle-row" v-for="(item, index) in recommends" :key="index">
-          <text class="oracle-label">{{ item.label }}</text>
-          <text class="oracle-value">{{ item.value }}</text>
-        </view>
+      <view class="worlds-toggle" @click="toggleWorlds">
+        <text class="worlds-toggle-text">{{ worldsExpanded ? '收起九界' : '探索更多' }}</text>
+        <text class="worlds-toggle-arrow" :class="{ expanded: worldsExpanded }">∨</text>
       </view>
 
       <view class="bottom-space"></view>
@@ -171,34 +180,40 @@
 
 <script>
 import { initAudio, getBgmEnabled, toggleBgm, getBgmVolume, setBgmVolume } from '../../utils/audioManager.js'
+import { db } from '@/db'
+import { state } from '@/state'
 import TabBar from '../../components/TabBar.vue'
+import PageHeader from '../../components/PageHeader.vue'
+import AnimNumber from '../../components/AnimNumber.vue'
 
 export default {
-  components: { TabBar },
+  components: { TabBar, PageHeader, AnimNumber },
   data() {
     return {
       bgmEnabled: false,
       volumePanelVisible: false,
       bgmVolume: 0.45,
       isDraggingVolume: false,
+      worldsExpanded: false,
       worlds: [
-        { id: 'asgard', name: '阿斯加德', nameEn: 'Asgard', type: '神域', desc: '奥丁与阿萨神族的居所', progress: 85 },
-        { id: 'midgard', name: '米德加德', nameEn: 'Midgard', type: '人域', desc: '人类与生物的中庭世界', progress: 92 },
-        { id: 'jotunheim', name: '约顿海姆', nameEn: 'Jotunheim', type: '巨人国', desc: '霜巨人之国', progress: 45 },
-        { id: 'vanaheim', name: '华纳海姆', nameEn: 'Vanaheim', type: '神域', desc: '华纳神族的领地', progress: 30 },
-        { id: 'alfheim', name: '亚尔夫海姆', nameEn: 'Alfheim', type: '精灵国', desc: '光明精灵的家园', progress: 55 },
-        { id: 'svartalfheim', name: '斯瓦塔尔夫海姆', nameEn: 'Svartalfheim', type: '矮人国', desc: '黑暗精灵与矮人的锻炉', progress: 20 },
-        { id: 'niflheim', name: '尼福尔海姆', nameEn: 'Niflheim', type: '雾国', desc: '冰冷的雾之国', progress: 15 },
-        { id: 'muspelheim', name: '穆斯贝尔海姆', nameEn: 'Muspelheim', type: '火国', desc: '苏尔特尔的火焰之国', progress: 10 },
-        { id: 'helheim', name: '赫尔海姆', nameEn: 'Helheim', type: '冥府', desc: '亡者之地', progress: 25 }
+        { id: 'asgard', rune: 'ᚨ', name: '阿斯加德', nameEn: 'Asgard', type: '神域', desc: '奥丁与阿萨神族的居所', progress: 85 },
+        { id: 'midgard', rune: 'ᛗ', name: '米德加德', nameEn: 'Midgard', type: '人域', desc: '人类与生物的中庭世界', progress: 92 },
+        { id: 'jotunheim', rune: 'ᚦ', name: '约顿海姆', nameEn: 'Jotunheim', type: '巨人国', desc: '霜巨人之国', progress: 45 },
+        { id: 'vanaheim', rune: 'ᚢ', name: '华纳海姆', nameEn: 'Vanaheim', type: '神域', desc: '华纳神族的领地', progress: 30 },
+        { id: 'alfheim', rune: 'ᛚ', name: '亚尔夫海姆', nameEn: 'Alfheim', type: '精灵国', desc: '光明精灵的家园', progress: 55 },
+        { id: 'svartalfheim', rune: 'ᚲ', name: '斯瓦塔尔夫海姆', nameEn: 'Svartalfheim', type: '矮人国', desc: '黑暗精灵与矮人的锻炉', progress: 20 },
+        { id: 'niflheim', rune: 'ᚾ', name: '尼福尔海姆', nameEn: 'Niflheim', type: '雾国', desc: '冰冷的雾之国', progress: 15 },
+        { id: 'muspelheim', rune: 'ᛊ', name: '穆斯贝尔海姆', nameEn: 'Muspelheim', type: '火国', desc: '苏尔特尔的火焰之国', progress: 10 },
+        { id: 'helheim', rune: 'ᛉ', name: '赫尔海姆', nameEn: 'Helheim', type: '冥府', desc: '亡者之地', progress: 25 }
       ],
       worldTreeProgress: {
         totalProgress: 36,
-        realms: { current: 3, total: 9 },
-        gods: { current: 6, total: 12 },
-        creatures: { current: 8, total: 20 },
-        stories: { current: 5, total: 18 },
-        runes: { current: 4, total: 24 }
+        // 总数以数据库为准（单一事实源），current 为占位进度
+        realms: { current: 3, total: db.count('realms') },
+        gods: { current: 6, total: db.count('gods') },
+        creatures: { current: 8, total: db.count('creatures') },
+        stories: { current: 5, total: db.count('stories') },
+        runes: { current: 4, total: db.count('runeDetails') }
       },
       dailyTasks: [
         {
@@ -227,31 +242,26 @@ export default {
           type: 'bestiary',
           completed: false,
           actionText: '去图鉴'
-        },
-        {
-          id: 'rune-divination',
-          title: '完成一次三符文占卜',
-          desc: '抽取过去、现在与未来的卢恩',
-          reward: '卢恩回响 +1',
-          type: 'rune',
-          completed: false,
-          actionText: '去占卜'
         }
-      ],
-      recommends: [
-        { label: '今日神祇', value: '奥丁' },
-        { label: '今日故事', value: '巴德尔之死' },
-        { label: '今日卢恩', value: 'Ansuz' }
       ],
       isEnteringWorld: false,
       enteringWorld: null,
       enterTimer: null,
-      enterRunes: ['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ','ᚷ','ᚹ','ᚺ','ᚾ','ᛁ','ᛃ'],
-      storageKeys: {
-        dailyTasks: 'norse_daily_tasks',
-        worldTreeProgress: 'norse_world_tree_progress'
-      }
+      enterRunes: ['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ','ᚷ','ᚹ','ᚺ','ᚾ','ᛁ','ᛃ']
     }
+  },
+  computed: {
+    visibleWorlds() {
+      return this.worldsExpanded ? this.worlds : this.worlds.slice(0, 4)
+    }
+  },
+  created() {
+    // 手绘地图缩略图与九界数据同源：worlds 集合填好 mapImage 后，首页卡片自动带图
+    db.findAll('worlds').forEach(source => {
+      if (!source.mapImage) return
+      const target = this.worlds.find(w => w.id === source.id)
+      if (target) target.mapImage = source.mapImage
+    })
   },
   onShow() {
     // 从其他页面返回时刷新任务与进度展示
@@ -275,6 +285,9 @@ export default {
     }
   },
   methods: {
+    toggleWorlds() {
+      this.worldsExpanded = !this.worldsExpanded
+    },
     handleToggleBgm() {
       this.bgmEnabled = toggleBgm()
       uni.showToast({
@@ -443,12 +456,11 @@ export default {
       }
       // tabBar 页面必须用 switchTab，navigateTo 会跳转失败
       const tabRoutes = {
-        story: '/pages/stories/story-list',
-        bestiary: '/pages/bestiary/bestiary-list'
+        story: '/pages/stories/story-list'
       }
       const pageRoutes = {
         realm: '/pages/world/world-detail?id=asgard',
-        rune: '/pages/fun/rune-divination'
+        bestiary: '/pages/bestiary/bestiary-list'
       }
       this.completeTask(task.id)
       if (tabRoutes[task.type]) {
@@ -463,10 +475,20 @@ export default {
       }
     },
     loadHomeProgress() {
-      const savedTasks = uni.getStorageSync(this.storageKeys.dailyTasks)
-      const savedProgress = uni.getStorageSync(this.storageKeys.worldTreeProgress)
+      const savedTasks = state.get('progress.dailyTasks')
+      const savedProgress = state.get('progress.worldTree')
       if (savedTasks && Array.isArray(savedTasks)) {
-        this.dailyTasks = savedTasks
+        // 以当前默认任务为基准，只同步完成状态，
+        // 避免旧版本缓存（如已下线的任务）重新出现在列表中
+        const completedMap = {}
+        savedTasks.forEach(task => {
+          if (task && task.id) {
+            completedMap[task.id] = !!task.completed
+          }
+        })
+        this.dailyTasks.forEach(task => {
+          task.completed = !!completedMap[task.id]
+        })
       }
       if (savedProgress && typeof savedProgress === 'object') {
         this.worldTreeProgress = {
@@ -477,8 +499,8 @@ export default {
       this.recalculateTotalProgress()
     },
     saveHomeProgress() {
-      uni.setStorageSync(this.storageKeys.dailyTasks, this.dailyTasks)
-      uni.setStorageSync(this.storageKeys.worldTreeProgress, this.worldTreeProgress)
+      state.set('progress.dailyTasks', this.dailyTasks)
+      state.set('progress.worldTree', this.worldTreeProgress)
     },
     completeTask(taskId) {
       const task = this.dailyTasks.find(item => item.id === taskId)
@@ -515,12 +537,6 @@ export default {
           this.worldTreeProgress.creatures.total
         )
       }
-      if (task.type === 'rune') {
-        this.worldTreeProgress.runes.current = Math.min(
-          this.worldTreeProgress.runes.current + 1,
-          this.worldTreeProgress.runes.total
-        )
-      }
     },
     recalculateTotalProgress() {
       const p = this.worldTreeProgress
@@ -546,8 +562,8 @@ export default {
         ...item,
         completed: false
       }))
-      uni.removeStorageSync(this.storageKeys.dailyTasks)
-      uni.removeStorageSync(this.storageKeys.worldTreeProgress)
+      state.remove('progress.dailyTasks')
+      state.remove('progress.worldTree')
       this.recalculateTotalProgress()
       uni.showToast({
         title: '已重置',
@@ -561,34 +577,18 @@ export default {
 <style scoped>
 .page {
   min-height: 100vh;
-  background: #0B1118;
+  background: var(--bg-outer);
 }
 
 .scroll-view {
   height: 100vh;
-  background: #0B1118;
+  background: var(--bg-outer);
 }
 
 .hero-section {
-  padding: 56rpx 32rpx 28rpx;
+  padding: 8rpx 32rpx 28rpx;
   text-align: center;
-  background: radial-gradient(circle at 50% 38%, rgba(198,161,91,0.10), transparent 38%), #0B1118;
-}
-
-.hero-title {
-  display: block;
-  font-size: 54rpx;
-  font-weight: 900;
-  color: #C6A15B;
-  letter-spacing: 4rpx;
-}
-
-.hero-desc {
-  display: block;
-  margin-top: 18rpx;
-  color: #A8B3BD;
-  font-size: 26rpx;
-  line-height: 1.7;
+  background: var(--bg-outer);
 }
 
 .tree-card {
@@ -615,14 +615,14 @@ export default {
 .tree-trunk {
   width: 9rpx;
   height: 180rpx;
-  background: linear-gradient(180deg, #C6A15B, #27384A);
+  background: linear-gradient(180deg, var(--accent), var(--border-soft));
 }
 
 .tree-branch {
   position: absolute;
   width: 90rpx;
   height: 6rpx;
-  background: linear-gradient(90deg, transparent, #C6A15B);
+  background: linear-gradient(90deg, transparent, var(--accent));
 }
 
 .tree-branch-left {
@@ -646,18 +646,18 @@ export default {
   transform: translateX(-50%);
   width: 120rpx;
   height: 120rpx;
-  border: 4rpx solid rgba(198,161,91,0.42);
+  border: 4rpx solid rgba(var(--accent-rgb),0.42);
   border-radius: 50%;
 }
 
 .tree-label {
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 30rpx;
   letter-spacing: 4rpx;
 }
 
 .tree-name {
-  color: #D8C27A;
+  color: var(--accent-strong);
   font-size: 48rpx;
   font-weight: 700;
   letter-spacing: 2rpx;
@@ -673,14 +673,14 @@ export default {
 }
 
 .progress-title {
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 28rpx;
   font-weight: 700;
 }
 
 .progress-line {
   height: 8rpx;
-  background: #27384A;
+  background: var(--border-soft);
   border-radius: 4rpx;
   margin-top: 16rpx;
   overflow: hidden;
@@ -688,7 +688,7 @@ export default {
 
 .progress-line-fill {
   height: 100%;
-  background: linear-gradient(90deg, #C6A15B, #D8C27A);
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
   border-radius: 4rpx;
 }
 
@@ -700,125 +700,164 @@ export default {
 .section-title {
   font-size: 32rpx;
   font-weight: 700;
-  color: #F2F4F6;
+  color: var(--text-primary);
 }
 
 .section-desc {
   display: block;
   margin-top: 8rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 24rpx;
 }
 
 .worlds-grid {
-  display: flex;
-  flex-wrap: wrap;
-  padding: 8rpx 20rpx;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20rpx;
+  padding: 8rpx 32rpx 0;
 }
 
 .world-card {
-  width: calc(50% - 24rpx);
-  min-height: 220rpx;
-  background: #172230;
-  border: 1px solid #27384A;
-  border-radius: 20rpx;
-  padding: 24rpx;
-  box-sizing: border-box;
   position: relative;
+  min-height: 208rpx;
+  padding: 26rpx 24rpx 22rpx;
+  background: linear-gradient(160deg, var(--bg-card), var(--bg-elevated));
+  /* 配合内联 backgroundImage：手绘地图缩略图铺底，上面盖一层深色保证文字可读 */
+  background-size: cover;
+  background-position: center;
+  border: 1px solid var(--border-soft);
+  border-radius: 22rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .world-card.high-progress {
-  border-color: rgba(198,161,91,0.42);
+  border-color: rgba(var(--accent-rgb),0.42);
+  box-shadow: inset 0 0 40rpx rgba(var(--accent-rgb),0.05);
 }
 
 .world-card:active {
-  transform: scale(0.98);
-  border-color: rgba(198,161,91,0.55);
+  transform: scale(0.97);
+  border-color: rgba(var(--accent-rgb),0.55);
 }
 
-.world-status-dot {
+.world-rune {
   position: absolute;
-  right: 20rpx;
-  top: 20rpx;
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 50%;
-  background: #C6A15B;
+  right: 14rpx;
+  top: 2rpx;
+  font-family: serif;
+  font-size: 104rpx;
+  line-height: 1;
+  color: rgba(var(--accent-rgb),0.12);
+  pointer-events: none;
+  transition: color 0.18s ease;
+}
+
+.world-card.high-progress .world-rune {
+  color: rgba(var(--accent-rgb),0.22);
+}
+
+.world-card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2rpx;
+  padding-right: 72rpx;
 }
 
 .world-name {
   display: block;
   font-size: 30rpx;
   font-weight: 700;
-  color: #F2F4F6;
+  color: var(--text-primary);
 }
 
 .world-name-en {
   display: block;
-  color: #C6A15B;
-  font-size: 22rpx;
-  margin-top: 4rpx;
+  color: var(--accent);
+  font-size: 20rpx;
+  letter-spacing: 1rpx;
 }
 
 .world-desc {
   display: block;
   margin-top: 12rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 22rpx;
   line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.world-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin-top: auto;
+  padding-top: 20rpx;
 }
 
 .world-progress-bar {
-  height: 8rpx;
-  background: #27384A;
-  border-radius: 4rpx;
-  margin-top: 16rpx;
+  flex: 1;
+  height: 6rpx;
+  background: rgba(var(--border-rgb),0.9);
+  border-radius: 3rpx;
   overflow: hidden;
 }
 
 .world-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #C6A15B, #D8C27A);
-  border-radius: 4rpx;
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+  border-radius: 3rpx;
+  transition: width 0.4s ease;
 }
 
 .world-progress-text {
-  display: block;
-  margin-top: 8rpx;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 20rpx;
-  text-align: right;
+  flex-shrink: 0;
 }
 
-.oracle-card {
-  margin: 0 32rpx 36rpx;
-  padding: 24rpx;
-  background: #172230;
-  border: 1px solid #27384A;
-  border-radius: 20rpx;
+.world-card.high-progress .world-progress-text {
+  color: var(--accent);
 }
 
-.oracle-row {
+.worlds-toggle {
+  margin: 26rpx 32rpx 0;
+  height: 84rpx;
+  border-radius: 999rpx;
+  border: 1px solid rgba(var(--accent-rgb),0.32);
+  background: rgba(var(--accent-rgb),0.07);
   display: flex;
-  justify-content: space-between;
-  padding: 14rpx 0;
-  border-bottom: 1px solid rgba(39,56,74,0.5);
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  transition: transform 0.15s ease, background 0.15s ease;
 }
 
-.oracle-row:last-child {
-  border-bottom: none;
+.worlds-toggle:active {
+  transform: scale(0.97);
+  background: rgba(var(--accent-rgb),0.16);
 }
 
-.oracle-label {
-  color: #66727F;
+.worlds-toggle-text {
+  color: var(--accent);
+  font-size: 26rpx;
+  letter-spacing: 2rpx;
+}
+
+.worlds-toggle-arrow {
+  color: var(--accent);
   font-size: 24rpx;
+  line-height: 1;
+  transition: transform 0.25s ease;
 }
 
-.oracle-value {
-  color: #C6A15B;
-  font-size: 24rpx;
-  font-weight: 700;
+.worlds-toggle-arrow.expanded {
+  transform: rotate(180deg);
 }
 
 .task-section {
@@ -834,7 +873,7 @@ export default {
 }
 
 .task-header-title {
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 32rpx;
   font-weight: 700;
 }
@@ -842,12 +881,12 @@ export default {
 .task-header-desc {
   display: block;
   margin-top: 6rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 22rpx;
 }
 
 .task-count {
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 28rpx;
   font-weight: 700;
 }
@@ -863,8 +902,8 @@ export default {
   align-items: center;
   gap: 16rpx;
   padding: 18rpx 20rpx;
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 16rpx;
   min-height: 104rpx;
 }
@@ -886,7 +925,7 @@ export default {
 .marker-diamond {
   width: 16rpx;
   height: 16rpx;
-  background: #C6A15B;
+  background: var(--accent);
   transform: rotate(45deg);
 }
 
@@ -901,7 +940,7 @@ export default {
 
 .task-title {
   display: block;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 26rpx;
   font-weight: 700;
 }
@@ -909,7 +948,7 @@ export default {
 .task-reward {
   display: block;
   margin-top: 4rpx;
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 20rpx;
 }
 
@@ -922,9 +961,9 @@ export default {
   height: 60rpx;
   padding: 0 18rpx;
   border-radius: 999rpx;
-  background: rgba(198,161,91,0.16);
-  border: 1px solid rgba(198,161,91,0.42);
-  color: #C6A15B;
+  background: rgba(var(--accent-rgb),0.16);
+  border: 1px solid rgba(var(--accent-rgb),0.42);
+  color: var(--accent);
   font-size: 20rpx;
   display: flex;
   align-items: center;
@@ -935,7 +974,7 @@ export default {
 
 .task-btn:active {
   transform: scale(0.94);
-  background: rgba(198,161,91,0.3);
+  background: rgba(var(--accent-rgb),0.3);
 }
 
 .task-item.completed .task-btn {
@@ -946,14 +985,14 @@ export default {
 
 .bottom-space {
   height: 180rpx;
-  background: #0B1118;
+  background: var(--bg-outer);
 }
 
 .world-enter-overlay {
   position: fixed;
   inset: 0;
   z-index: 99999;
-  background: #0B1118;
+  background: var(--bg-outer);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -966,9 +1005,9 @@ export default {
 .world-enter-bg {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 42%, rgba(198, 161, 91, 0.16), transparent 32%),
+  background: radial-gradient(circle at 50% 42%, rgba(var(--accent-rgb), 0.16), transparent 32%),
     radial-gradient(circle at 50% 50%, rgba(143, 182, 217, 0.08), transparent 44%),
-    #0B1118;
+    var(--bg-outer);
   animation: worldBgPulse 1.2s ease-in-out both;
 }
 
@@ -988,24 +1027,24 @@ export default {
 }
 
 .gate-ring-outer {
-  border: 1px solid rgba(198, 161, 91, 0.45);
+  border: 1px solid rgba(var(--accent-rgb), 0.45);
   animation: gateRotate 4.8s linear infinite;
 }
 
 .gate-ring-inner {
   inset: 86rpx;
-  border: 1px solid rgba(216, 194, 122, 0.22);
-  box-shadow: inset 0 0 48rpx rgba(198, 161, 91, 0.08), 0 0 42rpx rgba(198, 161, 91, 0.12);
+  border: 1px solid rgba(var(--accent-strong-rgb), 0.22);
+  box-shadow: inset 0 0 48rpx rgba(var(--accent-rgb), 0.08), 0 0 42rpx rgba(var(--accent-rgb), 0.12);
   animation: gateRotateReverse 6s linear infinite;
 }
 
 .gate-rune {
   position: absolute;
-  color: rgba(216, 194, 122, 0.86);
+  color: rgba(var(--accent-strong-rgb), 0.86);
   font-size: 28rpx;
   line-height: 1;
   font-family: serif;
-  text-shadow: 0 0 18rpx rgba(216, 194, 122, 0.28);
+  text-shadow: 0 0 18rpx rgba(var(--accent-strong-rgb), 0.28);
 }
 
 .gate-core {
@@ -1020,7 +1059,7 @@ export default {
 
 .gate-label {
   display: block;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 22rpx;
   letter-spacing: 4rpx;
 }
@@ -1028,7 +1067,7 @@ export default {
 .gate-world-name {
   display: block;
   margin-top: 16rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 44rpx;
   font-weight: 800;
   line-height: 1.2;
@@ -1037,7 +1076,7 @@ export default {
 .gate-world-original {
   display: block;
   margin-top: 10rpx;
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 26rpx;
 }
 
@@ -1047,7 +1086,7 @@ export default {
   display: block;
   width: 88%;
   margin-top: 48rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 26rpx;
   line-height: 1.7;
   text-align: center;
@@ -1059,7 +1098,7 @@ export default {
   z-index: 2;
   display: block;
   margin-top: 20rpx;
-  color: rgba(102,114,127,0.9);
+  color: rgba(var(--muted-rgb),0.9);
   font-size: 22rpx;
   letter-spacing: 2rpx;
   animation: hintFadeUp 0.55s ease-out 0.35s both;
@@ -1124,8 +1163,8 @@ export default {
   width: 88rpx;
   height: 50rpx;
   border-radius: 999rpx;
-  background: rgba(11,17,24,0.82);
-  border: 2rpx solid rgba(102,114,127,0.48);
+  background: rgba(var(--bg-inset-rgb),0.82);
+  border: 2rpx solid rgba(var(--muted-rgb),0.48);
   backdrop-filter: blur(8rpx);
   position: relative;
   transition: all 0.3s ease;
@@ -1136,8 +1175,8 @@ export default {
 }
 
 .bgm-toggle.active {
-  border-color: rgba(198,161,91,0.68);
-  background: rgba(198,161,91,0.15);
+  border-color: rgba(var(--accent-rgb),0.68);
+  background: rgba(var(--accent-rgb),0.15);
 }
 
 .toggle-dot {
@@ -1147,15 +1186,15 @@ export default {
   width: 42rpx;
   height: 42rpx;
   border-radius: 50%;
-  background: #66727F;
+  background: var(--text-muted);
   transform: translateY(-50%);
   transition: all 0.3s ease;
 }
 
 .bgm-toggle.active .toggle-dot {
   left: calc(100% - 46rpx);
-  background: #C6A15B;
-  box-shadow: 0 0 16rpx rgba(198,161,91,0.5);
+  background: var(--accent);
+  box-shadow: 0 0 16rpx rgba(var(--accent-rgb),0.5);
 }
 
 .volume-entry {
@@ -1163,9 +1202,9 @@ export default {
   min-width: 74rpx;
   padding: 0 16rpx;
   border-radius: 999rpx;
-  background: rgba(11,17,24,0.82);
-  border: 1px solid rgba(198,161,91,0.38);
-  color: #C6A15B;
+  background: rgba(var(--bg-inset-rgb),0.82);
+  border: 1px solid rgba(var(--accent-rgb),0.38);
+  color: var(--accent);
   font-size: 22rpx;
   display: flex;
   align-items: center;
@@ -1175,7 +1214,7 @@ export default {
 
 .volume-entry:active {
   transform: scale(0.94);
-  background: rgba(198,161,91,0.18);
+  background: rgba(var(--accent-rgb),0.18);
 }
 
 .volume-mask {
@@ -1195,8 +1234,8 @@ export default {
   height: 360rpx;
   padding: 22rpx 0;
   border-radius: 28rpx;
-  background: rgba(14,23,33,0.96);
-  border: 1px solid rgba(198,161,91,0.36);
+  background: rgba(var(--bg-inset-rgb),0.96);
+  border: 1px solid rgba(var(--accent-rgb),0.36);
   box-shadow: 0 20rpx 60rpx rgba(0,0,0,0.35);
   display: flex;
   flex-direction: column;
@@ -1221,7 +1260,7 @@ export default {
 }
 
 .volume-title {
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 22rpx;
 }
 
@@ -1231,7 +1270,7 @@ export default {
   height: 210rpx;
   margin-top: 22rpx;
   border-radius: 999rpx;
-  background: #0B1118;
+  background: var(--bg-inset);
   overflow: visible;
   touch-action: none;
   cursor: pointer;
@@ -1243,7 +1282,7 @@ export default {
   bottom: 0;
   width: 100%;
   border-radius: 999rpx;
-  background: linear-gradient(180deg, #D8C27A, #C6A15B);
+  background: linear-gradient(180deg, var(--accent-strong), var(--accent));
   pointer-events: none;
 }
 
@@ -1253,16 +1292,16 @@ export default {
   width: 34rpx;
   height: 34rpx;
   border-radius: 50%;
-  background: #F2F4F6;
-  border: 3rpx solid #C6A15B;
+  background: var(--text-primary);
+  border: 3rpx solid var(--accent);
   transform: translate(-50%, 50%);
-  box-shadow: 0 0 18rpx rgba(198,161,91,0.35);
+  box-shadow: 0 0 18rpx rgba(var(--accent-rgb),0.35);
   pointer-events: none;
 }
 
 .volume-percent {
   margin-top: 20rpx;
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 22rpx;
   font-weight: 700;
 }

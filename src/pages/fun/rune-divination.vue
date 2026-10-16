@@ -1,16 +1,10 @@
 <template>
-  <view class="divination-page">
-    <view class="divination-nav">
-      <view class="nav-back" @click="goBack">
-        <text>‹</text>
-      </view>
-      <text class="nav-title">三符文占卜</text>
-      <view class="nav-placeholder"></view>
-    </view>
+  <view class="divination-page page-enter-deep">
+    <NavBar title="三符文占卜" />
 
     <view v-if="!divinationStarted" class="intro-section">
       <text class="intro-text">在雾与树影之间，抽取属于你的过去、现在与未来。</text>
-      <view class="ritual-button" @click="startDivination">
+      <view class="ritual-button btn-shine" @click="startDivination">
         <text>开始占卜</text>
       </view>
     </view>
@@ -110,13 +104,16 @@
 </template>
 
 <script>
-import { runes as runeData } from '@/data/runes.js'
+import { db } from '@/db'
+import { state } from '@/state'
+import NavBar from '@/components/NavBar.vue'
 
 export default {
+  components: { NavBar },
   data() {
     return {
-      runes: runeData,
-      displayRunes: runeData.slice(0, 8),
+      runes: db.findAll('runeDetails'),
+      displayRunes: db.findAll('runeDetails').slice(0, 8),
       divinationStarted: false,
       currentDrawStep: 0,
       drawPositions: ['过去', '现在', '未来'],
@@ -128,16 +125,6 @@ export default {
     }
   },
   methods: {
-    goBack() {
-      const pages = getCurrentPages()
-      if (pages.length <= 1) {
-        uni.switchTab({
-          url: '/pages/index/index'
-        })
-      } else {
-        uni.navigateBack()
-      }
-    },
     startDivination() {
       this.divinationStarted = true
       this.currentDrawStep = 0
@@ -188,7 +175,7 @@ export default {
 
         if (this.drawnRunes.length >= 3) {
           const futureRune = this.drawnRunes[this.drawnRunes.length - 1]
-          uni.setStorageSync('norse_rune_record', {
+          state.set('game.runeRecord', {
             runeName: futureRune ? futureRune.name : '已完成',
             date: Date.now()
           })
@@ -246,53 +233,10 @@ ${future.deeper}
 <style scoped>
 .divination-page {
   min-height: 100vh;
-  background: #0B1118;
-  color: #F2F4F6;
+  background: var(--bg-outer);
+  color: var(--text-primary);
   box-sizing: border-box;
   overflow-x: hidden;
-}
-
-.divination-nav {
-  height: 96rpx;
-  background: #111A24;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24rpx;
-  box-sizing: border-box;
-  border-bottom: 1px solid #27384A;
-}
-
-.nav-back {
-  width: 88rpx;
-  height: 96rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #C6A15B;
-  transition: transform 0.15s ease, opacity 0.15s ease;
-}
-
-.nav-back text {
-  font-size: 52rpx;
-  font-weight: 300;
-  line-height: 1;
-}
-
-.nav-back:active {
-  transform: scale(0.85);
-  opacity: 0.8;
-}
-
-.nav-title {
-  color: #F2F4F6;
-  font-size: 30rpx;
-  font-weight: 700;
-}
-
-.nav-placeholder {
-  width: 88rpx;
-  height: 96rpx;
 }
 
 .intro-section {
@@ -303,7 +247,7 @@ ${future.deeper}
 .intro-text {
   display: block;
   font-size: 30rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   line-height: 1.8;
   margin-bottom: 60rpx;
 }
@@ -316,7 +260,7 @@ ${future.deeper}
 .draw-prompt {
   display: block;
   font-size: 32rpx;
-  color: #D8C27A;
+  color: var(--accent-strong);
   margin-bottom: 32rpx;
   letter-spacing: 4rpx;
 }
@@ -327,9 +271,9 @@ ${future.deeper}
   height: 520rpx;
   margin: 44rpx auto 40rpx;
   border-radius: 50%;
-  background: radial-gradient(circle at center, rgba(216,194,122,0.08) 0%, rgba(23,34,48,0.92) 44%, rgba(11,17,24,0.98) 100%);
-  border: 1px solid rgba(198,161,91,0.34);
-  box-shadow: inset 0 0 48rpx rgba(198,161,91,0.08), 0 0 36rpx rgba(0,0,0,0.28);
+  background: radial-gradient(circle at center, rgba(var(--accent-strong-rgb),0.08) 0%, rgba(var(--elevated-rgb),0.92) 44%, rgba(var(--bg-inset-rgb),0.98) 100%);
+  border: 1px solid rgba(var(--accent-rgb),0.34);
+  box-shadow: inset 0 0 48rpx rgba(var(--accent-rgb),0.08), 0 0 36rpx rgba(0,0,0,0.28);
   overflow: hidden;
 }
 
@@ -338,7 +282,7 @@ ${future.deeper}
   position: absolute;
   inset: 34rpx;
   border-radius: 50%;
-  border: 1px solid rgba(198,161,91,0.28);
+  border: 1px solid rgba(var(--accent-rgb),0.28);
 }
 
 .vegvisir-disc::after {
@@ -346,7 +290,7 @@ ${future.deeper}
   position: absolute;
   inset: 104rpx;
   border-radius: 50%;
-  border: 1px solid rgba(198,161,91,0.18);
+  border: 1px solid rgba(var(--accent-rgb),0.18);
 }
 
 .rune-orbit {
@@ -368,16 +312,16 @@ ${future.deeper}
 
 .orbit-rune {
   position: absolute;
-  color: rgba(216,194,122,0.72);
+  color: rgba(var(--accent-strong-rgb),0.72);
   font-size: 24rpx;
   line-height: 1;
   font-family: serif;
   text-align: center;
-  text-shadow: 0 0 10rpx rgba(216,194,122,0.10);
+  text-shadow: 0 0 10rpx rgba(var(--accent-strong-rgb),0.10);
 }
 
 .orbit-rune.inner {
-  color: rgba(242,244,246,0.52);
+  color: rgba(var(--text-primary-rgb),0.52);
   font-size: 20rpx;
 }
 
@@ -406,7 +350,7 @@ ${future.deeper}
   position: absolute;
   left: 50%;
   top: 50%;
-  background: rgba(198,161,91,0.28);
+  background: rgba(var(--accent-rgb),0.28);
   transform-origin: center;
 }
 
@@ -438,7 +382,7 @@ ${future.deeper}
   position: absolute;
   width: 46rpx;
   height: 46rpx;
-  border-left: 2rpx solid rgba(216,194,122,0.54);
+  border-left: 2rpx solid rgba(var(--accent-strong-rgb),0.54);
 }
 
 .stave::before,
@@ -448,7 +392,7 @@ ${future.deeper}
   width: 22rpx;
   height: 2rpx;
   top: 8rpx;
-  background: rgba(216,194,122,0.54);
+  background: rgba(var(--accent-strong-rgb),0.54);
 }
 
 .stave::before {
@@ -494,15 +438,15 @@ ${future.deeper}
   transform: translate(-50%, -50%);
   z-index: 5;
   border-radius: 50%;
-  border: 1px solid rgba(198,161,91,0.20);
+  border: 1px solid rgba(var(--accent-rgb),0.20);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(11,17,24,0.48);
+  background: rgba(var(--bg-inset-rgb),0.48);
 }
 
 .center-sigil-text {
-  color: rgba(216,194,122,0.86);
+  color: rgba(var(--accent-strong-rgb),0.86);
   font-size: 38rpx;
   font-family: serif;
   line-height: 1;
@@ -515,8 +459,8 @@ ${future.deeper}
 }
 
 .vegvisir-disc.active {
-  border-color: rgba(216,194,122,0.72);
-  box-shadow: inset 0 0 58rpx rgba(198,161,91,0.16), 0 0 46rpx rgba(198,161,91,0.16);
+  border-color: rgba(var(--accent-strong-rgb),0.72);
+  box-shadow: inset 0 0 58rpx rgba(var(--accent-rgb),0.16), 0 0 46rpx rgba(var(--accent-rgb),0.16);
 }
 
 .vegvisir-disc.active .outer-orbit {
@@ -528,8 +472,8 @@ ${future.deeper}
 }
 
 .vegvisir-disc.active .orbit-rune {
-  color: rgba(216,194,122,0.95);
-  text-shadow: 0 0 18rpx rgba(216,194,122,0.28);
+  color: rgba(var(--accent-strong-rgb),0.95);
+  text-shadow: 0 0 18rpx rgba(var(--accent-strong-rgb),0.28);
 }
 
 .draw-slots {
@@ -542,8 +486,8 @@ ${future.deeper}
   flex: 1;
   min-height: 180rpx;
   border-radius: 20rpx;
-  border: 1rpx solid #27384A;
-  background: #172230;
+  border: 1rpx solid var(--border-soft);
+  background: var(--bg-card);
   padding: 20rpx;
   box-sizing: border-box;
   text-align: center;
@@ -558,17 +502,17 @@ ${future.deeper}
 }
 
 .draw-slot.slot-filled {
-  border-color: #C6A15B;
+  border-color: var(--accent);
 }
 
 @keyframes borderBreath {
   0%, 100% {
-    box-shadow: 0 0 0 rgba(198, 161, 91, 0);
-    border-color: #27384A;
+    box-shadow: 0 0 0 rgba(var(--accent-rgb), 0);
+    border-color: var(--border-soft);
   }
   50% {
-    box-shadow: 0 0 28rpx rgba(198, 161, 91, 0.22);
-    border-color: #C6A15B;
+    box-shadow: 0 0 28rpx rgba(var(--accent-rgb), 0.22);
+    border-color: var(--accent);
   }
 }
 
@@ -576,26 +520,26 @@ ${future.deeper}
   font-size: 64rpx;
   line-height: 1;
   font-family: serif;
-  color: #D8C27A;
+  color: var(--ink-rune);
 }
 
 .slot-placeholder {
   font-size: 26rpx;
-  color: #66727F;
+  color: var(--text-muted);
 }
 
 .ritual-button {
   width: 70%;
   height: 96rpx;
   border-radius: 999rpx;
-  background: linear-gradient(135deg, #D8C27A 0%, #C6A15B 55%, #8A6F45 100%);
-  color: #0B1118;
+  background: linear-gradient(135deg, var(--accent-strong) 0%, var(--accent) 55%, #8A6F45 100%);
+  color: var(--bg-outer);
   font-size: 30rpx;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 32rpx rgba(198, 161, 91, 0.22);
+  box-shadow: 0 0 32rpx rgba(var(--accent-rgb), 0.22);
   margin: 32rpx auto 0;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
@@ -610,8 +554,8 @@ ${future.deeper}
 
 .ritual-button.secondary {
   background: transparent;
-  border: 1rpx solid #27384A;
-  color: #66727F;
+  border: 1rpx solid var(--border-soft);
+  color: var(--text-muted);
   box-shadow: none;
 }
 
@@ -625,8 +569,8 @@ ${future.deeper}
 }
 
 .result-card {
-  background: #172230;
-  border: 1rpx solid #27384A;
+  background: var(--bg-card);
+  border: 1rpx solid var(--border-soft);
   border-radius: 16rpx;
   padding: 28rpx;
   margin-bottom: 24rpx;
@@ -635,7 +579,7 @@ ${future.deeper}
 .result-label {
   display: block;
   font-size: 26rpx;
-  color: #C6A15B;
+  color: var(--accent);
   margin-bottom: 16rpx;
   letter-spacing: 4rpx;
 }
@@ -645,7 +589,7 @@ ${future.deeper}
   font-size: 72rpx;
   line-height: 1;
   font-family: serif;
-  color: #D8C27A;
+  color: var(--ink-rune);
   text-align: center;
   margin-bottom: 12rpx;
 }
@@ -654,7 +598,7 @@ ${future.deeper}
   display: block;
   font-size: 32rpx;
   font-weight: 600;
-  color: #F2F4F6;
+  color: var(--text-primary);
   margin-bottom: 16rpx;
   text-align: center;
 }
@@ -662,7 +606,7 @@ ${future.deeper}
 .result-meaning {
   display: block;
   font-size: 28rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   margin-bottom: 8rpx;
 }
 
@@ -674,13 +618,13 @@ ${future.deeper}
   word-break: break-word;
   overflow-wrap: break-word;
   font-size: 26rpx;
-  color: #66727F;
+  color: var(--text-muted);
   line-height: 1.6;
 }
 
 .interpretation {
-  background: #172230;
-  border: 1rpx solid #27384A;
+  background: var(--bg-card);
+  border: 1rpx solid var(--border-soft);
   border-radius: 16rpx;
   padding: 28rpx;
   margin-top: 24rpx;
@@ -690,7 +634,7 @@ ${future.deeper}
   display: block;
   font-size: 30rpx;
   font-weight: 600;
-  color: #F2F4F6;
+  color: var(--text-primary);
   margin-bottom: 20rpx;
 }
 
@@ -702,11 +646,11 @@ ${future.deeper}
   word-break: break-word;
   overflow-wrap: break-word;
   line-height: 1.9;
-  color: #C8D0D8;
+  color: var(--text-secondary);
   font-size: 28rpx;
   padding: 24rpx 0;
-  border-top: 1px solid rgba(198,161,91,0.2);
-  border-bottom: 1px solid rgba(198,161,91,0.2);
+  border-top: 1px solid rgba(var(--accent-rgb),0.2);
+  border-bottom: 1px solid rgba(var(--accent-rgb),0.2);
 }
 
 .bottom-space {

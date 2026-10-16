@@ -1,21 +1,43 @@
 <template>
-	<view class="container">
-		<view class="back-btn-wrap">
-			<text class="back-btn" @click="goBack">‹</text>
-		</view>
+	<view class="container page-enter-deep">
+		<NavBar title="九界详情" />
+		<EmptyState
+			v-if="notFound"
+			type="notfound"
+			size="page"
+			:actions="[{ label: '返回首页', variant: 'primary', event: 'back' }]"
+			@action="onEmptyAction"
+		/>
+		<template v-else>
 		<view class="header">
 			<text class="title">{{ world.name || '九界详情' }}</text>
 			<text class="subtitle">{{ world.originalName }}</text>
 		</view>
 
-		<view class="world-map-stage" :class="getMapToneClass()">
+		<view
+			class="world-map-stage"
+			:class="[getMapToneClass(), world.mapImage ? 'has-image' : '']"
+			:style="heroStyle"
+		>
+				<image
+					v-if="world.mapImage"
+					class="map-art"
+					:src="world.mapImage"
+					mode="aspectFill"
+				></image>
 				<view class="map-fullscreen-btn" @click.stop="openMapFullscreen">全屏</view>
 				<text class="map-kicker">{{ world.originalName || world.name }}</text>
-				<text class="map-title">{{ getCurrentTimeline() ? getCurrentTimeline().title : world.name }}</text>
-				<text class="map-subtitle">{{ getCurrentTimeline() ? getCurrentTimeline().stage : '神域' }}</text>
-				<view class="map-mark mark-one"></view>
-				<view class="map-mark mark-two"></view>
-				<view class="map-mark mark-three"></view>
+				<view
+					v-for="(loc, index) in mapLocations"
+					:key="loc.original"
+					class="map-pin"
+					:class="{ active: selectedPin === index }"
+					:style="embeddedPinStyle(loc)"
+					@click.stop="selectPin(index)"
+				>
+					<view class="map-pin-dot"></view>
+					<text class="map-pin-label">{{ loc.name }}</text>
+				</view>
 			</view>
 
 			<view class="world-info">
@@ -27,6 +49,7 @@
 			</view>
 
 			<view class="tab-bar">
+				<view class="tab-underline" :style="{ transform: 'translateX(' + tabIndex * 100 + '%)' }"></view>
 				<view
 					class="tab-item"
 					:class="{ active: currentTab === 'inhabitants' }"
@@ -74,19 +97,19 @@
 						</view>
 						<text class="inhabitant-arrow">›</text>
 					</view>
-					<view v-if="relatedGods.length === 0" class="empty-state">
-						<text class="empty-text">暂无居民记录</text>
+					<view v-if="relatedGods.length === 0">
+						<EmptyState type="empty" size="inline" title="暂无居民记录" desc="这方国度尚无居民入档。" />
 					</view>
 				</view>
 
 				<view v-if="currentTab === 'locations'" class="locations-list">
 					<view
-						v-for="(loc, index) in displayLocations"
-						:key="index"
-						class="location-card"
-						:class="{ highlighted: selectedPin === index }"
-						@click="selectPin(index)"
-					>
+					v-for="(loc, index) in displayLocations"
+					:key="index"
+					class="location-card"
+					:class="{ highlighted: selectedPin > -1 && displayLocations.length === 1 }"
+					@click="selectPin(index)"
+				>
 						<view class="location-icon">
 							<text>{{ loc.icon }}</text>
 						</view>
@@ -96,8 +119,8 @@
 							<text class="location-desc">{{ loc.desc }}</text>
 						</view>
 					</view>
-					<view v-if="displayLocations.length === 0" class="empty-state">
-						<text class="empty-text">暂无地点记录</text>
+					<view v-if="displayLocations.length === 0">
+						<EmptyState type="empty" size="inline" title="暂无地点记录" desc="这方国度尚无地点标记。" />
 					</view>
 				</view>
 
@@ -115,8 +138,8 @@
 						</view>
 						<text class="legend-arrow">›</text>
 					</view>
-					<view v-if="relatedStories.length === 0" class="empty-state">
-						<text class="empty-text">暂无传说记录</text>
+					<view v-if="relatedStories.length === 0">
+						<EmptyState type="empty" size="inline" title="暂无传说记录" desc="这方国度尚无传说收录。" />
 					</view>
 				</view>
 
@@ -175,8 +198,7 @@
 					</view>
 
 					<view v-else class="empty-timeline">
-					<text class="empty-title">时间线整理中</text>
-					<text class="empty-desc">该国度的历史阶段尚未收录，后续将补充地图与传说节点。</text>
+					<EmptyState type="pending" size="inline" title="时间线整理中" desc="该国度的历史阶段尚未收录，后续将补充地图与传说节点。" />
 				</view>
 			</view>
 		</view>
@@ -196,7 +218,44 @@
 				</view>
 			</view>
 
-			<view class="fullscreen-map" :class="getMapToneClass()">
+			<view class="fullscreen-map" :class="[getMapToneClass(), world.mapImage ? 'has-image' : '']">
+				<!-- 有手绘图：3:4 画框内嵌 1:1 方形画布，可拖动 / 双指缩放 -->
+				<view
+					v-if="world.mapImage"
+					class="map-pan-layer"
+					:style="panLayerStyle"
+					@touchstart="onPanStart"
+					@touchmove.stop.prevent="onPanMove"
+					@touchend="onPanEnd"
+					@touchcancel="onPanEnd"
+				>
+					<image class="map-art" :src="world.mapImage" mode="aspectFill"></image>
+					<view
+						v-for="(loc, index) in mapLocations"
+						:key="loc.original"
+						class="map-pin"
+						:class="{ active: selectedPin === index }"
+						:style="{ left: loc.x + '%', top: loc.y + '%' }"
+						@click.stop="selectPinFromMap(index)"
+					>
+						<view class="map-pin-dot"></view>
+						<text class="map-pin-label">{{ loc.name }}</text>
+					</view>
+				</view>
+				<!-- 无图回退：点位直接放在画框上 -->
+				<template v-else>
+					<view
+						v-for="(loc, index) in mapLocations"
+						:key="loc.original"
+						class="map-pin"
+						:class="{ active: selectedPin === index }"
+						:style="{ left: loc.x + '%', top: loc.y + '%' }"
+						@click.stop="selectPinFromMap(index)"
+					>
+						<view class="map-pin-dot"></view>
+						<text class="map-pin-label">{{ loc.name }}</text>
+					</view>
+				</template>
 				<text class="fullscreen-map-kicker">{{ world.originalName || world.name }}</text>
 				<text class="fullscreen-map-title">
 					{{ getCurrentTimeline() ? getCurrentTimeline().title : world.name }}
@@ -204,10 +263,6 @@
 				<text class="fullscreen-map-stage">
 					{{ getCurrentTimeline() ? getCurrentTimeline().stage : '神域' }}
 				</text>
-				<view class="fullscreen-map-mark mark-a"></view>
-				<view class="fullscreen-map-mark mark-b"></view>
-				<view class="fullscreen-map-mark mark-c"></view>
-				<view class="fullscreen-map-mark mark-d"></view>
 			</view>
 
 			<view v-if="getTimelineList().length" class="fullscreen-timeline">
@@ -228,69 +283,123 @@
 				</view>
 			</view>
 
-			<view class="fullscreen-stage-card" v-if="getCurrentTimeline()">
+			<view v-if="getCurrentTimeline()" class="fullscreen-stage-card">
 				<text class="fullscreen-stage-title">{{ getCurrentTimeline().title }}</text>
 				<text class="fullscreen-stage-desc">{{ getCurrentTimeline().summary }}</text>
 			</view>
 		</view>
+		</template>
 	</view>
 </template>
 
 <script>
-import { norseWorlds } from '@/data/norseWorlds.js'
-import { gods } from '@/data/norse.js'
-import { stories } from '@/data/norse.js'
-import { worldTimelines } from '@/data/worldTimelines.js'
+import { db } from '@/db'
 import { unlockRavensClue, getRavensClueCount } from '@/utils/clueProgress.js'
+import NavBar from '@/components/NavBar.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import heroParallax from '@/mixins/heroParallax.js'
 
 export default {
+	components: { NavBar, EmptyState },
+	mixins: [heroParallax],
 	data() {
 		return {
 			world: {},
+			notFound: false,
 			currentTab: 'inhabitants',
 			selectedPin: -1,
 			mapLocations: [],
 			activeTimelineIndex: 2,
-			isMapFullscreen: false
+			isMapFullscreen: false,
+			// 全屏地图画布的拖动 / 缩放状态
+			fsScale: 1,
+			fsOffsetX: 0,
+			fsOffsetY: 0,
+			fsFrameW: 0,
+			fsFrameH: 0,
+			// 画布实际尺寸（按图片真实比例盖满画框算出）与图片宽高比（w/h，0 表示未知）
+			fsLayerW: 0,
+			fsLayerH: 0,
+			imgRatio: 0
 		}
 	},
 	computed: {
+		// 当前激活 tab 的序号，驱动下划线平移
+		tabIndex() {
+			const order = ['inhabitants', 'locations', 'legends', 'timeline']
+			const index = order.indexOf(this.currentTab)
+			return index < 0 ? 0 : index
+		},
 		relatedGods() {
 			if (!this.world.relatedGods) return []
-			return this.world.relatedGods.map(id => gods.find(g => g.id === id)).filter(Boolean)
+			return this.world.relatedGods.map(id => db.findById('gods', id)).filter(Boolean)
 		},
 		relatedStories() {
 			if (!this.world.relatedStories) return []
-			return this.world.relatedStories.map(id => stories.find(s => s.id === id)).filter(Boolean)
+			return this.world.relatedStories.map(id => db.findById('stories', id)).filter(Boolean)
 		},
 		displayLocations() {
 			if (this.selectedPin >= 0 && this.selectedPin < this.mapLocations.length) {
 				return [this.mapLocations[this.selectedPin]]
 			}
 			return this.mapLocations
+		},
+		// 全屏画布：尺寸按图片比例盖满画框，变换先居中再叠加拖动偏移与缩放
+		panLayerStyle() {
+			return {
+				width: this.fsLayerW ? this.fsLayerW + 'px' : '100%',
+				height: this.fsLayerH ? this.fsLayerH + 'px' : '100%',
+				transform:
+					'translate(-50%, -50%) translate(' + this.fsOffsetX + 'px, ' + this.fsOffsetY + 'px) scale(' + this.fsScale + ')'
+			}
 		}
 	},
 	onLoad(options) {
 		const worldId = options.id || 'asgard'
-		this.world = norseWorlds.find(w => w.id === worldId) || norseWorlds[0]
+		const worlds = db.findAll('worlds')
+		const found = worlds.find(w => w.id === worldId)
+		// 无 id → 默认阿斯加德；带无效 id → 缺省态「内容不存在」
+		if (!found) {
+			this.notFound = true
+			return
+		}
+		this.world = found
 		this.initMapLocations()
+		this.loadImageRatio()
 		if (this.world.id === 'asgard') {
 			if (getRavensClueCount() < 3) {
 				unlockRavensClue('trace')
 			}
 		}
 	},
+	// 缺省态操作：返回上一页，无栈时回首页
+	onEmptyAction(event) {
+		if (event !== 'back') return
+		const pages = getCurrentPages()
+		if (pages.length > 1) {
+			uni.navigateBack()
+		} else {
+			uni.switchTab({ url: '/pages/index/index' })
+		}
+	},
+	// 地图视差：地图随滚动缓慢下移并淡出
+	onPageScroll(e) {
+		this.updateHeroParallax(e.scrollTop)
+	},
+	mounted() {
+		// #ifdef H5
+		// 桌面浏览器：全局监听鼠标移动 / 抬起，配合画布上的 mousedown 完成拖动
+		window.addEventListener('mousemove', this.onPanMouseMove)
+		window.addEventListener('mouseup', this.onPanMouseUp)
+		// #endif
+	},
+	beforeUnmount() {
+		// #ifdef H5
+		window.removeEventListener('mousemove', this.onPanMouseMove)
+		window.removeEventListener('mouseup', this.onPanMouseUp)
+		// #endif
+	},
 	methods: {
-		goBack() {
-			const pages = getCurrentPages()
-			if (pages.length <= 1) {
-				uni.switchTab({
-					url: '/pages/index/index'
-				})
-			} else {
-				uni.navigateBack()
-			}
-		},
 		switchTab(tab) {
 			this.currentTab = tab
 			if (tab === 'locations') {
@@ -301,31 +410,43 @@ export default {
 			this.selectedPin = this.selectedPin === index ? -1 : index
 			this.currentTab = 'locations'
 		},
+		// 全屏地图上点击点位：选中并退回页面，直接看到对应的地点卡片
+		selectPinFromMap(index) {
+			this.selectPin(index)
+			this.closeMapFullscreen()
+		},
 		initMapLocations() {
 			const locations = this.getWorldLocations()
 			this.mapLocations = locations.slice(0, 5)
 		},
 		getWorldLocations() {
-			const worldLocations = {
-				asgard: [
-					{ name: 'A', original: 'Gladsheim', icon: '◈', desc: '诸神议事大厅', x: 45, y: 25 },
-					{ name: 'B', original: 'Valhalla', icon: '▣', desc: '英灵殿', x: 72, y: 38 },
-					{ name: 'C', original: 'Fensalir', icon: '♧', desc: '弗丽嘉的宫殿', x: 22, y: 55 },
-					{ name: 'D', original: 'Breidablik', icon: '◇', desc: '光明神的居所', x: 55, y: 72 }
-				],
-				midgard: [
-					{ name: 'A', original: 'Midgard', icon: '◇', desc: '人类居所', x: 45, y: 40 },
-					{ name: 'B', original: 'Bifrost', icon: '✧', desc: '连接九界的桥梁', x: 75, y: 20 }
-				],
-				jotunheim: [
-					{ name: 'A', original: 'Utgard', icon: '△', desc: '巨人国度中心', x: 45, y: 35 },
-					{ name: 'B', original: 'Thrymheim', icon: '△', desc: '霜巨人领地', x: 22, y: 65 }
-				],
-				default: [
-					{ name: 'A', original: 'Unknown', icon: '◇', desc: '等待探索', x: 45, y: 45 }
-				]
+			// 点位数据来自 norseWorlds.js 的 mapLocations；未配置的国度回退到占位点位
+			const fallback = [
+				{ name: 'A', original: 'Unknown', icon: '◇', desc: '等待探索', x: 45, y: 45 }
+			]
+			return Array.isArray(this.world.mapLocations) && this.world.mapLocations.length
+				? this.world.mapLocations
+				: fallback
+		},
+		// 内嵌舞台为 4:3 横版、图片 aspectFill 居中裁切：
+		// 把图上的百分比坐标映射到可见画框上；落在裁切区外的点位夹到边缘，保持可见可点
+		embeddedPinStyle(loc) {
+			const frameRatio = 4 / 3
+			const ratio = this.imgRatio > 0 ? this.imgRatio : 1
+			let x = loc.x
+			let y = loc.y
+			if (ratio > frameRatio) {
+				// 图比画框宽：左右裁切
+				const vis = frameRatio / ratio
+				x = (loc.x / 100 - (1 - vis) / 2) / vis * 100
+			} else if (ratio < frameRatio) {
+				// 图比画框高：上下裁切
+				const vis = ratio / frameRatio
+				y = (loc.y / 100 - (1 - vis) / 2) / vis * 100
 			}
-			return worldLocations[this.world.id] || worldLocations.default
+			// 边缘留 8% 余量，保证点位连同标签完整落在画框内
+			const clamp = v => Math.max(8, Math.min(92, Math.round(v)))
+			return { left: clamp(x) + '%', top: clamp(y) + '%' }
 		},
 		getGodColor(faction) {
 			if (!faction) return 'linear-gradient(135deg, #66727F 0%, #3A4450 100%)'
@@ -336,13 +457,13 @@ export default {
 			return 'linear-gradient(135deg, #66727F 0%, #3A4450 100%)'
 		},
 		goToGod(id) {
-			const god = gods.find(g => g.id === id)
+			const god = db.findById('gods', id)
 			if (god) {
 				uni.navigateTo({ url: `/pages/gods/god-detail?id=${id}` })
 			}
 		},
 		goToStory(id) {
-			const story = stories.find(s => s.id === id)
+			const story = db.findById('stories', id)
 			if (story) {
 				uni.navigateTo({ url: `/pages/stories/story-detail?id=${id}` })
 			}
@@ -376,7 +497,7 @@ export default {
 		},
 		getTimelineList() {
 			const realmId = this.world && this.world.id ? this.world.id : this.id
-			return worldTimelines[realmId] || []
+			return (db.getDoc('worldTimelines')[realmId] || [])
 		},
 		getTimelineProgressWidth() {
 			const list = this.getTimelineList()
@@ -391,11 +512,162 @@ export default {
 			const item = this.getCurrentTimeline()
 			return item && item.mapTone ? 'tone-' + item.mapTone : 'tone-default'
 		},
+		loadImageRatio() {
+			if (!this.world.mapImage || this.imgRatio) return
+			uni.getImageInfo({
+				src: this.world.mapImage,
+				success: res => {
+					if (res.width && res.height) {
+						this.imgRatio = res.width / res.height
+						// 若全屏已打开，补算画布尺寸
+						if (this.isMapFullscreen) this.computePanLayerSize()
+					}
+				}
+			})
+		},
 		openMapFullscreen() {
+			// 每次打开重置画布：1 倍缩放、居中
+			this.fsScale = 1
+			this.fsOffsetX = 0
+			this.fsOffsetY = 0
 			this.isMapFullscreen = true
+			this.$nextTick(() => {
+				// 量取画框尺寸，用于拖动 / 缩放的边界夹取
+				uni.createSelectorQuery().in(this).select('.fullscreen-map').boundingClientRect(rect => {
+					if (rect && rect.width) {
+						this.fsFrameW = rect.width
+						this.fsFrameH = rect.height
+						this.computePanLayerSize()
+					}
+					this.bindPanLayer()
+				}).exec()
+			})
+		},
+		computePanLayerSize() {
+			// 画布按图片真实比例盖满画框：图比画框"宽"则取框高、图比画框"高"则取框宽，
+			// 富余的方向就是可拖动的方向（方图左右拖、竖图上下拖）
+			if (!this.fsFrameW || !this.fsFrameH) return
+			const frameRatio = this.fsFrameW / this.fsFrameH
+			const ratio = this.imgRatio > 0 ? this.imgRatio : frameRatio
+			if (ratio > frameRatio) {
+				this.fsLayerH = this.fsFrameH
+				this.fsLayerW = this.fsFrameH * ratio
+			} else {
+				this.fsLayerW = this.fsFrameW
+				this.fsLayerH = this.fsFrameW / ratio
+			}
+		},
+		bindPanLayer() {
+			// #ifdef H5
+			// uni-view 组件只透传 touch 系列事件，桌面端的 mouse/wheel 直接在画布元素上原生绑定
+			const layer = document.querySelector('.fullscreen-map .map-pan-layer')
+			if (!layer) return
+			layer.addEventListener('mousedown', this.onPanMouseDown)
+			layer.addEventListener('wheel', this.onPanWheel, { passive: false })
+			// #endif
 		},
 		closeMapFullscreen() {
 			this.isMapFullscreen = false
+		},
+		/* ---------- 全屏地图：拖动 / 双指缩放 ---------- */
+		getTouchDist(touches) {
+			const dx = touches[0].clientX - touches[1].clientX
+			const dy = touches[0].clientY - touches[1].clientY
+			return Math.sqrt(dx * dx + dy * dy)
+		},
+		getTouchMid(touches) {
+			return {
+				x: (touches[0].clientX + touches[1].clientX) / 2,
+				y: (touches[0].clientY + touches[1].clientY) / 2
+			}
+		},
+		recordPanBaseline(touches) {
+			this._panBaseX = this.fsOffsetX
+			this._panBaseY = this.fsOffsetY
+			if (touches.length >= 2) {
+				this._panMode = 'pinch'
+				this._panStartDist = this.getTouchDist(touches)
+				this._panStartScale = this.fsScale
+				const mid = this.getTouchMid(touches)
+				this._panStartMidX = mid.x
+				this._panStartMidY = mid.y
+			} else {
+				this._panMode = 'pan'
+				this._panStartX = touches[0].clientX
+				this._panStartY = touches[0].clientY
+			}
+		},
+		applyZoom(scale) {
+			this.fsScale = Math.round(Math.min(4, Math.max(1, scale)) * 100) / 100
+			this.setPanOffset(this.fsOffsetX, this.fsOffsetY)
+		},
+		setPanOffset(x, y) {
+			// 夹取偏移，保证画布（fsLayerW/H）在任意缩放下始终盖住画框
+			if (!this.fsLayerW || !this.fsLayerH) {
+				this.fsOffsetX = x
+				this.fsOffsetY = y
+				return
+			}
+			const halfW = Math.max(0, (this.fsLayerW * this.fsScale - this.fsFrameW) / 2)
+			const halfH = Math.max(0, (this.fsLayerH * this.fsScale - this.fsFrameH) / 2)
+			this.fsOffsetX = Math.round(Math.max(-halfW, Math.min(halfW, x)))
+			this.fsOffsetY = Math.round(Math.max(-halfH, Math.min(halfH, y)))
+		},
+		onPanStart(e) {
+			if (!e.touches || !e.touches.length) return
+			this.recordPanBaseline(e.touches)
+		},
+		onPanMove(e) {
+			if (!this._panMode || !e.touches) return
+			if (this._panMode === 'pinch' && e.touches.length >= 2) {
+				if (this._panStartDist > 0) {
+					this.applyZoom(this._panStartScale * (this.getTouchDist(e.touches) / this._panStartDist))
+				}
+				const mid = this.getTouchMid(e.touches)
+				this.setPanOffset(
+					this._panBaseX + (mid.x - this._panStartMidX),
+					this._panBaseY + (mid.y - this._panStartMidY)
+				)
+			} else if (this._panMode === 'pan' && e.touches.length === 1) {
+				const t = e.touches[0]
+				this.setPanOffset(
+					this._panBaseX + (t.clientX - this._panStartX),
+					this._panBaseY + (t.clientY - this._panStartY)
+				)
+			}
+		},
+		onPanEnd(e) {
+			// 双指抬起一根：以剩余手指重建拖动基线，避免跳变
+			if (e && e.touches && e.touches.length === 1) {
+				this.recordPanBaseline(e.touches)
+				return
+			}
+			this._panMode = ''
+		},
+		onPanMouseDown(e) {
+			// 桌面浏览器：鼠标拖动（触屏走 touch 事件）
+			if (e.button !== 0 || !this.world.mapImage) return
+			this._panMouseDragging = true
+			this._panMode = 'pan'
+			this._panStartX = e.clientX
+			this._panStartY = e.clientY
+			this._panBaseX = this.fsOffsetX
+			this._panBaseY = this.fsOffsetY
+		},
+		onPanMouseMove(e) {
+			if (!this._panMouseDragging || this._panMode !== 'pan') return
+			this.setPanOffset(
+				this._panBaseX + (e.clientX - this._panStartX),
+				this._panBaseY + (e.clientY - this._panStartY)
+			)
+		},
+		onPanMouseUp() {
+			this._panMouseDragging = false
+			this._panMode = ''
+		},
+		onPanWheel(e) {
+			// 桌面浏览器：滚轮缩放（双指捏合的桌面等价）
+			this.applyZoom(this.fsScale * Math.exp(-e.deltaY * 0.0015))
 		}
 	}
 }
@@ -404,37 +676,9 @@ export default {
 <style scoped>
 .container {
 	min-height: 100vh;
-	background: #0B1118;
-	padding: 32rpx;
-	padding-bottom: 160rpx;
+	background: var(--bg-outer);
+	padding: 0 32rpx 160rpx;
 	box-sizing: border-box;
-}
-
-.back-btn-wrap {
-	position: fixed;
-	top: 40rpx;
-	left: 24rpx;
-	z-index: 100;
-}
-
-.back-btn {
-	width: 72rpx;
-	height: 72rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background: rgba(11, 17, 24, 0.85);
-	border: 1px solid #27384A;
-	border-radius: 50%;
-	color: #C6A15B;
-	font-size: 48rpx;
-	font-weight: 300;
-	transition: transform 0.15s ease, border-color 0.15s ease;
-}
-
-.back-btn:active {
-	transform: scale(0.9);
-	border-color: #C6A15B;
 }
 
 .header {
@@ -446,7 +690,7 @@ export default {
 	display: block;
 	font-size: 40rpx;
 	font-weight: 700;
-	color: #C6A15B;
+	color: var(--accent);
 	letter-spacing: 4rpx;
 	margin-bottom: 12rpx;
 }
@@ -454,7 +698,7 @@ export default {
 .subtitle {
 	display: block;
 	font-size: 26rpx;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 }
 
 .content-scroll {
@@ -473,21 +717,21 @@ export default {
 
 .world-name {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 40rpx;
 	font-weight: 700;
 }
 
 .world-original {
 	display: block;
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 26rpx;
 	margin-top: 4rpx;
 }
 
 .world-subtitle {
 	display: block;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 26rpx;
 	margin-bottom: 12rpx;
 	line-height: 1.5;
@@ -495,7 +739,7 @@ export default {
 
 .world-description {
 	display: block;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 24rpx;
 	line-height: 1.7;
 	margin-bottom: 16rpx;
@@ -503,8 +747,21 @@ export default {
 
 .tab-bar {
 	display: flex;
-	border-bottom: 1rpx solid #27384A;
+	position: relative;
+	border-bottom: 1rpx solid var(--border-soft);
 	margin: 0 24rpx;
+}
+
+/* 滑动下划线：宽度为 1/4，随激活 tab 平移 */
+.tab-underline {
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	width: 25%;
+	height: 3rpx;
+	background: var(--accent);
+	z-index: 1;
+	transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .tab-item {
@@ -522,17 +779,13 @@ export default {
 	opacity: 0.7;
 }
 
-.tab-item.active {
-	border-bottom-color: #C6A15B;
-}
-
 .tab-text {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 28rpx;
 }
 
 .tab-item.active .tab-text {
-	color: #C6A15B;
+	color: var(--accent);
 	font-weight: 600;
 }
 
@@ -551,8 +804,8 @@ export default {
 .inhabitant-card {
 	display: flex;
 	align-items: center;
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 16rpx;
 	padding: 20rpx;
 	transition: transform 0.15s ease, border-color 0.15s ease;
@@ -560,7 +813,7 @@ export default {
 
 .inhabitant-card:active {
 	transform: scale(0.98);
-	border-color: rgba(198,161,91,0.55);
+	border-color: rgba(var(--accent-rgb), 0.55);
 }
 
 .inhabitant-avatar {
@@ -574,7 +827,7 @@ export default {
 }
 
 .inhabitant-avatar text {
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 28rpx;
 	font-weight: 700;
 }
@@ -587,7 +840,7 @@ export default {
 
 .inhabitant-name {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 28rpx;
 	font-weight: 600;
 	margin-bottom: 4rpx;
@@ -595,12 +848,12 @@ export default {
 
 .inhabitant-title {
 	display: block;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 22rpx;
 }
 
 .inhabitant-arrow {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 36rpx;
 	margin-left: 16rpx;
 }
@@ -610,8 +863,8 @@ export default {
 	gap: 18rpx;
 	padding: 24rpx;
 	margin-bottom: 18rpx;
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 18rpx;
 	box-sizing: border-box;
 	transition: border-color 0.2s ease, transform 0.15s ease;
@@ -619,11 +872,11 @@ export default {
 
 .location-card:active {
 	transform: scale(0.98);
-	border-color: rgba(198,161,91,0.55);
+	border-color: rgba(var(--accent-rgb), 0.55);
 }
 
 .location-card.highlighted {
-	border-color: #C6A15B;
+	border-color: var(--accent);
 }
 
 .location-icon {
@@ -631,15 +884,15 @@ export default {
 	height: 56rpx;
 	min-width: 56rpx;
 	border-radius: 14rpx;
-	background: #0B1118;
-	border: 1rpx solid #27384A;
+	background: var(--bg-inset);
+	border: 1rpx solid var(--border-soft);
 	display: flex;
 	align-items: center;
 	justify-content: center;
 }
 
 .location-icon text {
-	color: #D8C27A;
+	color: var(--ink-rune);
 	font-size: 28rpx;
 }
 
@@ -650,21 +903,21 @@ export default {
 
 .location-name {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 28rpx;
 	font-weight: 700;
 }
 
 .location-original {
 	display: block;
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 22rpx;
 	margin-top: 4rpx;
 }
 
 .location-desc {
 	display: block;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 24rpx;
 	line-height: 1.5;
 	margin-top: 8rpx;
@@ -675,8 +928,8 @@ export default {
 .legend-card {
 	display: flex;
 	align-items: center;
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 16rpx;
 	padding: 24rpx;
 	transition: transform 0.15s ease, border-color 0.15s ease;
@@ -684,7 +937,7 @@ export default {
 
 .legend-card:active {
 	transform: scale(0.98);
-	border-color: rgba(198,161,91,0.55);
+	border-color: rgba(var(--accent-rgb), 0.55);
 }
 
 .legend-info {
@@ -694,7 +947,7 @@ export default {
 
 .legend-title {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 28rpx;
 	font-weight: 600;
 	margin-bottom: 4rpx;
@@ -702,14 +955,14 @@ export default {
 
 .legend-category {
 	display: block;
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 20rpx;
 	margin-bottom: 8rpx;
 }
 
 .legend-desc {
 	display: block;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 22rpx;
 	line-height: 1.5;
 	overflow: hidden;
@@ -720,21 +973,9 @@ export default {
 }
 
 .legend-arrow {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 36rpx;
 	margin-left: 16rpx;
-}
-
-.empty-state {
-	padding: 60rpx 0;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.empty-text {
-	color: #66727F;
-	font-size: 26rpx;
 }
 
 .bottom-space {
@@ -743,12 +984,12 @@ export default {
 
 .world-map-stage {
 	position: relative;
-	height: 320rpx;
+	/* 4:3 横版画框，节省上下空间；竖图 aspectFill 居中裁切，完整图进全屏看 */
+	aspect-ratio: 4 / 3;
 	border-radius: 24rpx;
-	border: 1px solid #27384A;
-	background: #172230;
+	border: 1px solid var(--border-soft);
+	background: var(--bg-card);
 	overflow: hidden;
-	padding: 24rpx;
 	box-sizing: border-box;
 }
 
@@ -767,60 +1008,82 @@ export default {
 	content: '';
 	position: absolute;
 	inset: 0;
-	background: radial-gradient(circle at 62% 34%, rgba(198,161,91,0.15), transparent 34%);
+	background: radial-gradient(circle at 62% 34%, rgba(var(--accent-rgb), 0.15), transparent 34%);
 }
 
 .world-map-stage .map-kicker {
 	position: relative;
 	z-index: 1;
 	display: block;
-	color: #66727F;
+	margin: 24rpx 0 0 24rpx;
+	color: var(--text-muted);
 	font-size: 22rpx;
 	letter-spacing: 4rpx;
 }
 
-.world-map-stage .map-title {
-	position: relative;
-	z-index: 1;
-	display: block;
-	margin-top: 120rpx;
-	color: #F2F4F6;
-	font-size: 36rpx;
-	font-weight: 900;
-}
-
-.world-map-stage .map-subtitle {
-	position: relative;
-	z-index: 1;
-	display: block;
-	margin-top: 8rpx;
-	color: #C6A15B;
-	font-size: 24rpx;
-}
-
-.world-map-stage .map-mark {
+/* 手绘地图底层：has-image 时图片铺满舞台，文字与点位浮于其上 */
+.map-art {
 	position: absolute;
-	z-index: 2;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	z-index: 0;
+	width: 100%;
+	height: 100%;
+	display: block;
+}
+
+.world-map-stage.has-image::before,
+.fullscreen-map.has-image::before {
+	/* 有真图时网格线只保留极淡一层，浮在图片上方 */
+	z-index: 1;
+	opacity: 0.2;
+}
+
+.world-map-stage.has-image::after,
+.fullscreen-map.has-image::after {
+	/* 用上下压暗渐变替换金晕，保证浅色画面上文字依然可读 */
+	background: linear-gradient(
+		180deg,
+		rgba(var(--bg-outer-rgb), 0.52) 0%,
+		rgba(var(--bg-outer-rgb), 0.08) 36%,
+		rgba(var(--bg-outer-rgb), 0.06) 64%,
+		rgba(var(--bg-outer-rgb), 0.55) 100%
+	);
+}
+
+.map-pin {
+	position: absolute;
+	z-index: 3;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 14rpx;
+	transform: translate(-50%, -50%);
+}
+
+.map-pin-dot {
 	width: 16rpx;
 	height: 16rpx;
 	border-radius: 50%;
-	background: #D8C27A;
-	box-shadow: 0 0 20rpx rgba(216,194,122,0.4);
+	background: var(--accent-strong);
+	box-shadow: 0 0 18rpx rgba(var(--accent-strong-rgb), 0.55), 0 0 0 6rpx rgba(var(--accent-strong-rgb), 0.12);
+	transition: box-shadow 0.2s ease, background 0.2s ease;
 }
 
-.world-map-stage .mark-one {
-	top: 100rpx;
-	left: 80rpx;
+.map-pin.active .map-pin-dot {
+	background: #F2E3B3;
+	box-shadow: 0 0 26rpx rgba(var(--accent-strong-rgb), 0.9), 0 0 0 10rpx rgba(var(--accent-strong-rgb), 0.2);
 }
 
-.world-map-stage .mark-two {
-	top: 160rpx;
-	right: 100rpx;
-}
-
-.world-map-stage .mark-three {
-	bottom: 80rpx;
-	left: 180rpx;
+.map-pin-label {
+	margin-top: 6rpx;
+	color: var(--text-primary);
+	font-size: 18rpx;
+	letter-spacing: 1rpx;
+	text-shadow: 0 2rpx 8rpx rgba(var(--bg-outer-rgb), 0.92);
+	white-space: nowrap;
 }
 
 .tone-mist {
@@ -847,7 +1110,7 @@ export default {
 	position: relative;
 	z-index: 1;
 	display: block;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 22rpx;
 	letter-spacing: 4rpx;
 }
@@ -857,7 +1120,7 @@ export default {
 	z-index: 1;
 	display: block;
 	margin-top: 180rpx;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 42rpx;
 	font-weight: 900;
 }
@@ -867,33 +1130,8 @@ export default {
 	z-index: 1;
 	display: block;
 	margin-top: 10rpx;
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 24rpx;
-}
-
-.map-mark {
-	position: absolute;
-	z-index: 2;
-	width: 18rpx;
-	height: 18rpx;
-	border-radius: 50%;
-	background: #D8C27A;
-	box-shadow: 0 0 24rpx rgba(216,194,122,0.45);
-}
-
-.mark-one {
-	top: 120rpx;
-	left: 120rpx;
-}
-
-.mark-two {
-	top: 200rpx;
-	right: 150rpx;
-}
-
-.mark-three {
-	bottom: 100rpx;
-	left: 240rpx;
 }
 
 .map-fullscreen-btn {
@@ -904,9 +1142,9 @@ export default {
 	height: 56rpx;
 	padding: 0 24rpx;
 	border-radius: 999rpx;
-	background: rgba(11,17,24,0.68);
-	border: 1px solid rgba(198,161,91,0.45);
-	color: #C6A15B;
+	background: rgba(var(--bg-outer-rgb), 0.68);
+	border: 1px solid rgba(var(--accent-rgb), 0.45);
+	color: var(--accent);
 	font-size: 22rpx;
 	display: flex;
 	align-items: center;
@@ -916,35 +1154,35 @@ export default {
 
 .map-fullscreen-btn:active {
 	transform: scale(0.94);
-	background: rgba(198,161,91,0.22);
+	background: rgba(var(--accent-rgb), 0.22);
 }
 
 .timeline-slider {
 	margin-top: 28rpx;
 	padding: 24rpx;
 	border-radius: 22rpx;
-	background: #172230;
-	border: 1px solid #27384A;
+	background: var(--bg-card);
+	border: 1px solid var(--border-soft);
 }
 
 .timeline-slider-tab {
 	padding: 24rpx;
 	border-radius: 22rpx;
-	background: #172230;
-	border: 1px solid #27384A;
+	background: var(--bg-card);
+	border: 1px solid var(--border-soft);
 }
 
 .timeline-track {
 	position: relative;
 	height: 8rpx;
-	background: #0B1118;
+	background: var(--bg-inset);
 	border-radius: 999rpx;
 	overflow: hidden;
 }
 
 .timeline-fill {
 	height: 100%;
-	background: linear-gradient(90deg, #C6A15B, #D8C27A);
+	background: linear-gradient(90deg, var(--accent), var(--accent-strong));
 	border-radius: 999rpx;
 }
 
@@ -965,37 +1203,37 @@ export default {
 	width: 18rpx;
 	height: 18rpx;
 	border-radius: 50%;
-	border: 2rpx solid #66727F;
-	background: #0B1118;
+	border: 2rpx solid var(--text-muted);
+	background: var(--bg-inset);
 }
 
 .timeline-node.active .node-dot {
-	border-color: #C6A15B;
-	background: #C6A15B;
-	box-shadow: 0 0 20rpx rgba(198,161,91,0.35);
+	border-color: var(--accent);
+	background: var(--accent);
+	box-shadow: 0 0 20rpx rgba(var(--accent-rgb), 0.35);
 }
 
 .node-label {
 	margin-top: 10rpx;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 20rpx;
 }
 
 .timeline-node.active .node-label {
-	color: #C6A15B;
+	color: var(--accent);
 }
 
 .timeline-detail-card {
 	margin-top: 28rpx;
 	padding: 30rpx;
 	border-radius: 24rpx;
-	background: #172230;
-	border: 1px solid #27384A;
+	background: var(--bg-card);
+	border: 1px solid var(--border-soft);
 }
 
 .timeline-kicker {
 	display: block;
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 22rpx;
 	letter-spacing: 4rpx;
 }
@@ -1003,7 +1241,7 @@ export default {
 .timeline-title {
 	display: block;
 	margin-top: 14rpx;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 36rpx;
 	font-weight: 900;
 }
@@ -1011,14 +1249,14 @@ export default {
 .timeline-subtitle {
 	display: block;
 	margin-top: 8rpx;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 25rpx;
 }
 
 .timeline-summary {
 	display: block;
 	margin-top: 20rpx;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 26rpx;
 	line-height: 1.75;
 	white-space: normal;
@@ -1031,7 +1269,7 @@ export default {
 
 .event-title {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 28rpx;
 	font-weight: 800;
 	margin-bottom: 16rpx;
@@ -1048,13 +1286,13 @@ export default {
 	height: 10rpx;
 	margin-top: 14rpx;
 	border-radius: 50%;
-	background: #C6A15B;
+	background: var(--accent);
 	flex-shrink: 0;
 }
 
 .event-text {
 	flex: 1;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 25rpx;
 	line-height: 1.6;
 }
@@ -1062,7 +1300,7 @@ export default {
 .related-mini {
 	margin-top: 28rpx;
 	padding-top: 20rpx;
-	border-top: 1px solid #27384A;
+	border-top: 1px solid var(--border-soft);
 }
 
 .related-tags {
@@ -1074,37 +1312,22 @@ export default {
 .related-tag {
 	padding: 12rpx 20rpx;
 	border-radius: 999rpx;
-	background: rgba(198,161,91,0.14);
-	color: #C6A15B;
+	background: rgba(var(--accent-rgb), 0.14);
+	color: var(--accent);
 	font-size: 22rpx;
 	transition: transform 0.15s ease, background 0.15s ease;
 }
 
 .related-tag:active {
 	transform: scale(0.94);
-	background: rgba(198,161,91,0.28);
+	background: rgba(var(--accent-rgb), 0.28);
 }
 
 .empty-timeline {
-	padding: 40rpx 32rpx;
+	padding: 16rpx 24rpx;
 	border-radius: 24rpx;
-	background: #172230;
-	border: 1px solid #27384A;
-}
-
-.empty-title {
-	display: block;
-	color: #F2F4F6;
-	font-size: 30rpx;
-	font-weight: 800;
-}
-
-.empty-desc {
-	display: block;
-	margin-top: 12rpx;
-	color: #A8B3BD;
-	font-size: 25rpx;
-	line-height: 1.6;
+	background: var(--bg-card);
+	border: 1px solid var(--border-soft);
 }
 
 @keyframes fadeUp {
@@ -1122,10 +1345,13 @@ export default {
 	position: fixed;
 	z-index: 9999;
 	inset: 0;
-	background: #0B1118;
-	color: #F2F4F6;
+	background: var(--bg-outer);
+	color: var(--text-primary);
 	padding: 32rpx;
 	box-sizing: border-box;
+	/* 画框变高后时间线/阶段卡可能超出屏幕，允许纵向滚动（画布内拖动已 prevent，不会冲突） */
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
 }
 
 .fullscreen-map-header {
@@ -1139,8 +1365,8 @@ export default {
 	width: 112rpx;
 	height: 56rpx;
 	border-radius: 999rpx;
-	border: 1px solid rgba(198,161,91,0.45);
-	color: #C6A15B;
+	border: 1px solid rgba(var(--accent-rgb), 0.45);
+	color: var(--accent);
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -1150,7 +1376,7 @@ export default {
 
 .fullscreen-close:active {
 	transform: scale(0.94);
-	background: rgba(198,161,91,0.16);
+	background: rgba(var(--accent-rgb), 0.16);
 }
 
 .fullscreen-title-wrap {
@@ -1161,7 +1387,7 @@ export default {
 
 .fullscreen-title {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 30rpx;
 	font-weight: 800;
 }
@@ -1169,19 +1395,20 @@ export default {
 .fullscreen-subtitle {
 	display: block;
 	margin-top: 4rpx;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 22rpx;
 }
 
 .fullscreen-map {
 	position: relative;
-	height: 58vh;
+	/* 3:4 竖屏画框：内嵌 1:1 方形画布，左右可拖动、双指缩放看细节 */
+	aspect-ratio: 3 / 4;
 	margin-top: 20rpx;
 	border-radius: 30rpx;
-	border: 1px solid #27384A;
+	border: 1px solid var(--border-soft);
 	overflow: hidden;
-	padding: 34rpx;
 	box-sizing: border-box;
+	user-select: none;
 }
 
 .fullscreen-map::before {
@@ -1195,11 +1422,19 @@ export default {
 	opacity: 0.5;
 }
 
+.fullscreen-map::before,
+.fullscreen-map::after {
+	/* 装饰层不参与命中测试，触摸 / 点击穿透到画布与点位 */
+	pointer-events: none;
+}
+
 .fullscreen-map::after {
 	content: '';
 	position: absolute;
 	inset: 0;
-	background: radial-gradient(circle at 56% 34%, rgba(198,161,91,0.18), transparent 36%);
+	/* 压暗渐变提到画布（z-index:1）之上、文字之下，保证移动的画面上文字可读 */
+	z-index: 2;
+	background: radial-gradient(circle at 56% 34%, rgba(var(--accent-rgb), 0.18), transparent 36%);
 }
 
 .fullscreen-map-kicker,
@@ -1207,19 +1442,35 @@ export default {
 .fullscreen-map-stage {
 	position: absolute;
 	left: 34rpx;
-	z-index: 2;
+	z-index: 3;
+}
+
+/* 可拖动画布：尺寸由 JS 按图片真实比例算出（盖满画框），这里只负责居中定位；
+   图比画框宽则左右拖，图比画框高则上下拖；点位挂在画布内随图移动 */
+.map-pan-layer {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	z-index: 1;
+	touch-action: none;
+	will-change: transform;
+	cursor: grab;
+}
+
+.map-pan-layer:active {
+	cursor: grabbing;
 }
 
 .fullscreen-map-kicker {
 	top: 34rpx;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 24rpx;
 	letter-spacing: 4rpx;
 }
 
 .fullscreen-map-title {
 	bottom: 80rpx;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 48rpx;
 	font-weight: 900;
 }
@@ -1227,58 +1478,38 @@ export default {
 .fullscreen-map-stage {
 	bottom: 34rpx;
 	left: 34rpx;
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 26rpx;
 }
 
-.fullscreen-map-mark {
-	position: absolute;
-	z-index: 3;
+/* 全屏视图点位放大一档，更好点按 */
+.fullscreen-map .map-pin-dot {
 	width: 22rpx;
 	height: 22rpx;
-	border-radius: 50%;
-	background: #D8C27A;
-	box-shadow: 0 0 26rpx rgba(216,194,122,0.5);
 }
 
-.mark-a {
-	top: 22%;
-	left: 28%;
-}
-
-.mark-b {
-	top: 38%;
-	right: 24%;
-}
-
-.mark-c {
-	bottom: 28%;
-	left: 44%;
-}
-
-.mark-d {
-	bottom: 20%;
-	right: 34%;
+.fullscreen-map .map-pin-label {
+	font-size: 22rpx;
 }
 
 .fullscreen-timeline {
 	margin-top: 28rpx;
 	padding: 24rpx;
 	border-radius: 24rpx;
-	background: #172230;
-	border: 1px solid #27384A;
+	background: var(--bg-card);
+	border: 1px solid var(--border-soft);
 }
 
 .fullscreen-track {
 	height: 8rpx;
-	background: #0B1118;
+	background: var(--bg-inset);
 	border-radius: 999rpx;
 	overflow: hidden;
 }
 
 .fullscreen-fill {
 	height: 100%;
-	background: linear-gradient(90deg, #C6A15B, #D8C27A);
+	background: linear-gradient(90deg, var(--accent), var(--accent-strong));
 	border-radius: 999rpx;
 }
 
@@ -1299,36 +1530,36 @@ export default {
 	width: 20rpx;
 	height: 20rpx;
 	border-radius: 50%;
-	border: 2rpx solid #66727F;
-	background: #0B1118;
+	border: 2rpx solid var(--text-muted);
+	background: var(--bg-inset);
 }
 
 .fullscreen-node.active .fullscreen-node-dot {
-	background: #C6A15B;
-	border-color: #C6A15B;
+	background: var(--accent);
+	border-color: var(--accent);
 }
 
 .fullscreen-node-label {
 	margin-top: 10rpx;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 21rpx;
 }
 
 .fullscreen-node.active .fullscreen-node-label {
-	color: #C6A15B;
+	color: var(--accent);
 }
 
 .fullscreen-stage-card {
 	margin-top: 24rpx;
 	padding: 24rpx;
 	border-radius: 22rpx;
-	background: #172230;
-	border: 1px solid #27384A;
+	background: var(--bg-card);
+	border: 1px solid var(--border-soft);
 }
 
 .fullscreen-stage-title {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 30rpx;
 	font-weight: 800;
 }
@@ -1336,7 +1567,7 @@ export default {
 .fullscreen-stage-desc {
 	display: block;
 	margin-top: 12rpx;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 24rpx;
 	line-height: 1.6;
 	white-space: normal;

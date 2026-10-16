@@ -1,7 +1,8 @@
+import bgmMainUrl from '../static/audio/bgm-main.mp3'
+import { state } from '@/state'
+
 let audio = null
 let fadeTimer = null
-const STORAGE_KEY = 'norse_bgm_enabled'
-const VOLUME_KEY = 'norse_bgm_volume'
 const FADE_DURATION = 800
 const FADE_INTERVAL = 50
 
@@ -13,7 +14,7 @@ function clearFadeTimer() {
 }
 
 export function getBgmVolume() {
-  const saved = uni.getStorageSync(VOLUME_KEY)
+  const saved = state.get('settings.bgmVolume')
   const n = Number(saved)
   if (!Number.isFinite(n)) return 0.45
   return Math.max(0, Math.min(1, n))
@@ -28,7 +29,7 @@ export function setBgmVolume(value) {
     volume = 0.45
   }
   volume = Math.max(0, Math.min(1, volume))
-  uni.setStorageSync(VOLUME_KEY, volume)
+  state.set('settings.bgmVolume', volume)
   const instance = initAudio()
   if (instance && Number.isFinite(volume)) {
     instance.volume = volume
@@ -39,7 +40,9 @@ export function setBgmVolume(value) {
 export function initAudio() {
   if (audio) return audio
   audio = uni.createInnerAudioContext()
-  audio.src = 'static/audio/bgm-main.mp3'
+  // 不能用 'static/...' 相对路径：H5 下会基于页面路由（如 /pages/index/）解析导致 404，
+  // 通过 import 让构建器生成带正确 base 的资源 URL
+  audio.src = bgmMainUrl
   audio.loop = true
   audio.volume = getBgmVolume()
   audio.onError((err) => {
@@ -49,11 +52,11 @@ export function initAudio() {
 }
 
 export function getBgmEnabled() {
-  return uni.getStorageSync(STORAGE_KEY) === true
+  return state.get('settings.bgmEnabled') === true
 }
 
 export function setBgmEnabled(value) {
-  uni.setStorageSync(STORAGE_KEY, !!value)
+  state.set('settings.bgmEnabled', !!value)
 }
 
 function fadeTo(targetVolume, callback) {

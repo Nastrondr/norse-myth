@@ -12,10 +12,12 @@ import {
 
 const RELATIONSHIP_KEYS = ['parents', 'spouse', 'children', 'allies', 'rivals', 'enemies']
 const ATTRIBUTE_KEYS = ['wisdom', 'combat', 'magic', 'authority', 'fate']
+// portrait（立绘）为可选资源字段：有则校验由 references.test.js 负责（路径规范/文件存在/体积），
+// 无立绘的角色由 PortraitImage 组件回退首字占位
 const REQUIRED_GOD_FIELDS = [
   'id', 'name', 'originalName', 'title', 'faction',
   'realm', 'domain', 'symbols', 'artifact',
-  'description', 'image', 'relationships', 'attributes', 'stories'
+  'description', 'relationships', 'attributes', 'stories'
 ]
 
 describe('神祇数据完整性', () => {

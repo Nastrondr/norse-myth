@@ -89,7 +89,7 @@ export const norseStories = [
     readingTime: '4 分钟',
     notes: ['许多神器都与矮人的地下锻造技艺有关。', '洛基经常既制造问题，也间接带来解决问题的工具。'],
     relatedGods: ['loki', 'thor', 'odin', 'freyr'],
-    relatedCreatures: ['dwarves']
+    relatedCreatures: ['dwarf']
   },
   {
     id: 'ragnarok',

@@ -1,9 +1,6 @@
 <template>
-	<view class="container">
-		<view class="header">
-			<text class="title">神话故事</text>
-			<text class="subtitle">沿着命运的时间线，阅读从创世到诸神黄昏与世界重生的故事。</text>
-		</view>
+	<view class="container page-enter">
+		<PageHeader kicker="SAGA OF THE NORTH" title="神话故事" subtitle="沿着命运的时间线，阅读从创世到诸神黄昏与世界重生的故事。" />
 
 		<view class="view-toggle">
 			<view
@@ -24,9 +21,10 @@
 
 		<view v-if="viewMode === 'timeline'" class="timeline-list">
 			<view
-				v-for="phase in timeline"
-				:key="phase.id"
-				class="timeline-phase"
+				v-for="(phase, index) in timeline"
+				:key="phase.id + '-' + refreshTick"
+				class="timeline-phase stagger-item"
+				:style="{ animationDelay: Math.min(index, 12) * 0.05 + 's' }"
 			>
 				<view class="phase-header" @click="togglePhase(phase.id)">
 					<view class="phase-marker" :style="{ background: phase.color }"></view>
@@ -66,31 +64,24 @@
 		<view v-if="viewMode === 'list'" class="list-mode">
 			<view class="category-tabs">
 				<text
+					v-for="cat in categories"
+					:key="cat.id"
 					class="tab"
-					:class="{ active: currentCategory === '' }"
-					@click="currentCategory = ''"
-				>全部</text>
-				<text
-					class="tab"
-					:class="{ active: currentCategory === '创世神话' }"
-					@click="currentCategory = '创世神话'"
-				>创世神话</text>
-				<text
-					class="tab"
-					:class="{ active: currentCategory === '神器传说' }"
-					@click="currentCategory = '神器传说'"
-				>神器传说</text>
-				<text
-					class="tab"
-					:class="{ active: currentCategory === '末日预言' }"
-					@click="currentCategory = '末日预言'"
-				>末日预言</text>
+					:class="{ active: currentCategory === cat.id }"
+					@click="setCategory(cat.id)"
+				>{{ cat.label }}</text>
+				<view
+					v-if="tabIndicator.ready"
+					class="tab-indicator"
+					:style="{ transform: 'translateX(' + tabIndicator.left + 'px)', width: tabIndicator.width + 'px' }"
+				></view>
 			</view>
 
 			<scroll-view class="story-list" scroll-y>
-				<view class="story-card"
-					v-for="story in filteredStories"
+				<view class="story-card stagger-item"
+					v-for="(story, index) in filteredStories"
 					:key="story.id"
+					:style="{ animationDelay: Math.min(index, 12) * 0.05 + 's' }"
 					@click="goToDetail(story.id)"
 				>
 					<view class="story-icon">{{ story.title.charAt(0) }}</view>
@@ -104,6 +95,14 @@
 					</view>
 					<text class="arrow">›</text>
 				</view>
+				<EmptyState
+					v-if="filteredStories.length === 0"
+					type="search"
+					title="该分类暂无故事"
+					desc="切换其他分类，或回到时间轴视图。"
+					:actions="[{ label: '清除分类', variant: 'primary', event: 'reset' }]"
+					@action="onEmptyAction"
+				/>
 			</scroll-view>
 		</view>
 
@@ -113,18 +112,28 @@
 
 <script>
 import TabBar from '@/components/TabBar.vue'
-import { stories } from '@/data/norse.js'
-import { norseTimeline } from '@/data/norseTimeline.js'
+import PageHeader from '@/components/PageHeader.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import { db } from '@/db'
+import { storyCategories } from '@/data/norseStories.js'
 
 export default {
-  components: { TabBar },
+  components: { TabBar, PageHeader, EmptyState },
 	data() {
 		return {
-			stories: stories,
-			timeline: norseTimeline,
+			stories: db.findAll('stories'),
+			timeline: db.findAll('timeline'),
+			categories: storyCategories,
 			viewMode: 'timeline',
 			currentCategory: '',
-			expandedPhaseIds: ['creation-age']
+			expandedPhaseIds: ['creation-age'],
+			tabIndicator: { left: 0, width: 0, ready: false }
+		}
+	},
+	watch: {
+		// 切到列表视图时 tab 才首次渲染，需要重新测量指示器
+		viewMode(val) {
+			if (val === 'list') this.updateTabIndicator()
 		}
 	},
 	computed: {
@@ -134,6 +143,42 @@ export default {
 		}
 	},
 	methods: {
+		// 下拉刷新回调：重新读取故事与时间线
+		onRefresh() {
+			this.stories = db.findAll('stories')
+			this.timeline = db.findAll('timeline')
+		},
+		setCategory(id) {
+			this.currentCategory = id
+			this.updateTabIndicator()
+		},
+		// 空态操作：清除分类筛选
+		onEmptyAction(event) {
+			if (event !== 'reset') return
+			this.currentCategory = ''
+			this.updateTabIndicator()
+		},
+		// 测量当前激活 tab 的位置，驱动滑动指示器
+		updateTabIndicator() {
+			this.$nextTick(() => {
+				uni.createSelectorQuery().in(this)
+					.select('.category-tabs').boundingClientRect()
+					.selectAll('.category-tabs .tab').boundingClientRect()
+					.exec((res) => {
+						const barRect = res && res[0]
+						const tabRects = res && res[1]
+						if (!barRect || !tabRects || !tabRects.length) return
+						const index = Math.max(0, this.categories.findIndex(c => c.id === this.currentCategory))
+						const rect = tabRects[index]
+						if (!rect) return
+						this.tabIndicator = {
+							left: rect.left - barRect.left,
+							width: rect.width,
+							ready: true
+						}
+					})
+			})
+		},
 		togglePhase(id) {
 			if (!id) return
 			const index = this.expandedPhaseIds.indexOf(id)
@@ -171,32 +216,10 @@ export default {
 <style scoped>
 .container {
 	min-height: 100vh;
-	background: #0B1118;
-	padding: 32rpx;
-	padding-bottom: 160rpx;
+	background: var(--bg-outer);
+	padding: 0 32rpx 160rpx;
 	box-sizing: border-box;
 	overflow-x: hidden;
-}
-
-.header {
-	text-align: center;
-	padding: 24rpx 0 28rpx;
-}
-
-.title {
-	display: block;
-	font-size: 40rpx;
-	font-weight: 800;
-	line-height: 1.25;
-	color: #F2F4F6;
-}
-
-.subtitle {
-	display: block;
-	margin-top: 12rpx;
-	color: #A8B3BD;
-	font-size: 24rpx;
-	line-height: 1.5;
 }
 
 .view-toggle {
@@ -209,13 +232,13 @@ export default {
 	flex: 1;
 	height: 64rpx;
 	border-radius: 999rpx;
-	background: #172230;
-	color: #A8B3BD;
+	background: var(--bg-card);
+	color: var(--text-secondary);
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	font-size: 24rpx;
-	border: 1rpx solid #27384A;
+	border: 1rpx solid var(--border-soft);
 	transition: color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
 }
 
@@ -224,9 +247,9 @@ export default {
 }
 
 .toggle-btn.active {
-	background: #C6A15B;
-	color: #0B1118;
-	border-color: #C6A15B;
+	background: var(--accent);
+	color: var(--bg-outer);
+	border-color: var(--accent);
 	font-weight: 700;
 }
 
@@ -243,7 +266,7 @@ export default {
 	top: 20rpx;
 	bottom: 20rpx;
 	width: 2rpx;
-	background: linear-gradient(to bottom, rgba(198,161,91,0.8), rgba(39,56,74,0.3));
+	background: linear-gradient(to bottom, rgba(var(--accent-rgb), 0.8), rgba(var(--border-rgb), 0.3));
 }
 
 .timeline-phase {
@@ -255,8 +278,8 @@ export default {
 	display: flex;
 	align-items: center;
 	gap: 18rpx;
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 22rpx;
 	padding: 24rpx;
 	box-sizing: border-box;
@@ -270,7 +293,7 @@ export default {
 	width: 24rpx;
 	height: 24rpx;
 	border-radius: 50%;
-	border: 3rpx solid rgba(242,244,246,0.18);
+	border: 3rpx solid rgba(var(--text-primary-rgb), 0.18);
 	flex-shrink: 0;
 }
 
@@ -281,7 +304,7 @@ export default {
 
 .phase-title {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 30rpx;
 	font-weight: 800;
 }
@@ -289,7 +312,7 @@ export default {
 .phase-subtitle {
 	display: block;
 	margin-top: 8rpx;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 22rpx;
 	line-height: 1.5;
 	white-space: normal;
@@ -297,7 +320,7 @@ export default {
 }
 
 .phase-toggle {
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 36rpx;
 	font-weight: 300;
 	width: 56rpx;
@@ -316,7 +339,7 @@ export default {
 .phase-events {
 	margin-left: 12rpx;
 	padding-left: 24rpx;
-	border-left: 1rpx solid rgba(198,161,91,0.28);
+	border-left: 1rpx solid rgba(var(--accent-rgb), 0.28);
 	margin-top: 14rpx;
 }
 
@@ -335,17 +358,17 @@ export default {
 	width: 16rpx;
 	height: 16rpx;
 	border-radius: 50%;
-	background: #C6A15B;
+	background: var(--accent);
 	margin-top: 10rpx;
 	flex-shrink: 0;
-	box-shadow: 0 0 18rpx rgba(198,161,91,0.25);
+	box-shadow: 0 0 18rpx rgba(var(--accent-rgb), 0.25);
 }
 
 .event-content {
 	flex: 1;
 	min-width: 0;
-	background: rgba(23,34,48,0.72);
-	border: 1rpx solid rgba(39,56,74,0.78);
+	background: rgba(var(--elevated-rgb), 0.72);
+	border: 1rpx solid rgba(var(--border-rgb), 0.78);
 	border-radius: 18rpx;
 	padding: 20rpx;
 	box-sizing: border-box;
@@ -353,7 +376,7 @@ export default {
 
 .event-title {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 28rpx;
 	font-weight: 700;
 	line-height: 1.35;
@@ -362,7 +385,7 @@ export default {
 .event-summary {
 	display: block;
 	margin-top: 8rpx;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 23rpx;
 	line-height: 1.55;
 	white-space: normal;
@@ -379,8 +402,8 @@ export default {
 .event-tag {
 	padding: 4rpx 10rpx;
 	border-radius: 999rpx;
-	background: rgba(198,161,91,0.14);
-	color: #C6A15B;
+	background: rgba(var(--accent-rgb), 0.14);
+	color: var(--accent);
 	font-size: 18rpx;
 	line-height: 1.2;
 }
@@ -392,6 +415,7 @@ export default {
 
 .category-tabs {
 	display: flex;
+	position: relative;
 	margin-bottom: 24rpx;
 	overflow-x: auto;
 	overflow-y: hidden;
@@ -403,14 +427,14 @@ export default {
 
 .tab {
 	padding: 14rpx 26rpx;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 24rpx;
 	white-space: nowrap;
 	border-radius: 30rpx;
-	background: #172230;
+	background: var(--bg-card);
 	margin-right: 12rpx;
 	border: 1rpx solid transparent;
-	transition: color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+	transition: color 0.2s ease, transform 0.15s ease;
 }
 
 .tab:active {
@@ -418,9 +442,21 @@ export default {
 }
 
 .tab.active {
-	background: transparent;
-	border: 1rpx solid #C6A15B;
-	color: #C6A15B;
+	color: var(--accent);
+}
+
+/* 滑动胶囊指示器：随激活 tab 平移 */
+.tab-indicator {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	border: 1rpx solid var(--accent);
+	border-radius: 30rpx;
+	box-sizing: border-box;
+	pointer-events: none;
+	z-index: 1;
+	transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .story-list {
@@ -430,8 +466,8 @@ export default {
 .story-card {
 	display: flex;
 	align-items: center;
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 18rpx;
 	padding: 24rpx;
 	margin-bottom: 16rpx;
@@ -441,12 +477,12 @@ export default {
 
 .story-card:active {
 	transform: scale(0.98);
-	border-color: rgba(198,161,91,0.55);
+	border-color: rgba(var(--accent-rgb), 0.55);
 }
 
 .story-icon {
 	font-size: 48rpx;
-	color: #C6A15B;
+	color: var(--accent);
 	margin-right: 20rpx;
 }
 
@@ -456,7 +492,7 @@ export default {
 
 .story-title {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 30rpx;
 	font-weight: 600;
 	margin-bottom: 8rpx;
@@ -466,7 +502,7 @@ export default {
 	display: block;
 	width: 100%;
 	max-width: 100%;
-	color: #A8B3BD;
+	color: var(--text-secondary);
 	font-size: 26rpx;
 	margin-bottom: 12rpx;
 	word-break: break-word;
@@ -482,12 +518,12 @@ export default {
 
 .story-time,
 .story-chars {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 22rpx;
 }
 
 .arrow {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 36rpx;
 }
 

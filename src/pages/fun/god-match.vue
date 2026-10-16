@@ -1,12 +1,6 @@
 <template>
-  <view class="match-page">
-    <view class="match-nav">
-      <view class="nav-back" @click="goBack">
-        <text>‹</text>
-      </view>
-      <text class="nav-title">神祇匹配</text>
-      <view class="nav-placeholder"></view>
-    </view>
+  <view class="match-page page-enter-deep">
+    <NavBar title="神祇匹配" />
 
     <scroll-view v-if="!testStarted && !testCompleted" scroll-y class="match-scroll">
       <view class="match-hero">
@@ -30,7 +24,7 @@
         </view>
       </view>
 
-      <view class="start-button" @click="startTest">
+      <view class="start-button btn-shine" @click="startTest">
         <text>开始测试</text>
       </view>
 
@@ -188,6 +182,10 @@
 </template>
 
 <script>
+import NavBar from '@/components/NavBar.vue'
+import { state } from '@/state'
+import { unlockRavensClue, isRavensRevealed } from '@/utils/clueProgress.js'
+
 const dimensions = [
   { key: 'action', name: '行动力', desc: '你会主动介入局势，还是先观察变化。' },
   { key: 'insight', name: '洞察力', desc: '你更容易看见事实，还是隐藏结构。' },
@@ -573,6 +571,7 @@ const deityProfiles = [
 ]
 
 export default {
+  components: { NavBar },
   data() {
     return {
       dimensions,
@@ -591,7 +590,6 @@ export default {
       },
       testCompleted: false,
       matchResult: null,
-      matchStorageKey: 'norse_god_match_result',
       savedMatchResult: null,
       genderAffinity: 'none',
       showShareCard: false
@@ -601,9 +599,6 @@ export default {
     this.loadSavedMatchResult()
   },
   methods: {
-    goBack() {
-      uni.navigateBack()
-    },
     startTest() {
       this.testStarted = true
       this.testCompleted = false
@@ -1016,7 +1011,7 @@ export default {
       })
     },
     loadSavedMatchResult() {
-      const saved = uni.getStorageSync(this.matchStorageKey)
+      const saved = state.get('game.godMatch')
       if (saved && saved.primary) {
         this.savedMatchResult = saved
       }
@@ -1032,7 +1027,7 @@ export default {
         userScores: this.matchResult.userScores
       }
 
-      uni.setStorageSync(this.matchStorageKey, payload)
+      state.set('game.godMatch', payload)
     },
     restoreSavedResult() {
       if (!this.savedMatchResult) return
@@ -1056,31 +1051,11 @@ export default {
       }
     },
     unlockRavensRelationClue() {
-      const key = 'ravens_clue_progress'
-      const saved = uni.getStorageSync(key)
-      const progress = saved && typeof saved === 'object'
-        ? saved
-        : { clueIds: [], revealed: false }
-
-      const clueIds = progress.clueIds || []
-      let added = false
-
-      if (!clueIds.includes('relation')) {
-        clueIds.push('relation')
-        added = true
-      }
-
-      progress.clueIds = clueIds
-
-      if (clueIds.length >= 3) {
-        progress.revealed = true
-      }
-
-      uni.setStorageSync(key, progress)
+      const added = unlockRavensClue('relation')
 
       if (added) {
         uni.showToast({
-          title: progress.revealed ? '渡鸦身份已显现' : '发现线索：独眼神明的使者',
+          title: isRavensRevealed() ? '渡鸦身份已显现' : '发现线索：独眼神明的使者',
           icon: 'success'
         })
       }
@@ -1144,69 +1119,26 @@ export default {
 <style scoped>
 .match-page {
   min-height: 100vh;
-  background: #0B1118;
-  color: #F2F4F6;
-}
-
-.match-nav {
-  height: 96rpx;
-  background: #111A24;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 32rpx;
-  box-sizing: border-box;
-  border-bottom: 1px solid #27384A;
-}
-
-.nav-back {
-  width: 88rpx;
-  height: 96rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #C6A15B;
-  transition: transform 0.15s ease, opacity 0.15s ease;
-}
-
-.nav-back text {
-  font-size: 52rpx;
-  font-weight: 300;
-  line-height: 1;
-}
-
-.nav-back:active {
-  transform: scale(0.85);
-  opacity: 0.8;
-}
-
-.nav-placeholder {
-  width: 88rpx;
-  height: 96rpx;
-}
-
-.nav-title {
-  color: #F2F4F6;
-  font-size: 30rpx;
-  font-weight: 700;
+  background: var(--bg-outer);
+  color: var(--text-primary);
 }
 
 .match-scroll {
-  height: calc(100vh - 96rpx);
+  height: calc(100vh - 88rpx - env(safe-area-inset-top));
   box-sizing: border-box;
 }
 
 .match-hero {
   margin: 32rpx;
   padding: 36rpx 32rpx;
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 26rpx;
 }
 
 .hero-kicker {
   display: block;
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 22rpx;
   letter-spacing: 4rpx;
 }
@@ -1214,7 +1146,7 @@ export default {
 .hero-title {
   display: block;
   margin-top: 14rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 42rpx;
   font-weight: 800;
   line-height: 1.25;
@@ -1223,7 +1155,7 @@ export default {
 .hero-desc {
   display: block;
   margin-top: 18rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 26rpx;
   line-height: 1.7;
   white-space: normal;
@@ -1237,33 +1169,33 @@ export default {
   gap: 12rpx;
   margin-top: 24rpx;
   padding: 12rpx 20rpx;
-  background: rgba(11,17,24,0.58);
-  border: 1px solid rgba(39,56,74,0.72);
+  background: rgba(var(--bg-inset-rgb),0.58);
+  border: 1px solid rgba(var(--border-rgb),0.72);
   border-radius: 999rpx;
   width: fit-content;
 }
 
 .status-text {
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 20rpx;
 }
 
 .status-divider {
-  color: #27384A;
+  color: var(--border-soft);
   font-size: 20rpx;
 }
 
 .section-card {
   margin: 32rpx;
   padding: 28rpx;
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 24rpx;
 }
 
 .section-title {
   display: block;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 32rpx;
   font-weight: 800;
   margin-bottom: 20rpx;
@@ -1277,8 +1209,8 @@ export default {
 
 .dimension-card {
   width: calc(50% - 7rpx);
-  background: rgba(11,17,24,0.58);
-  border: 1px solid rgba(39,56,74,0.72);
+  background: rgba(var(--bg-inset-rgb),0.58);
+  border: 1px solid rgba(var(--border-rgb),0.72);
   border-radius: 16rpx;
   padding: 18rpx;
   box-sizing: border-box;
@@ -1286,7 +1218,7 @@ export default {
 
 .dimension-name {
   display: block;
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 24rpx;
   font-weight: 700;
 }
@@ -1294,7 +1226,7 @@ export default {
 .dimension-desc {
   display: block;
   margin-top: 8rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 22rpx;
   line-height: 1.5;
   white-space: normal;
@@ -1305,8 +1237,8 @@ export default {
   height: 92rpx;
   margin: 40rpx 32rpx 180rpx;
   border-radius: 999rpx;
-  background: linear-gradient(135deg, #D8C27A 0%, #C6A15B 100%);
-  color: #0B1118;
+  background: linear-gradient(135deg, var(--accent-strong) 0%, var(--accent) 100%);
+  color: var(--bg-outer);
   font-size: 30rpx;
   font-weight: 800;
   display: flex;
@@ -1334,19 +1266,19 @@ export default {
 }
 
 .progress-text {
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 24rpx;
 }
 
 .progress-percent {
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 24rpx;
   font-weight: 700;
 }
 
 .question-bar {
   height: 10rpx;
-  background: #172230;
+  background: var(--bg-card);
   border-radius: 999rpx;
   overflow: hidden;
   margin-bottom: 28rpx;
@@ -1354,20 +1286,20 @@ export default {
 
 .question-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #C6A15B, #D8C27A);
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
   border-radius: 999rpx;
 }
 
 .question-card {
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 26rpx;
   padding: 30rpx;
 }
 
 .question-title {
   display: block;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 34rpx;
   font-weight: 800;
   line-height: 1.45;
@@ -1382,14 +1314,14 @@ export default {
   gap: 18rpx;
   padding: 24rpx;
   margin-bottom: 18rpx;
-  background: rgba(11,17,24,0.58);
-  border: 1px solid rgba(39,56,74,0.8);
+  background: rgba(var(--bg-inset-rgb),0.58);
+  border: 1px solid rgba(var(--border-rgb),0.8);
   border-radius: 20rpx;
   box-sizing: border-box;
 }
 
 .option-card:active {
-  border-color: rgba(198,161,91,0.55);
+  border-color: rgba(var(--accent-rgb),0.55);
   transform: scale(0.99);
 }
 
@@ -1397,8 +1329,8 @@ export default {
   width: 42rpx;
   height: 42rpx;
   border-radius: 50%;
-  background: rgba(198,161,91,0.14);
-  color: #C6A15B;
+  background: rgba(var(--accent-rgb),0.14);
+  color: var(--accent);
   font-size: 22rpx;
   font-weight: 800;
   display: flex;
@@ -1409,7 +1341,7 @@ export default {
 
 .option-text {
   flex: 1;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 26rpx;
   line-height: 1.55;
   white-space: normal;
@@ -1423,8 +1355,8 @@ export default {
 .ghost-button {
   height: 76rpx;
   border-radius: 999rpx;
-  border: 1px solid #27384A;
-  color: #A8B3BD;
+  border: 1px solid var(--border-soft);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1433,7 +1365,7 @@ export default {
 
 .ghost-button:active {
   transform: scale(0.97);
-  background: rgba(39, 56, 74, 0.4);
+  background: rgba(var(--border-rgb), 0.4);
 }
 
 .ghost-button.disabled {
@@ -1443,21 +1375,21 @@ export default {
 .result-preview {
   margin: 32rpx;
   padding: 36rpx 32rpx;
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 26rpx;
   box-sizing: border-box;
 }
 
 .result-kicker {
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 22rpx;
 }
 
 .result-title {
   display: block;
   margin-top: 14rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 38rpx;
   font-weight: 800;
 }
@@ -1465,14 +1397,14 @@ export default {
 .result-subtitle {
   display: block;
   margin-top: 8rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 26rpx;
 }
 
 .result-percent {
   display: block;
   margin-top: 18rpx;
-  color: #D8C27A;
+  color: var(--accent-strong);
   font-size: 30rpx;
   font-weight: 800;
 }
@@ -1481,7 +1413,7 @@ export default {
   display: block;
   margin-top: 20rpx;
   margin-bottom: 32rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 26rpx;
   line-height: 1.7;
   white-space: normal;
@@ -1495,14 +1427,14 @@ export default {
 
 .result-hero {
   padding: 36rpx;
-  background: #172230;
-  border: 1px solid #C6A15B;
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
   border-radius: 26rpx;
   text-align: center;
 }
 
 .result-kicker {
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 22rpx;
   letter-spacing: 4rpx;
 }
@@ -1510,7 +1442,7 @@ export default {
 .result-name {
   display: block;
   margin-top: 16rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 48rpx;
   font-weight: 800;
 }
@@ -1518,34 +1450,34 @@ export default {
 .result-original {
   display: block;
   margin-top: 6rpx;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 24rpx;
 }
 
 .result-title {
   display: block;
   margin-top: 12rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 28rpx;
 }
 
 .match-percent-ring {
   margin-top: 24rpx;
   padding: 20rpx 36rpx;
-  background: linear-gradient(135deg, #D8C27A 0%, #C6A15B 100%);
+  background: linear-gradient(135deg, var(--accent-strong) 0%, var(--accent) 100%);
   border-radius: 999rpx;
   display: inline-block;
 }
 
 .match-percent {
-  color: #0B1118;
+  color: var(--bg-outer);
   font-size: 42rpx;
   font-weight: 800;
 }
 
 .match-label {
   display: block;
-  color: #0B1118;
+  color: var(--bg-outer);
   font-size: 22rpx;
   margin-top: 4rpx;
 }
@@ -1553,14 +1485,14 @@ export default {
 .section-card {
   margin-top: 24rpx;
   padding: 28rpx;
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 20rpx;
 }
 
 .section-title {
   display: block;
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 26rpx;
   font-weight: 700;
   margin-bottom: 20rpx;
@@ -1568,7 +1500,7 @@ export default {
 
 .section-text {
   display: block;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 28rpx;
   line-height: 1.7;
 }
@@ -1584,26 +1516,26 @@ export default {
 }
 
 .score-name {
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 24rpx;
 }
 
 .score-value {
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 24rpx;
   font-weight: 700;
 }
 
 .score-bar {
   height: 10rpx;
-  background: #27384A;
+  background: var(--border-soft);
   border-radius: 5rpx;
   overflow: hidden;
 }
 
 .score-fill {
   height: 100%;
-  background: linear-gradient(90deg, #C6A15B, #D8C27A);
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
   border-radius: 5rpx;
 }
 
@@ -1615,10 +1547,10 @@ export default {
 
 .result-tag {
   padding: 12rpx 20rpx;
-  background: rgba(198, 161, 91, 0.14);
-  border: 1px solid rgba(198, 161, 91, 0.3);
+  background: rgba(var(--accent-rgb), 0.14);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
   border-radius: 999rpx;
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 24rpx;
 }
 
@@ -1627,7 +1559,7 @@ export default {
   background: rgba(119, 84, 74, 0.2);
   border: 1px solid rgba(119, 84, 74, 0.4);
   border-radius: 999rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 24rpx;
 }
 
@@ -1640,22 +1572,22 @@ export default {
 .mini-result-card {
   flex: 1;
   padding: 24rpx;
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 20rpx;
   text-align: center;
 }
 
 .mini-label {
   display: block;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 22rpx;
   margin-bottom: 8rpx;
 }
 
 .mini-name {
   display: block;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 30rpx;
   font-weight: 700;
 }
@@ -1663,7 +1595,7 @@ export default {
 .mini-desc {
   display: block;
   margin-top: 6rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 22rpx;
 }
 
@@ -1676,9 +1608,9 @@ export default {
 
 .primary-button {
   height: 88rpx;
-  background: linear-gradient(135deg, #D8C27A 0%, #C6A15B 100%);
+  background: linear-gradient(135deg, var(--accent-strong) 0%, var(--accent) 100%);
   border-radius: 999rpx;
-  color: #0B1118;
+  color: var(--bg-outer);
   font-size: 28rpx;
   font-weight: 800;
   display: flex;
@@ -1695,9 +1627,9 @@ export default {
 .ghost-button-result {
   height: 88rpx;
   background: transparent;
-  border: 1px solid #27384A;
+  border: 1px solid var(--border-soft);
   border-radius: 999rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 28rpx;
   display: flex;
   align-items: center;
@@ -1707,21 +1639,21 @@ export default {
 .saved-match-card {
   margin: 28rpx 32rpx;
   padding: 26rpx;
-  background: #172230;
-  border: 1px solid #27384A;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
   border-radius: 22rpx;
 }
 
 .saved-kicker {
   display: block;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 22rpx;
 }
 
 .saved-name {
   display: block;
   margin-top: 10rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 32rpx;
   font-weight: 800;
 }
@@ -1729,7 +1661,7 @@ export default {
 .saved-title {
   display: block;
   margin-top: 8rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 24rpx;
   line-height: 1.5;
   white-space: normal;
@@ -1739,7 +1671,7 @@ export default {
 .saved-percent {
   display: block;
   margin-top: 10rpx;
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 24rpx;
   font-weight: 700;
 }
@@ -1754,9 +1686,9 @@ export default {
   flex: 1;
   height: 68rpx;
   border-radius: 999rpx;
-  background: rgba(198,161,91,0.16);
-  border: 1px solid rgba(198,161,91,0.42);
-  color: #C6A15B;
+  background: rgba(var(--accent-rgb),0.16);
+  border: 1px solid rgba(var(--accent-rgb),0.42);
+  color: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1766,9 +1698,9 @@ export default {
 .share-toggle {
   height: 68rpx;
   background: transparent;
-  border: 1px solid #27384A;
+  border: 1px solid var(--border-soft);
   border-radius: 12rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1778,21 +1710,21 @@ export default {
 
 .share-toggle:active {
   transform: scale(0.97);
-  background: rgba(39, 56, 74, 0.4);
+  background: rgba(var(--border-rgb), 0.4);
 }
 
 .share-card {
   margin-top: 24rpx;
   padding: 32rpx;
-  background: linear-gradient(135deg, #172230 0%, #0E1721 100%);
-  border: 1px solid rgba(198,161,91,0.32);
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-elevated) 100%);
+  border: 1px solid rgba(var(--accent-rgb),0.32);
   border-radius: 20rpx;
   text-align: center;
 }
 
 .share-title {
   display: block;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 22rpx;
   letter-spacing: 4rpx;
 }
@@ -1800,7 +1732,7 @@ export default {
 .share-god-name {
   display: block;
   margin-top: 16rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 42rpx;
   font-weight: 800;
 }
@@ -1808,14 +1740,14 @@ export default {
 .share-god-en {
   display: block;
   margin-top: 4rpx;
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 26rpx;
 }
 
 .share-percent {
   display: block;
   margin-top: 12rpx;
-  color: #D8C27A;
+  color: var(--accent-strong);
   font-size: 36rpx;
   font-weight: 800;
 }
@@ -1823,7 +1755,7 @@ export default {
 .share-role {
   display: block;
   margin-top: 8rpx;
-  color: #A8B3BD;
+  color: var(--text-secondary);
   font-size: 24rpx;
 }
 
@@ -1836,16 +1768,16 @@ export default {
 
 .share-dim-tag {
   padding: 8rpx 16rpx;
-  background: rgba(198,161,91,0.12);
+  background: rgba(var(--accent-rgb),0.12);
   border-radius: 8rpx;
-  color: #C6A15B;
+  color: var(--accent);
   font-size: 22rpx;
 }
 
 .share-declaration {
   display: block;
   margin-top: 24rpx;
-  color: #F2F4F6;
+  color: var(--text-primary);
   font-size: 26rpx;
   font-style: italic;
   line-height: 1.6;
@@ -1854,7 +1786,7 @@ export default {
 .share-app {
   display: block;
   margin-top: 24rpx;
-  color: #66727F;
+  color: var(--text-muted);
   font-size: 22rpx;
 }
 
@@ -1862,8 +1794,8 @@ export default {
   margin: 24rpx 32rpx 180rpx;
   height: 64rpx;
   border-radius: 999rpx;
-  border: 1px dashed rgba(102,114,127,0.5);
-  color: #66727F;
+  border: 1px dashed rgba(var(--muted-rgb),0.5);
+  color: var(--text-muted);
   font-size: 22rpx;
   display: flex;
   align-items: center;

@@ -1,10 +1,16 @@
 <template>
-	<view class="container">
-		<view class="header">
-			<text class="title">神祇百科</text>
-			<text class="subtitle">认识阿萨神族、华纳神族与巨人之间复杂而古老的关系</text>
+	<view
+		class="container page-enter"
+		@touchstart="onPullTouchStart"
+		@touchmove="onPullTouchMove"
+		@touchend="onPullTouchEnd"
+		@touchcancel="onPullTouchEnd"
+	>
+		<view class="pull-refresh-indicator" :class="{ loading: pullLoading, dragging: pullActive }" :style="pullIndicatorStyle">
+			<text class="pull-rune" :style="pullRuneStyle">ᚱ</text>
 		</view>
-		
+		<PageHeader back kicker="PANTHEON" title="神祇百科" subtitle="认识阿萨神族、华纳神族与巨人之间复杂而古老的关系" />
+
 		<view class="search-box">
 			<view class="search-icon">
 				<view class="search-icon-lens"></view>
@@ -13,48 +19,31 @@
 		</view>
 		
 		<view class="faction-tabs">
-			<text 
-				class="tab" 
-				:class="{ active: currentFaction === '' }"
-				@click="currentFaction = ''"
-			>全部</text>
-			<text 
-				class="tab" 
-				:class="{ active: currentFaction === '阿萨神族' }"
-				@click="currentFaction = '阿萨神族'"
-			>阿萨神族</text>
-			<text 
-				class="tab" 
-				:class="{ active: currentFaction === '华纳神族' }"
-				@click="currentFaction = '华纳神族'"
-			>华纳神族</text>
-			<text 
-				class="tab" 
-				:class="{ active: currentFaction === '巨人血统' }"
-				@click="currentFaction = '巨人血统'"
-			>巨人血统</text>
-			<text 
-				class="tab" 
-				:class="{ active: currentFaction === '冥界' }"
-				@click="currentFaction = '冥界'"
-			>冥界</text>
-			<text 
-				class="tab" 
-				:class="{ active: currentFaction === '其他' }"
-				@click="currentFaction = '其他'"
-			>其他</text>
+			<text
+				v-for="faction in factionTabs"
+				:key="faction.value"
+				class="tab"
+				:class="{ active: currentFaction === faction.value }"
+				@click="setFaction(faction.value)"
+			>{{ faction.label }}</text>
+			<view
+				v-if="tabIndicator.ready"
+				class="tab-indicator"
+				:style="{ transform: 'translateX(' + tabIndicator.left + 'px)', width: tabIndicator.width + 'px' }"
+			></view>
 		</view>
 		
 		<view class="god-list">
 			<view
-				class="god-card"
-				v-for="god in filteredGods"
-				:key="god.id"
+				class="god-card stagger-item"
+				v-for="(god, index) in filteredGods"
+				:key="god.id + '-' + refreshTick"
+				:style="{ animationDelay: Math.min(index, 12) * 0.05 + 's' }"
 				@click="goToDetail(god.id)"
 			>
 				<view class="god-avatar" :class="getFactionClass(god.faction)">
-					<text class="avatar-text">{{ god.name[0] }}</text>
-				</view>
+				<PortraitImage :src="god.portrait" :name="god.name" :text-size="32" />
+			</view>
 				<view class="god-info">
 					<text class="god-name">{{ god.name }}</text>
 					<text class="god-title">{{ god.originalName }}</text>
@@ -65,29 +54,50 @@
 				</view>
 				<text class="arrow">›</text>
 			</view>
-			<view v-if="filteredGods.length === 0" class="empty-state">
-				<text class="empty-symbol">ᛟ</text>
-				<text class="empty-title">未找到相关神祇</text>
-				<text class="empty-desc">换个名字或切换阵营再试试。</text>
-			</view>
+			<EmptyState
+				v-if="filteredGods.length === 0"
+				type="search"
+				title="未找到相关神祇"
+				desc="换个名字或切换阵营，再试一次。"
+				:actions="[{ label: '清除筛选', variant: 'primary', event: 'reset' }]"
+				@action="onEmptyAction"
+			/>
 		</view>
 
-		<TabBar current="gods" />
+		<TabBar current="codex" />
 	</view>
 </template>
 
 <script>
 import TabBar from '@/components/TabBar.vue'
-import { gods as norseGods, godFactions } from '@/data/norse.js'
+import PageHeader from '@/components/PageHeader.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import PortraitImage from '@/components/PortraitImage.vue'
+import { godFactions } from '@/data/norse.js'
+import { db } from '@/db'
+import pullRefresh from '@/mixins/pullRefresh.js'
 
 export default {
-  components: { TabBar },
+  components: { TabBar, PageHeader, EmptyState, PortraitImage },
+	mixins: [pullRefresh],
 	data() {
 		return {
-			gods: norseGods,
+			gods: db.findAll('gods'),
 			searchText: '',
-			currentFaction: ''
+			currentFaction: '',
+			factionTabs: [
+				{ label: '全部', value: '' },
+				{ label: '阿萨神族', value: '阿萨神族' },
+				{ label: '华纳神族', value: '华纳神族' },
+				{ label: '巨人血统', value: '巨人血统' },
+				{ label: '冥界', value: '冥界' },
+				{ label: '其他', value: '其他' }
+			],
+			tabIndicator: { left: 0, width: 0, ready: false }
 		}
+	},
+	mounted() {
+		this.updateTabIndicator()
 	},
 	computed: {
 		filteredGods() {
@@ -105,6 +115,42 @@ export default {
 		}
 	},
 	methods: {
+		// 下拉刷新回调：重新读取神祇数据
+		onRefresh() {
+			this.gods = db.findAll('gods')
+		},
+		setFaction(value) {
+			this.currentFaction = value
+			this.updateTabIndicator()
+		},
+		// 空态操作：清除搜索词与阵营筛选
+		onEmptyAction(event) {
+			if (event !== 'reset') return
+			this.searchText = ''
+			this.currentFaction = ''
+			this.updateTabIndicator()
+		},
+		// 测量当前激活 tab 的位置，驱动滑动指示器
+		updateTabIndicator() {
+			this.$nextTick(() => {
+				uni.createSelectorQuery().in(this)
+					.select('.faction-tabs').boundingClientRect()
+					.selectAll('.faction-tabs .tab').boundingClientRect()
+					.exec((res) => {
+						const barRect = res && res[0]
+						const tabRects = res && res[1]
+						if (!barRect || !tabRects || !tabRects.length) return
+						const index = Math.max(0, this.factionTabs.findIndex(t => t.value === this.currentFaction))
+						const rect = tabRects[index]
+						if (!rect) return
+						this.tabIndicator = {
+							left: rect.left - barRect.left,
+							width: rect.width,
+							ready: true
+						}
+					})
+			})
+		},
 		goToDetail(id) {
 			uni.navigateTo({
 				url: `/pages/gods/god-detail?id=${id}`
@@ -126,37 +172,16 @@ export default {
 <style scoped>
 .container {
 	min-height: 100vh;
-	background: #0B1118;
-	padding: 32rpx;
-	padding-bottom: 180rpx;
+	background: var(--bg-outer);
+	padding: 0 32rpx 180rpx;
 	box-sizing: border-box;
-}
-
-.header {
-	text-align: center;
-	padding: 24rpx 0 40rpx;
-}
-
-.title {
-	display: block;
-	font-size: 40rpx;
-	font-weight: 700;
-	color: #C6A15B;
-	letter-spacing: 4rpx;
-	margin-bottom: 12rpx;
-}
-
-.subtitle {
-	display: block;
-	font-size: 26rpx;
-	color: #A8B3BD;
 }
 
 .search-box {
 	display: flex;
 	align-items: center;
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 16rpx;
 	padding: 20rpx 24rpx;
 	margin-bottom: 30rpx;
@@ -173,7 +198,7 @@ export default {
 .search-icon-lens {
 	width: 20rpx;
 	height: 20rpx;
-	border: 3rpx solid #66727F;
+	border: 3rpx solid var(--text-muted);
 	border-radius: 50%;
 	box-sizing: border-box;
 	position: absolute;
@@ -188,19 +213,20 @@ export default {
 	bottom: -7rpx;
 	width: 10rpx;
 	height: 3rpx;
-	background: #66727F;
+	background: var(--text-muted);
 	border-radius: 2rpx;
 	transform: rotate(45deg);
 }
 
 .search-input {
 	flex: 1;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 28rpx;
 }
 
 .faction-tabs {
 	display: flex;
+	position: relative;
 	margin-bottom: 24rpx;
 	overflow-x: auto;
 	overflow-y: hidden;
@@ -212,14 +238,14 @@ export default {
 
 .tab {
 	padding: 14rpx 26rpx;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 24rpx;
 	white-space: nowrap;
 	border-radius: 30rpx;
-	background: #172230;
+	background: var(--bg-card);
 	margin-right: 12rpx;
 	border: 1rpx solid transparent;
-	transition: color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+	transition: color 0.2s ease, transform 0.15s ease;
 }
 
 .tab:active {
@@ -227,9 +253,21 @@ export default {
 }
 
 .tab.active {
-	background: transparent;
-	border: 1rpx solid #C6A15B;
-	color: #C6A15B;
+	color: var(--accent);
+}
+
+/* 滑动胶囊指示器：随激活 tab 平移 */
+.tab-indicator {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	border: 1rpx solid var(--accent);
+	border-radius: 30rpx;
+	box-sizing: border-box;
+	pointer-events: none;
+	z-index: 1;
+	transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .god-list {
@@ -239,8 +277,8 @@ export default {
 .god-card {
 	display: flex;
 	align-items: center;
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 16rpx;
 	padding: 20rpx;
 	margin-bottom: 30rpx;
@@ -279,19 +317,13 @@ export default {
 	background: linear-gradient(135deg, #66727F, #4A5A5A);
 }
 
-.avatar-text {
-	color: #F2F4F6;
-	font-size: 32rpx;
-	font-weight: bold;
-}
-
 .god-info {
 	flex: 1;
 }
 
 .god-name {
 	display: block;
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 28rpx;
 	font-weight: bold;
 	margin-bottom: 4rpx;
@@ -299,14 +331,14 @@ export default {
 
 .god-title {
 	display: block;
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 22rpx;
 	margin-bottom: 4rpx;
 }
 
 .god-domain {
 	display: block;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 20rpx;
 }
 
@@ -338,36 +370,8 @@ export default {
 }
 
 .arrow {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 36rpx;
-}
-
-.empty-state {
-	padding: 80rpx 0;
-	text-align: center;
-}
-
-.empty-symbol {
-	display: block;
-	font-size: 64rpx;
-	line-height: 1;
-	color: #27384A;
-	font-family: serif;
-	margin-bottom: 20rpx;
-}
-
-.empty-title {
-	display: block;
-	color: #A8B3BD;
-	font-size: 28rpx;
-	font-weight: 600;
-	margin-bottom: 8rpx;
-}
-
-.empty-desc {
-	display: block;
-	color: #66727F;
-	font-size: 22rpx;
 }
 
 </style>

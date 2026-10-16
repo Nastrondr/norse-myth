@@ -1,12 +1,18 @@
 <template>
-	<view class="container">
-		<view class="header">
-			<text class="title">神话生物图鉴</text>
-			<text class="subtitle">收集来自九界的神话生物</text>
+	<view
+		class="container page-enter"
+		@touchstart="onPullTouchStart"
+		@touchmove="onPullTouchMove"
+		@touchend="onPullTouchEnd"
+		@touchcancel="onPullTouchEnd"
+	>
+		<view class="pull-refresh-indicator" :class="{ loading: pullLoading, dragging: pullActive }" :style="pullIndicatorStyle">
+			<text class="pull-rune" :style="pullRuneStyle">ᚱ</text>
 		</view>
+		<PageHeader back kicker="BESTIARY" title="神话生物图鉴" subtitle="收集来自九界的神话生物" />
 
 		<view class="progress-bar">
-			<text class="progress-text">{{ collectedCount }} / {{ totalCount }}</text>
+			<text class="progress-text"><AnimNumber :value="collectedCount" /> / <AnimNumber :value="totalCount" /></text>
 			<view class="progress-track">
 				<view class="progress-fill" :style="{ width: (collectedCount / totalCount * 100) + '%' }"></view>
 			</view>
@@ -14,79 +20,26 @@
 
 		<view class="type-tabs">
 			<text
+				v-for="type in typeTabs"
+				:key="type.value"
 				class="tab"
-				:class="{ active: currentType === '' }"
-				@click="currentType = ''"
-			>全部</text>
-			<text
-				class="tab"
-				:class="{ active: currentType === '巨狼' }"
-				@click="currentType = '巨狼'"
-			>巨狼</text>
-			<text
-				class="tab"
-				:class="{ active: currentType === '巨蛇' }"
-				@click="currentType = '巨蛇'"
-			>巨蛇</text>
-			<text
-				class="tab"
-				:class="{ active: currentType === '精灵' }"
-				@click="currentType = '精灵'"
-			>精灵</text>
-			<text
-				class="tab"
-				:class="{ active: currentType === '矮人' }"
-				@click="currentType = '矮人'"
-			>矮人</text>
-			<text
-				class="tab"
-				:class="{ active: currentType === '巨人' }"
-				@click="currentType = '巨人'"
-			>巨人</text>
-			<text
-				class="tab"
-				:class="{ active: currentType === '亡灵' }"
-				@click="currentType = '亡灵'"
-			>亡灵</text>
-			<text
-				class="tab"
-				:class="{ active: currentType === '鸟类' }"
-				@click="currentType = '鸟类'"
-			>鸟类</text>
-			<text
-				class="tab"
-				:class="{ active: currentType === 'artifact' }"
-				@click="switchToArtifacts"
-			>法器</text>
+				:class="{ active: currentType === type.value }"
+				@click="setType(type.value)"
+			>{{ type.label }}</text>
+			<view
+				v-if="tabIndicator.ready"
+				class="tab-indicator"
+				:style="{ transform: 'translateX(' + tabIndicator.left + 'px)', width: tabIndicator.width + 'px' }"
+			></view>
 		</view>
 
-		<view v-if="currentType === 'artifact'" class="creature-grid">
+		<view class="creature-grid">
 			<view
-				class="creature-card"
-				v-for="artifact in artifacts"
-				:key="artifact.id"
-				@click="goToArtifactDetail(artifact.id)"
-			>
-				<view class="card-inner">
-					<view class="top-row">
-						<view class="rarity-dot" :class="artifact.rarity"></view>
-						<view class="collect-status collected">A</view>
-					</view>
-					<view class="avatar" :class="artifact.rarity">
-						<text>{{ getArtifactIcon(artifact.type) }}</text>
-					</view>
-					<text class="creature-name">{{ artifact.name }}</text>
-					<text class="creature-type">{{ artifact.type }}</text>
-				</view>
-			</view>
-		</view>
-
-		<view v-else class="creature-grid">
-			<view
-				class="creature-card"
-				v-for="creature in filteredCreatures"
+				class="creature-card stagger-item"
+				v-for="(creature, index) in filteredCreatures"
 				:key="creature.id"
 				:class="{ locked: !isCreatureRevealed(creature.id) }"
+				:style="{ animationDelay: Math.min(index, 12) * 0.04 + 's' }"
 				@click="goToDetail(creature.id)"
 			>
 				<view class="card-inner">
@@ -101,9 +54,9 @@
 					</view>
 
 					<view class="avatar" :class="getDangerClass(creature.dangerLevel)">
-						<text v-if="isCreatureRevealed(creature.id)">{{ creature.name[0] }}</text>
-						<text v-else>?</text>
-					</view>
+					<PortraitImage v-if="isCreatureRevealed(creature.id)" :src="creature.portrait" :name="creature.name" :text-size="28" />
+					<text v-else>?</text>
+				</view>
 
 					<text class="creature-name" :class="{ locked: !isCreatureRevealed(creature.id) }">
 						{{ isCreatureRevealed(creature.id) ? creature.name : (creature.id === 'raven' ? getRavensDisplayName(creature) : '???') }}
@@ -120,58 +73,102 @@
 			</view>
 		</view>
 
-		<TabBar current="bestiary" />
+		<EmptyState
+			v-if="filteredCreatures.length === 0"
+			type="search"
+			title="未找到相关生物"
+			desc="换个分类再看看，九界生物各有踪迹。"
+			:actions="[{ label: '清除筛选', variant: 'primary', event: 'reset' }]"
+			@action="onEmptyAction"
+		/>
+
+		<TabBar current="codex" />
 	</view>
 </template>
 
 <script>
 import TabBar from '@/components/TabBar.vue'
-import { creatures } from '@/data/norse.js'
-import { norseArtifacts, getRarityLabel } from '@/data/norseArtifacts.js'
+import PageHeader from '@/components/PageHeader.vue'
+import AnimNumber from '@/components/AnimNumber.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import PortraitImage from '@/components/PortraitImage.vue'
+import { db } from '@/db'
+import { state } from '@/state'
+import { creatureFilters } from '@/data/norseCreatures.js'
 import { isRavensRevealed as checkRavensRevealed, getRavensClueCount as getClueCount } from '@/utils/clueProgress.js'
+import pullRefresh from '@/mixins/pullRefresh.js'
 
 export default {
-  components: { TabBar },
+  components: { TabBar, PageHeader, AnimNumber, EmptyState, PortraitImage },
+	mixins: [pullRefresh],
 	data() {
 		return {
-			creatures: creatures,
-			currentType: ''
+			creatures: db.findAll('creatures'),
+			currentType: '',
+			// 筛选维度为 category（与 norseCreatures.js creatureFilters 配置保持一致）
+			typeTabs: creatureFilters.map(f => ({ label: f.label, value: f.id })),
+			tabIndicator: { left: 0, width: 0, ready: false }
 		}
 	},
 	computed: {
 		filteredCreatures() {
 			if (!this.currentType) return this.creatures
-			return this.creatures.filter(c => c.type === this.currentType)
+			return this.creatures.filter(c => c.category === this.currentType)
 		},
 		collectedCount() {
-			if (this.currentType === 'artifact') {
-				return this.artifacts.length
-			}
 			return this.creatures.filter(c => c.collected).length
 		},
 		totalCount() {
-			if (this.currentType === 'artifact') {
-				return this.artifacts.length
-			}
 			return this.creatures.length
-		},
-		artifacts() {
-			return norseArtifacts
 		}
 	},
 	onShow() {
 		this.checkCollected()
 	},
+	mounted() {
+		this.updateTabIndicator()
+	},
 	methods: {
+		setType(value) {
+			this.currentType = value
+			this.updateTabIndicator()
+		},
+		// 空态操作：清除分类筛选
+		onEmptyAction(event) {
+			if (event !== 'reset') return
+			this.currentType = ''
+			this.updateTabIndicator()
+		},
+		// 测量当前激活 tab 的位置，驱动滑动指示器
+		updateTabIndicator() {
+			this.$nextTick(() => {
+				uni.createSelectorQuery().in(this)
+					.select('.type-tabs').boundingClientRect()
+					.selectAll('.type-tabs .tab').boundingClientRect()
+					.exec((res) => {
+						const barRect = res && res[0]
+						const tabRects = res && res[1]
+						if (!barRect || !tabRects || !tabRects.length) return
+						const index = Math.max(0, this.typeTabs.findIndex(t => t.value === this.currentType))
+						const rect = tabRects[index]
+						if (!rect) return
+						this.tabIndicator = {
+							left: rect.left - barRect.left,
+							width: rect.width,
+							ready: true
+						}
+					})
+			})
+		},
 		checkCollected() {
-			const collected = uni.getStorageSync('collectedCreatures') || []
+			const collected = state.get('progress.collectedCreatures', [])
 			this.collectedIds = collected
 		},
 		isCreatureCollected(creatureId) {
 			if (creatureId === 'raven') {
 				return checkRavensRevealed()
 			}
-			const collected = uni.getStorageSync('collectedCreatures') || []
+			const collected = state.get('progress.collectedCreatures', [])
 			if (collected.includes(creatureId)) return true
 			const creature = this.creatures.find(c => c.id === creatureId)
 			return creature?.collected === true
@@ -216,28 +213,6 @@ export default {
 		},
 		shouldShowDanger(creature) {
 			return creature.dangerLevel === '极危' || creature.dangerLevel === '极高'
-		},
-		switchToArtifacts() {
-			this.currentType = 'artifact'
-		},
-		goToArtifactDetail(id) {
-			uni.navigateTo({
-				url: `/pages/bestiary/artifact-detail?id=${id}`
-			})
-		},
-		getArtifactIcon(type) {
-			const icons = {
-				'神锤': 'T',
-				'神枪': 'I',
-				'神戒': 'O',
-				'神船': 'B',
-				'项链': 'N',
-				'束缚之链': 'C'
-			}
-			return icons[type] || 'A'
-		},
-		getRarityLabel(rarity) {
-			return getRarityLabel(rarity)
 		}
 	}
 }
@@ -246,30 +221,9 @@ export default {
 <style scoped>
 .container {
 	min-height: 100vh;
-	background: #0B1118;
-	padding: 32rpx;
-	padding-bottom: 160rpx;
+	background: var(--bg-outer);
+	padding: 0 32rpx 160rpx;
 	box-sizing: border-box;
-}
-
-.header {
-	text-align: center;
-	padding: 24rpx 0 40rpx;
-}
-
-.title {
-	display: block;
-	font-size: 40rpx;
-	font-weight: 700;
-	color: #C6A15B;
-	letter-spacing: 4rpx;
-	margin-bottom: 12rpx;
-}
-
-.subtitle {
-	display: block;
-	font-size: 26rpx;
-	color: #A8B3BD;
 }
 
 .progress-bar {
@@ -277,7 +231,7 @@ export default {
 }
 
 .progress-text {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 20rpx;
 	display: block;
 	margin-bottom: 8rpx;
@@ -285,20 +239,21 @@ export default {
 
 .progress-track {
 	height: 3rpx;
-	background: #172230;
+	background: var(--bg-card);
 	border-radius: 2rpx;
 	overflow: hidden;
 }
 
 .progress-fill {
 	height: 100%;
-	background: linear-gradient(90deg, #8FB6D9, #C6A15B);
+	background: linear-gradient(90deg, #8FB6D9, var(--accent));
 	border-radius: 2rpx;
 	transition: width 0.3s ease;
 }
 
 .type-tabs {
 	display: flex;
+	position: relative;
 	margin-bottom: 20rpx;
 	overflow-x: auto;
 	overflow-y: hidden;
@@ -311,15 +266,15 @@ export default {
 
 .tab {
 	padding: 14rpx 24rpx;
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 22rpx;
 	white-space: nowrap;
 	border-radius: 20rpx;
-	background: #172230;
+	background: var(--bg-card);
 	margin-right: 10rpx;
 	border: 1rpx solid transparent;
 	flex-shrink: 0;
-	transition: color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+	transition: color 0.2s ease, transform 0.15s ease;
 }
 
 .tab:active {
@@ -327,9 +282,21 @@ export default {
 }
 
 .tab.active {
-	background: transparent;
-	border-color: #7C8C74;
 	color: #7C8C74;
+}
+
+/* 滑动胶囊指示器：随激活 tab 平移 */
+.tab-indicator {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	border: 1rpx solid #7C8C74;
+	border-radius: 20rpx;
+	box-sizing: border-box;
+	pointer-events: none;
+	z-index: 1;
+	transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .creature-grid {
@@ -344,8 +311,8 @@ export default {
 .creature-card {
 	width: calc(33.333% - 10rpx);
 	min-width: 0;
-	background: #172230;
-	border: 1rpx solid #27384A;
+	background: var(--bg-card);
+	border: 1rpx solid var(--border-soft);
 	border-radius: 12rpx;
 	box-sizing: border-box;
 	overflow: hidden;
@@ -355,7 +322,7 @@ export default {
 
 .creature-card:active {
 	transform: scale(0.96);
-	border-color: #C6A15B;
+	border-color: var(--accent);
 }
 
 .creature-card.locked {
@@ -398,8 +365,8 @@ export default {
 }
 
 .danger-tag.high {
-	background: rgba(198, 161, 91, 0.2);
-	color: #C6A15B;
+	background: rgba(var(--accent-rgb), 0.2);
+	color: var(--accent);
 }
 
 .danger-tag.medium {
@@ -418,11 +385,11 @@ export default {
 
 .collect-status {
 	font-size: 24rpx;
-	color: #66727F;
+	color: var(--text-muted);
 }
 
 .collect-status.collected {
-	color: #C6A15B;
+	color: var(--accent);
 }
 
 .avatar {
@@ -437,7 +404,7 @@ export default {
 }
 
 .avatar text {
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 28rpx;
 	font-weight: 700;
 }
@@ -447,7 +414,7 @@ export default {
 }
 
 .avatar.high {
-	background: linear-gradient(135deg, #C6A15B 0%, #7A6030 100%);
+	background: linear-gradient(135deg, var(--accent) 0%, #7A6030 100%);
 }
 
 .avatar.medium {
@@ -459,7 +426,7 @@ export default {
 }
 
 .creature-name {
-	color: #F2F4F6;
+	color: var(--text-primary);
 	font-size: 24rpx;
 	font-weight: 600;
 	margin-bottom: 6rpx;
@@ -471,11 +438,11 @@ export default {
 }
 
 .creature-name.locked {
-	color: #66727F;
+	color: var(--text-muted);
 }
 
 .creature-type {
-	color: #66727F;
+	color: var(--text-muted);
 	font-size: 20rpx;
 	text-align: center;
 	max-width: 100%;
@@ -486,64 +453,9 @@ export default {
 
 .clue-count {
 	display: block;
-	color: #C6A15B;
+	color: var(--accent);
 	font-size: 18rpx;
 	text-align: center;
 	margin-top: 4rpx;
-}
-
-
-.rarity-dot {
-	width: 10rpx;
-	height: 10rpx;
-	border-radius: 50%;
-}
-
-.rarity-dot.legendary {
-	background: #D8C27A;
-}
-
-.rarity-dot.epic {
-	background: #8FB6D9;
-}
-
-.rarity-dot.rare {
-	background: #7C8C74;
-}
-
-.creature-icon.legendary {
-	background: rgba(216, 194, 122, 0.15);
-	border: 1rpx solid rgba(216, 194, 122, 0.35);
-	color: #D8C27A;
-}
-
-.creature-icon.epic {
-	background: rgba(143, 182, 217, 0.15);
-	border: 1rpx solid rgba(143, 182, 217, 0.35);
-	color: #8FB6D9;
-}
-
-.creature-icon.rare {
-	background: rgba(124, 140, 116, 0.15);
-	border: 1rpx solid rgba(124, 140, 116, 0.35);
-	color: #7C8C74;
-}
-
-.avatar.legendary {
-	background: rgba(216, 194, 122, 0.15);
-	border: 1rpx solid rgba(216, 194, 122, 0.35);
-	color: #D8C27A;
-}
-
-.avatar.epic {
-	background: rgba(143, 182, 217, 0.15);
-	border: 1rpx solid rgba(143, 182, 217, 0.35);
-	color: #8FB6D9;
-}
-
-.avatar.rare {
-	background: rgba(124, 140, 116, 0.15);
-	border: 1rpx solid rgba(124, 140, 116, 0.35);
-	color: #7C8C74;
 }
 </style>
