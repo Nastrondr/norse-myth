@@ -40,11 +40,11 @@ function pick(board, id) {
 }
 
 describe('成就看板', () => {
-  it('注册表 15 项、四大类齐全、rookie 默认解锁', async () => {
+  it('注册表 19 项、五大类齐全、rookie 默认解锁', async () => {
     const { getAchievementBoard } = await freshAchievements()
     const board = getAchievementBoard(EMPTY_CTX)
-    expect(board).toHaveLength(16)
-    expect(new Set(board.map(a => a.category))).toEqual(new Set(['探索', '羁绊', '智识', '进度']))
+    expect(board).toHaveLength(20)
+    expect(new Set(board.map(a => a.category))).toEqual(new Set(['探索', '羁绊', '信仰', '智识', '进度']))
     expect(pick(board, 'rookie').unlocked).toBe(true)
     expect(board.filter(a => a.unlocked)).toHaveLength(1)
   })

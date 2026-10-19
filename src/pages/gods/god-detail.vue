@@ -69,6 +69,36 @@
 			</view>
 		</view>
 		
+		<view class="section favor-section">
+			<text class="section-title">眷顾</text>
+			<view class="favor-card">
+				<view class="favor-header">
+				<text class="favor-level">眷顾 Lv.{{ favorStageInfo.level }}</text>
+				<text class="favor-title">{{ favorStageInfo.name }}</text>
+				</view>
+				<view class="favor-progress">
+					<view class="favor-track">
+						<view class="favor-fill" :style="{ width: favorProgress + '%' }"></view>
+					</view>
+					<text class="favor-exp"><AnimNumber :value="favorState.favorExp" /> / {{ favorMax }}</text>
+				</view>
+				<text class="favor-desc">{{ favorStageDescription }}</text>
+			</view>
+			<view class="offering-actions">
+				<view
+					class="offering-button"
+					v-for="offering in offeringOptions"
+					:key="offering.key"
+					:class="{ pulse: offeringPulsing === offering.key }"
+					@click="makeOffering(offering)"
+				>
+					<text class="offering-icon">{{ offering.icon }}</text>
+					<text class="offering-label">{{ offering.label }}</text>
+				</view>
+			</view>
+			<text v-if="offeringMessage" class="offering-message">{{ offeringMessage }}</text>
+		</view>
+
 		<view class="section" v-if="hasRelationships">
 			<text class="section-title">关系网络</text>
 			
@@ -178,6 +208,17 @@
 				</view>
 			</view>
 		</view>
+		<!-- 神谕事件揭晓层 -->
+		<view v-if="favorEventOverlay" class="favor-event-layer" @click="favorEventOverlay = null">
+			<view class="favor-event-body" @click.stop>
+				<text class="favor-event-kicker">ORACLE UNLOCKED · 神谕显现</text>
+				<text class="favor-event-title">{{ favorEventOverlay.name }}</text>
+				<text class="favor-event-desc">{{ favorEventOverlay.description }}</text>
+				<view class="favor-event-close" @click="favorEventOverlay = null">
+					<text>铭记于心</text>
+				</view>
+			</view>
+		</view>
 		</template>
 	</view>
 </template>
@@ -185,18 +226,36 @@
 <script>
 import { db } from '@/db'
 import { unlockRavensClue, getRavensClueCount } from '@/utils/clueProgress.js'
+import {
+	FAVOR_STAGES,
+	getFavorStage,
+	getFavorProgress,
+	getFavorMax,
+	getGodPreferences,
+	getStageDescription as getFavorStageDescription,
+	getStageEvents as getFavorStageEvents,
+	computeGain as computeFavorGain,
+	newlyUnlockedEvents as newlyUnlockedFavorEvents,
+	getFavorState,
+	saveFavorState
+} from '@/interactions/favor.js'
 import NavBar from '@/components/NavBar.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PortraitImage from '@/components/PortraitImage.vue'
+import AnimNumber from '@/components/AnimNumber.vue'
 import heroParallax from '@/mixins/heroParallax.js'
 
 export default {
-	components: { NavBar, EmptyState, PortraitImage },
+	components: { NavBar, EmptyState, PortraitImage, AnimNumber },
 	mixins: [heroParallax],
 	data() {
 		return {
 			god: {},
-			notFound: false
+			notFound: false,
+			favorState: { favorExp: 0, offeringStats: {}, unlockedEvents: [] },
+			offeringMessage: '',
+			offeringPulsing: '',
+			favorEventOverlay: null
 		}
 	},
 	computed: {
@@ -258,6 +317,33 @@ export default {
 		relatedStories() {
 			if (!this.god.stories) return []
 			return this.god.stories.map(id => db.findById('stories', id)).filter(Boolean)
+		},
+		// ===== 眷顾系统 =====
+		favorStageInfo() {
+			return getFavorStage(this.favorState.favorExp)
+		},
+		favorProgress() {
+			return getFavorProgress(this.favorState.favorExp, this.god)
+		},
+		favorMax() {
+			return getFavorMax(this.god)
+		},
+		favorStageDescription() {
+			return getFavorStageDescription(this.god, this.favorStageInfo.name)
+		},
+		offeringOptions() {
+			// 供品按钮：取该神喜好前四项 + 一个通用清水（兜底互动）
+			const { likes } = getGodPreferences(this.god)
+			const icons = ['🥃', '🍯', '🕯️', '💍', '🍞', '⚔️', '📖', '🪶', '🧂', '🪨', '🍷', '🌸']
+			const picks = likes.slice(0, 4)
+			if (!picks.includes('清水')) picks.push('清水')
+			return picks.map((label, i) => ({
+				key: 'offering-' + i,
+				label,
+				icon: icons[i % icons.length],
+				favor: 5,
+				tags: [label]
+			}))
 		}
 	},
 	onLoad(options) {
@@ -269,6 +355,7 @@ export default {
 			return
 		}
 		this.god = found
+		this.favorState = getFavorState(this.god.id)
 		if (this.god.id === 'odin') {
 			if (getRavensClueCount() < 3) {
 				unlockRavensClue('relation')
@@ -317,6 +404,47 @@ export default {
 		},
 		goToStory(id) {
 			uni.navigateTo({ url: `/pages/stories/story-detail?id=${id}` })
+		},
+		// ===== 眷顾系统 =====
+		makeOffering(offering) {
+			if (this.offeringPulsing) return
+			const prev = Number(this.favorState.favorExp || 0)
+			const max = this.favorMax
+			const { amount, note } = computeFavorGain(offering, this.god)
+			const next = Math.min(prev + amount, max)
+
+			// 供品计数
+			const stats = Object.assign({}, this.favorState.offeringStats || {})
+			stats[offering.key] = (stats[offering.key] || 0) + 1
+
+			this.favorState = Object.assign({}, this.favorState, { favorExp: next, offeringStats: stats })
+			this.offeringPulsing = offering.key
+			setTimeout(() => { this.offeringPulsing = '' }, 600)
+			this.offeringMessage = note || this.getFavorFeedback(next, prev)
+
+			// 神谕事件：跨阈值即解锁并全屏揭晓
+			const events = getFavorStageEvents(this.god)
+			const unlockedNow = newlyUnlockedFavorEvents(events, prev, next)
+			const unlockedIds = [...(this.favorState.unlockedEvents || []), ...unlockedNow.map(e => e.id)]
+			this.favorState = saveFavorState(this.god.id, {
+				favorExp: next,
+				offeringStats: stats,
+				unlockedEvents: unlockedIds
+		})
+			if (unlockedNow.length) {
+				const first = unlockedNow[0]
+				this.favorEventOverlay = { name: first.name, description: first.description }
+			}
+		},
+		getFavorFeedback(next, prev) {
+			if (next >= this.favorMax && prev < this.favorMax) {
+				return '神恩满溢——你已成为眷顾之人。'
+			}
+			const stage = getFavorStage(next)
+			if (stage.min > prev) {
+				return `眷顾加深，进入「${stage.name}」。`
+			}
+			return '供品已呈上，神意微动。'
 		}
 	}
 }
@@ -639,5 +767,180 @@ export default {
 .story-category {
 	color: var(--text-muted);
 	font-size: 22rpx;
+}
+
+/* ===== 眷顾系统 ===== */
+.favor-section {
+	margin-top: 24rpx;
+}
+
+.favor-card {
+	background: var(--bg-card, rgba(255, 255, 255, 0.04));
+	border: 1rpx solid rgba(198, 161, 91, 0.25);
+	border-radius: 24rpx;
+	padding: 28rpx;
+}
+
+.favor-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	margin-bottom: 20rpx;
+}
+
+.favor-level {
+	color: #C6A15B;
+	font-size: 26rpx;
+	font-weight: bold;
+}
+
+.favor-title {
+	color: var(--text-primary);
+	font-size: 30rpx;
+	letter-spacing: 4rpx;
+}
+
+.favor-progress {
+	display: flex;
+	align-items: center;
+	gap: 20rpx;
+	margin-bottom: 20rpx;
+}
+
+.favor-track {
+	flex: 1;
+	height: 12rpx;
+	background: rgba(255, 255, 255, 0.08);
+	border-radius: 6rpx;
+	overflow: hidden;
+}
+
+.favor-fill {
+	height: 100%;
+	background: linear-gradient(90deg, #8FB6D9, #C6A15B);
+	border-radius: 6rpx;
+	transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.favor-exp {
+	color: var(--text-muted);
+	font-size: 22rpx;
+	white-space: nowrap;
+}
+
+.favor-desc {
+	color: var(--text-secondary, var(--text-muted));
+	font-size: 24rpx;
+	line-height: 1.7;
+	font-style: italic;
+}
+
+.offering-actions {
+	display: flex;
+	gap: 16rpx;
+	margin-top: 20rpx;
+	flex-wrap: wrap;
+}
+
+.offering-button {
+	flex: 1;
+	min-width: 140rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8rpx;
+	padding: 20rpx 12rpx;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1rpx solid rgba(255, 255, 255, 0.1);
+	border-radius: 18rpx;
+	transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.offering-button:active {
+	transform: scale(0.96);
+}
+
+.offering-button.pulse {
+	animation: favorPulse 0.6s ease;
+	border-color: rgba(198, 161, 91, 0.7);
+}
+
+@keyframes favorPulse {
+	0%, 100% { transform: scale(1); }
+	50% { transform: scale(1.06); }
+}
+
+.offering-icon {
+	font-size: 40rpx;
+}
+
+.offering-label {
+	color: var(--text-secondary, var(--text-muted));
+	font-size: 22rpx;
+}
+
+.offering-message {
+	display: block;
+	margin-top: 16rpx;
+	color: #C6A15B;
+	font-size: 24rpx;
+	line-height: 1.6;
+}
+
+/* 神谕事件揭晓层 */
+.favor-event-layer {
+	position: fixed;
+	inset: 0;
+	z-index: 999;
+	background: rgba(8, 10, 14, 0.88);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 60rpx;
+}
+
+.favor-event-body {
+	max-width: 560rpx;
+	background: linear-gradient(160deg, rgba(28, 32, 40, 0.98), rgba(16, 18, 24, 0.98));
+	border: 1rpx solid rgba(198, 161, 91, 0.45);
+	border-radius: 28rpx;
+	padding: 56rpx 44rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: 24rpx;
+}
+
+.favor-event-kicker {
+	color: #C6A15B;
+	font-size: 20rpx;
+	letter-spacing: 6rpx;
+}
+
+.favor-event-title {
+	color: var(--text-primary, #E8E4DA);
+	font-size: 44rpx;
+	font-weight: bold;
+	letter-spacing: 6rpx;
+}
+
+.favor-event-desc {
+	color: var(--text-secondary, #B8B2A6);
+	font-size: 26rpx;
+	line-height: 1.8;
+}
+
+.favor-event-close {
+	margin-top: 16rpx;
+	padding: 16rpx 48rpx;
+	border: 1rpx solid rgba(198, 161, 91, 0.5);
+	border-radius: 999rpx;
+}
+
+.favor-event-close text {
+	color: #C6A15B;
+	font-size: 26rpx;
+	letter-spacing: 4rpx;
 }
 </style>

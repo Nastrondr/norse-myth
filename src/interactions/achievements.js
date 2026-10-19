@@ -128,6 +128,40 @@ const ACHIEVEMENTS = [
     check: ctx => !!ctx.runeRecord
   },
 
+  // ===== 信仰（眷顾系统，神祇互动） =====
+  {
+    id: 'favor-first',
+    name: '最初的祈愿',
+    desc: '任一神祇眷顾达到「蒙神注视」',
+    category: '信仰',
+    check: ctx => ctx.favorExps.some(exp => exp >= 30),
+    progress: ctx => ({ current: ctx.maxFavorExp, total: 30 })
+  },
+  {
+    id: 'favor-oracle',
+    name: '神谕聆听者',
+    desc: '解锁第一个神谕事件',
+    category: '信仰',
+    check: ctx => ctx.unlockedOracleCount >= 1,
+    progress: ctx => ({ current: ctx.unlockedOracleCount, total: 1 })
+  },
+  {
+    id: 'favor-grace',
+    name: '神恩加身者',
+    desc: '3 位神祇眷顾达到「神恩加身」',
+    category: '信仰',
+    check: ctx => ctx.favorExps.filter(exp => exp >= 60).length >= 3,
+    progress: ctx => ({ current: ctx.favorExps.filter(exp => exp >= 60).length, total: 3 })
+  },
+  {
+    id: 'favor-chosen',
+    name: '眷顾之人',
+    desc: '任一神祇眷顾满级',
+    category: '信仰',
+    check: ctx => ctx.favorExps.some(exp => exp >= 100),
+    progress: ctx => ({ current: ctx.maxFavorExp, total: 100 })
+  },
+
   // ===== 进度 =====
   {
     id: 'world-traveler',
@@ -155,6 +189,9 @@ export function buildContext(overrides) {
   const ravens = state.get('progress.ravens', { clueIds: [], revealed: false }) || { clueIds: [], revealed: false }
   const worldTree = state.get('progress.worldTree', {}) || {}
   const bondExps = bondList.map(b => Number(b && b.bondExp) || 0)
+  const favors = state.get('favor', {}) || {}
+  const favorList = Object.values(favors)
+  const favorExps = favorList.map(f => Number(f && f.favorExp) || 0)
   const ctx = {
     collected,
     collectedCount: collected.length,
@@ -168,6 +205,10 @@ export function buildContext(overrides) {
     godMatch: state.get('game.godMatch'),
     rumorBook: state.get('game.rumorBook'),
     runeRecord: state.get('game.runeRecord'),
+    favors,
+    favorExps,
+    maxFavorExp: favorExps.length ? Math.max(...favorExps) : 0,
+    unlockedOracleCount: favorList.reduce((sum, f) => sum + ((f && f.unlockedEvents && f.unlockedEvents.length) || 0), 0),
     worldTree,
     worldTreeProgress: Number(worldTree.totalProgress) || 0
   }
