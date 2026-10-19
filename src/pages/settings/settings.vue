@@ -26,6 +26,39 @@
       <text class="card-hint">夜幕笼罩世界树，或让金辉洒落羊皮卷。选择将即刻生效并被记住。</text>
     </view>
 
+    <!-- 档案管理 -->
+    <view class="settings-card">
+      <view class="card-header">
+        <view class="card-icon">
+          <ScrollIcon :size="18" :stroke-width="1.8" />
+        </view>
+        <text class="card-title">探索者档案</text>
+      </view>
+
+      <view class="setting-row">
+        <view class="setting-info">
+          <text class="setting-name">当前档案</text>
+          <text class="setting-desc">{{ currentUser ? currentUser.name + (currentUser.guest ? '（访客）' : '') : '未登录' }}</text>
+        </view>
+      </view>
+
+      <view class="setting-row" v-if="userCount > 0">
+        <view class="setting-info">
+          <text class="setting-name">已建档案</text>
+          <text class="setting-desc">{{ userCount }} 个 · 进度随档案切换保存</text>
+        </view>
+      </view>
+
+      <view class="profile-actions">
+        <view class="profile-action-btn" @click="goSwitch">
+          <text>切换 / 新建档案</text>
+        </view>
+        <view class="profile-action-btn danger" v-if="currentUser" @click="onLogout">
+          <text>登出当前档案</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 声音 -->
     <view class="settings-card">
       <view class="card-header">
@@ -85,6 +118,7 @@ import NavBar from '../../components/NavBar.vue'
 import { state } from '../../state'
 import { getBgmEnabled, toggleBgm } from '../../utils/audioManager.js'
 import { getSfxEnabled, setSfxEnabled, sfxTap } from '../../utils/sfx.js'
+import { getCurrentUser, getUserList, logout } from '@/auth/user.js'
 import {
   Palette as PaletteIcon,
   Moon as MoonIcon,
@@ -106,13 +140,19 @@ export default {
     return {
       theme: 'dark',
       bgmEnabled: true,
-      sfxEnabled: true
+      sfxEnabled: true,
+      currentUser: null,
+      userCount: 0
     }
   },
   onLoad() {
     this.theme = state.get('settings.theme', 'dark')
     this.bgmEnabled = getBgmEnabled()
     this.sfxEnabled = getSfxEnabled()
+  },
+  onShow() {
+    this.currentUser = getCurrentUser()
+    this.userCount = getUserList().length
   },
   methods: {
     setTheme(value) {
@@ -131,6 +171,14 @@ export default {
       setSfxEnabled(this.sfxEnabled)
       // 开启时给一声反馈
       if (this.sfxEnabled) sfxTap()
+    },
+    goSwitch() {
+      uni.navigateTo({ url: '/pages/auth/login' })
+    },
+    onLogout() {
+      logout()
+      this.currentUser = null
+      uni.reLaunch({ url: '/pages/auth/login' })
     }
   }
 }
@@ -313,5 +361,34 @@ export default {
   font-size: 22rpx;
   letter-spacing: 12rpx;
   opacity: 0.55;
+}
+/* ===== 档案管理 ===== */
+.profile-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.profile-action-btn {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+  border-radius: 16rpx;
+  border: 1rpx solid var(--border-soft);
+  background: var(--bg-inset);
+}
+
+.profile-action-btn text {
+  color: var(--text-secondary);
+  font-size: 24rpx;
+  letter-spacing: 2rpx;
+}
+
+.profile-action-btn.danger {
+  border-color: rgba(201, 122, 107, 0.4);
+}
+
+.profile-action-btn.danger text {
+  color: #C97A6B;
 }
 </style>

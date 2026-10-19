@@ -170,6 +170,18 @@
 					}
 				}
 			]
+		},
+		{
+			"root": "pages/auth",
+			"pages": [
+				{
+					"path": "login",
+					"style": {
+						"navigationStyle": "custom",
+						"navigationBarTitleText": "档案登记"
+					}
+				}
+			]
 		}
 	],
 	"globalStyle": {

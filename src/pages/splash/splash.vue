@@ -17,6 +17,8 @@
 </template>
 
 <script>
+import { hasSession } from '@/auth/user.js'
+
 export default {
 	data() {
 		return {
@@ -44,6 +46,11 @@ export default {
 		},
 		goToHome() {
 			clearInterval(this.timer)
+			// 用户体系门禁：无任何登录态（含访客）先进入档案登记
+			if (!hasSession()) {
+				uni.reLaunch({ url: '/pages/auth/login' })
+				return
+			}
 			uni.switchTab({
 				url: '/pages/index/index'
 			})
