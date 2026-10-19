@@ -3,8 +3,8 @@
     <view class="profile-content">
       <PageHeader
         kicker="EXPLORER ARCHIVE"
-        :title="profileStats.title"
-        :subtitle="'世界树等级 Lv.' + profileStats.level + ' | ' + profileStats.totalProgress + '% 探索度'"
+        :title="explorerName"
+        :subtitle="profileStats.title + ' · 世界树等级 Lv.' + profileStats.level + ' | ' + profileStats.totalProgress + '% 探索度'"
       />
 
       <view class="profile-card">
@@ -148,6 +148,7 @@ import { db } from '@/db'
 import { state } from '@/state'
 import { exportArchive as buildArchive, importArchive as restoreArchive } from '@/backup'
 import { getAchievementBoard, getTitle } from '@/interactions/achievements.js'
+import { getCurrentUser } from '@/auth/user.js'
 import AnimNumber from '@/components/AnimNumber.vue'
 import BadgeShelf from '@/components/BadgeShelf.vue'
 import { Settings as SettingsIcon } from 'lucide-vue-next'
@@ -155,6 +156,7 @@ export default {
   components: { TabBar, PageHeader, AnimNumber, BadgeShelf, SettingsIcon },
   data() {
     return {
+      explorerName: '无名旅人',
       profileStats: {
         title: '见习记录员',
         level: 3,
@@ -185,6 +187,7 @@ export default {
     }
   },
   onShow() {
+    this.refreshExplorer()
     this.loadProfileData()
   },
   methods: {
@@ -197,6 +200,10 @@ export default {
 
       this.refreshAchievements()
       this.initDailyRune()
+    },
+    refreshExplorer() {
+      const user = getCurrentUser()
+      this.explorerName = user ? user.name : '无名旅人'
     },
     // 统一成就引擎（src/interactions/achievements.js）：称号墙与称号推导共用
     refreshAchievements() {
